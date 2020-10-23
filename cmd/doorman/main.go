@@ -2,7 +2,10 @@ package main
 
 import (
 	"log"
+	"math/rand"
+	"time"
 
+	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/api-doorman/internal/pkg/service"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -14,11 +17,24 @@ func main() {
 	cfg := defaultConfig()
 	envconfig.Process("", cfg)
 	setLogLevel(cfg)
+	rand.Seed(time.Now().UnixNano())
+
+	mongoSessionProvider, err := mongodb.NewSessionProvider(cfg.MongoURL)
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "Can't init mongo provider"))
+	}
+	defer mongoSessionProvider.Close()
 
 	data := service.Data{}
 	data.Config = cfg
 
-	err := service.StartWebServer(&data)
+	keysValidator, err := mongodb.NewKeyValidator(mongoSessionProvider)
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "Can't init saver"))
+	}
+	data.KeyValidator = keysValidator
+
+	err = service.StartWebServer(&data)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can't start the service"))
 	}

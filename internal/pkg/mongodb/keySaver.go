@@ -17,7 +17,7 @@ type KeySaver struct {
 	SessionProvider *SessionProvider
 }
 
-//NewKeySaver creates StatusSaver instance
+//NewKeySaver creates KeySaver instance
 func NewKeySaver(sessionProvider *SessionProvider) (*KeySaver, error) {
 	f := KeySaver{SessionProvider: sessionProvider}
 	return &f, nil
