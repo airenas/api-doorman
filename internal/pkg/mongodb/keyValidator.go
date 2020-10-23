@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
@@ -41,7 +40,7 @@ func (ss *KeyValidator) IsValid(key string) (bool, error) {
 	}
 	defer cursor.Close(ctx)
 	for cursor.Next(ctx) {
-		var res adminapi.Key
+		var res keyRecord
 		if err = cursor.Decode(&res); err != nil {
 			return false, errors.Wrap(err, "Can't get key")
 		}
@@ -52,4 +51,44 @@ func (ss *KeyValidator) IsValid(key string) (bool, error) {
 		return ok, nil
 	}
 	return false, nil
+}
+
+//SaveValidate add qv to quota and validates with quota limit
+func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, error) {
+	logrus.Infof("Validating key")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	session, err := ss.SessionProvider.NewSession()
+	if err != nil {
+		return false, err
+	}
+
+	defer session.EndSession(context.Background())
+	c := session.Client().Database(store).Collection(keyTable)
+
+	session.StartTransaction()
+	var res keyRecord
+	err = c.FindOne(ctx, bson.M{"key": key}).Decode(&res)
+	if err != nil {
+		return false, err
+	}
+	res.QuotaValue += qv
+	ok := true
+	if res.QuotaValue > (res.Limit - res.QuotaValueFailed) {
+		res.QuotaValueFailed += qv
+		ok = false
+	}
+	res.LastUsed = time.Now()
+	res.LastIP = ip
+
+	update := bson.M{"$set": bson.M{"quotaValue": res.QuotaValue, "quotaValueFailed": res.QuotaValueFailed,
+		"lastUsed": res.LastUsed, "lastIP": res.LastIP}}
+	err = c.FindOneAndUpdate(ctx, bson.M{"key": key}, update).Err()
+	if err != nil {
+		return false, err
+	}
+	session.CommitTransaction(ctx)
+
+	return ok, nil
 }

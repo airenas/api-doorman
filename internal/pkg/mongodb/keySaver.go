@@ -35,13 +35,13 @@ func (ss *KeySaver) Create(key *adminapi.Key) (*adminapi.Key, error) {
 	}
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(store).Collection(keyTable)
-	res := adminapi.Key{}
+	res := &keyRecord{}
 	res.Key = randkey.Generate()
 	res.Limit = key.Limit
 	res.ValidTo = key.ValidTo
-	// _, err = c.InsertOne(ctx, bson.M{"key": res.Key, "validTo": key.ValidTo.UnixNano(), "limit": key.Limit})
+	res.Created = time.Now()
 	_, err = c.InsertOne(ctx, res)
-	return &res, err
+	return mapTo(res), err
 }
 
 // List return all keys
@@ -63,11 +63,24 @@ func (ss *KeySaver) List() ([]*adminapi.Key, error) {
 	defer cursor.Close(ctx)
 	res := make([]*adminapi.Key, 0)
 	for cursor.Next(ctx) {
-		var key adminapi.Key
+		var key keyRecord
 		if err = cursor.Decode(&key); err != nil {
 			return nil, errors.Wrap(err, "Can't get key")
 		}
-		res = append(res, &key)
+		res = append(res, mapTo(&key))
 	}
 	return res, nil
+}
+
+func mapTo(v *keyRecord) *adminapi.Key {
+	res := &adminapi.Key{}
+	res.Key = v.Key
+	res.ValidTo = v.ValidTo
+	res.Limit = v.Limit
+	res.QuotaValue = v.QuotaValue - v.QuotaValueFailed
+	res.QuotaFailed = v.QuotaValueFailed
+	res.Created = v.Created
+	res.LastUsed = v.LastUsed
+	res.LastIP = v.LastIP
+	return res
 }

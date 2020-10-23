@@ -6,18 +6,10 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/airenas/api-doorman/internal/pkg/handler"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-)
-
-type key int
-
-const (
-	cKey key = iota
-	// ...
 )
 
 type (
@@ -30,8 +22,9 @@ type (
 
 	//Data is service operation data
 	Data struct {
-		Config       *Config
-		KeyValidator handler.KeyValidator
+		Config         *Config
+		KeyValidator   handler.KeyValidator
+		QuotaValidator handler.QuotaValidator
 	}
 )
 
@@ -60,18 +53,13 @@ func rewriteBody(resp *http.Response) (err error) {
 	return nil
 }
 
-func getIP(r *http.Request) string {
-	forwarded := r.Header.Get("X-FORWARDED-FOR")
-	if forwarded != "" {
-		return strings.Split(forwarded, ":")[0]
-	}
-	return r.RemoteAddr
-}
-
 //StartWebServer starts the HTTP service and listens for the requests
 func StartWebServer(data *Data) error {
 	logrus.Infof("Starting HTTP service at %d", data.Config.Port)
-	http.Handle("/", handler.NewKeyExtract(handler.KeyValid(&mainHandler{}, data.KeyValidator)))
+	http.Handle("/", handler.NewKeyExtract(handler.KeyValid(
+		handler.RequestAsQuota(
+			handler.QuotaValidate(
+				&mainHandler{}, data.QuotaValidator)), data.KeyValidator)))
 	portStr := strconv.Itoa(data.Config.Port)
 	err := http.ListenAndServe(":"+portStr, nil)
 

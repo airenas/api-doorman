@@ -33,6 +33,7 @@ func main() {
 		log.Fatal(errors.Wrap(err, "Can't init saver"))
 	}
 	data.KeyValidator = keysValidator
+	data.QuotaValidator = keysValidator
 
 	err = service.StartWebServer(&data)
 	if err != nil {
