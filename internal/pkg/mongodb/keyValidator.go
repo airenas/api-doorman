@@ -47,6 +47,11 @@ func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
 		ok := res.ValidTo.After(time.Now())
 		if !ok {
 			logrus.Infof("Key expired")
+			return ok, nil
+		}
+		ok = !res.Disabled
+		if !ok {
+			logrus.Infof("Key disabled")
 		}
 		return ok, nil
 	}
