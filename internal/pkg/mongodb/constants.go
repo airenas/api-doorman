@@ -1,10 +1,11 @@
 package mongodb
 
 const (
-	store        = "doorman"
-	keyTable     = "key"
-	requestTable = "request"
+	store    = "doorman"
+	keyTable = "key"
+	logTable = "log"
 )
 
 var indexData = []IndexData{
-	newIndexData(keyTable, "key", true)}
+	newIndexData(keyTable, []string{"key", "manual"}, true),
+	newIndexData(logTable, []string{"key"}, false)}

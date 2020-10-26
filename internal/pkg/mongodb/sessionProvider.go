@@ -14,13 +14,13 @@ import (
 //IndexData keeps index creation data
 type IndexData struct {
 	Table  string
-	Field  string
+	Fields []string
 	Unique bool
 }
 
 //NewIndexData creates index data
-func newIndexData(table string, field string, unique bool) IndexData {
-	return IndexData{Table: table, Field: field, Unique: unique}
+func newIndexData(table string, fields []string, unique bool) IndexData {
+	return IndexData{Table: table, Fields: fields, Unique: unique}
 }
 
 //SessionProvider connects and provides session for mongo DB
@@ -79,7 +79,7 @@ func checkIndexes(s *mongo.Client, indexes []IndexData) error {
 	for _, index := range indexes {
 		err := checkIndex(session, index)
 		if err != nil {
-			return errors.Wrap(err, "Can't create index: "+index.Table+":"+index.Field)
+			return errors.Wrapf(err, "Can't create index: %s:%v", index.Table, index.Fields)
 		}
 	}
 	return nil
@@ -87,14 +87,14 @@ func checkIndexes(s *mongo.Client, indexes []IndexData) error {
 
 func checkIndex(s mongo.Session, indexData IndexData) error {
 	c := s.Client().Database(store).Collection(indexData.Table)
-	keys := bsonx.Doc{{Key: indexData.Field, Value: bsonx.Int32(int32(1))}}
-	tv := true
+	keys := bsonx.Doc{}
+	for _, f := range indexData.Fields {
+		keys = keys.Append(f, bsonx.Int32(int32(1)))
+	}
 	index := mongo.IndexModel{
-		Keys: keys,
-		Options: &options.IndexOptions{Unique: &indexData.Unique,
-			Background: &tv,
-			Sparse:     &tv,
-		}}
+		Keys:    keys,
+		Options: options.Index().SetUnique(indexData.Unique).SetBackground(true).SetSparse(true),
+	}
 	_, err := c.Indexes().CreateOne(context.Background(), index)
 	return err
 }

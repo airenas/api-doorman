@@ -30,11 +30,23 @@ type (
 		List() ([]*adminapi.Key, error)
 	}
 
+	// OneKeyRetriever retrieves one list from db
+	OneKeyRetriever interface {
+		Get(key string) (*adminapi.Key, error)
+	}
+
+	// LogRetriever retrieves one list from db
+	LogRetriever interface {
+		Get(key string) ([]*adminapi.Log, error)
+	}
+
 	//Data is service operation data
 	Data struct {
-		Config    *Config
-		KeySaver  KeyCreator
-		KeyGetter KeyRetriever
+		Config       *Config
+		KeySaver     KeyCreator
+		KeyGetter    KeyRetriever
+		OneKeyGetter OneKeyRetriever
+		LogGetter    LogRetriever
 	}
 )
 
@@ -57,6 +69,7 @@ func NewRouter(data *Data) *mux.Router {
 	router := mux.NewRouter()
 	router.Methods("POST").Path("/key").Handler(&keyAddHandler{data: data})
 	router.Methods("GET").Path("/key-list").Handler(&keyListHandler{data: data})
+	router.Methods("GET").Path("/key/{key}").Handler(&keyInfoHandler{data: data})
 	return router
 }
 
@@ -123,6 +136,61 @@ func (h *keyListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
 	err = encoder.Encode(&keyResp)
+	if err != nil {
+		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
+		logrus.Error(err)
+	}
+}
+
+type keyInfoHandler struct {
+	data *Data
+}
+
+type keyInfoResp struct {
+	Key  *adminapi.Key   `json:"key,omitempty"`
+	Logs []*adminapi.Log `json:"logs,omitempty"`
+}
+
+func (h *keyInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	logrus.Infof("Request key from %s", r.Host)
+	key := mux.Vars(r)["key"]
+	if key == "" {
+		http.Error(w, "No Key", http.StatusBadRequest)
+		logrus.Errorf("No Key")
+		return
+	}
+	query := r.URL.Query()
+	qf, pf := query["full"]
+	full := false
+	if pf && len(qf) > 0 && qf[0] == "1" {
+		full = true
+	}
+
+	res := &keyInfoResp{}
+	var err error
+	res.Key, err = h.data.OneKeyGetter.Get(key)
+	if err != nil {
+		http.Error(w, "Service error", http.StatusInternalServerError)
+		logrus.Error("Can't get key. ", err)
+		return
+	}
+	if res.Key == nil {
+		http.Error(w, "Key not found", http.StatusBadRequest)
+		logrus.Error("Key not found.")
+		return
+	}
+	if full {
+		res.Logs, err = h.data.LogGetter.Get(key)
+		if err != nil {
+			http.Error(w, "Service error", http.StatusInternalServerError)
+			logrus.Error("Can't get logs. ", err)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	err = encoder.Encode(&res)
 	if err != nil {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
 		logrus.Error(err)

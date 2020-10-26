@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"net/http"
 )
 
@@ -17,9 +16,9 @@ func RequestAsQuota(next http.Handler) http.Handler {
 }
 
 func (h *requestAsQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, CtxQuotaValue, float64(1))
+	rn, ctx := customContext(r)
+	ctx.QuotaValue = 1
 	if h.next != nil {
-		h.next.ServeHTTP(w, r.WithContext(ctx))
+		h.next.ServeHTTP(w, rn)
 	}
 }

@@ -32,6 +32,13 @@ func main() {
 		log.Fatal(errors.Wrap(err, "Can't init saver"))
 	}
 	data.KeyGetter, data.KeySaver = keysManager, keysManager
+	data.OneKeyGetter = keysManager
+
+	logManager, err := mongodb.NewLogSaver(mongoSessionProvider)
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "Can't init log saver"))
+	}
+	data.LogGetter = logManager
 
 	err = admin.StartWebServer(&data)
 	if err != nil {

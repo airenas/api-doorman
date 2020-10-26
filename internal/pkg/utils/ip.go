@@ -9,7 +9,11 @@ import (
 func ExtractIP(r *http.Request) string {
 	forwarded := r.Header.Get("X-FORWARDED-FOR")
 	if forwarded != "" {
-		return strings.Split(forwarded, ":")[0]
+		return trimPort(forwarded)
 	}
-	return r.RemoteAddr
+	return trimPort(r.RemoteAddr)
+}
+
+func trimPort(s string) string {
+	return strings.Split(s, ":")[0]
 }

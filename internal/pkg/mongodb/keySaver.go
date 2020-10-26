@@ -40,6 +40,7 @@ func (ss *KeySaver) Create(key *adminapi.Key) (*adminapi.Key, error) {
 	res.Limit = key.Limit
 	res.ValidTo = key.ValidTo
 	res.Created = time.Now()
+	res.Manual = true
 	_, err = c.InsertOne(ctx, res)
 	return mapTo(res), err
 }
@@ -72,9 +73,37 @@ func (ss *KeySaver) List() ([]*adminapi.Key, error) {
 	return res, nil
 }
 
+// Get return one key record
+func (ss *KeySaver) Get(key string) (*adminapi.Key, error) {
+	logrus.Infof("getting list")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	session, err := ss.SessionProvider.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	defer session.EndSession(context.Background())
+	c := session.Client().Database(store).Collection(keyTable)
+	cursor, err := c.Find(ctx, bson.M{"key": key})
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't get keys")
+	}
+	defer cursor.Close(ctx)
+	for cursor.Next(ctx) {
+		var key keyRecord
+		if err = cursor.Decode(&key); err != nil {
+			return nil, errors.Wrap(err, "Can't get key")
+		}
+		return mapTo(&key), nil
+	}
+	return nil, nil
+}
+
 func mapTo(v *keyRecord) *adminapi.Key {
 	res := &adminapi.Key{}
 	res.Key = v.Key
+	res.Manual = v.Manual
 	res.ValidTo = v.ValidTo
 	res.Limit = v.Limit
 	res.QuotaValue = v.QuotaValue - v.QuotaValueFailed

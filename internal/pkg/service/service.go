@@ -13,6 +13,7 @@ import (
 )
 
 type (
+
 	//Config is a struct to contain all the needed configuration for our Service
 	Config struct {
 		Port       int    `envconfig:"HTTP_PORT"`
@@ -20,11 +21,18 @@ type (
 		MongoURL   string `envconfig:"MONGO_URL"`
 	}
 
+	//IPManager manages IP in DB
+	IPManager interface {
+		CheckCreate(string, float64) error
+	}
+
 	//Data is service operation data
 	Data struct {
 		Config         *Config
 		KeyValidator   handler.KeyValidator
 		QuotaValidator handler.QuotaValidator
+		LogSaver       handler.DBSaver
+		IPSaver        IPManager
 	}
 )
 
@@ -33,7 +41,8 @@ type mainHandler struct {
 }
 
 func (t *mainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	url, _ := url.Parse("http://localhost:80/")
+	// url, _ := url.Parse("http://localhost:80/")
+	url, _ := url.Parse("http://list.airenas.eu:6080/")
 	proxy := httputil.NewSingleHostReverseProxy(url)
 
 	// Update the headers to allow for SSL redirection
@@ -56,10 +65,21 @@ func rewriteBody(resp *http.Response) (err error) {
 //StartWebServer starts the HTTP service and listens for the requests
 func StartWebServer(data *Data) error {
 	logrus.Infof("Starting HTTP service at %d", data.Config.Port)
-	http.Handle("/", handler.NewKeyExtract(handler.KeyValid(
-		handler.RequestAsQuota(
-			handler.QuotaValidate(
-				&mainHandler{}, data.QuotaValidator)), data.KeyValidator)))
+	// http.Handle("/", handler.NewKeyExtract(handler.KeyValid(
+	// 	handler.RequestAsQuota(
+	// 		handler.QuotaValidate(
+	// 			&mainHandler{}, data.QuotaValidator)), data.KeyValidator)))
+
+	h := handler.Proxy("http://list.airenas.eu:6080/")
+	h = handler.QuotaValidate(h, data.QuotaValidator)
+	h = handler.TakeJSON(handler.JSONAsQuota(h), "text")
+	h = handler.LogDB(h, data.LogSaver)
+	hKey := handler.KeyValid(h, data.KeyValidator)
+	hIP := handler.IPAsKey(hKey, getIPSaver(data))
+	hKeyIP := handler.KeyValidOrIP(hKey, hIP)
+	h = handler.KeyExtract(hKeyIP)
+
+	http.Handle("/", h)
 	portStr := strconv.Itoa(data.Config.Port)
 	err := http.ListenAndServe(":"+portStr, nil)
 
@@ -67,4 +87,11 @@ func StartWebServer(data *Data) error {
 		return errors.Wrap(err, "Can't start HTTP listener at port "+portStr)
 	}
 	return nil
+}
+
+func getIPSaver(data *Data) handler.IPSaver {
+	res := &ipSaver{}
+	res.saver = data.IPSaver
+	res.limit = 100
+	return res
 }

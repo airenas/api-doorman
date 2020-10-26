@@ -20,5 +20,5 @@ volumes:
   mongo:
     driver_opts:
       type: none
-      device: ./mongo
+      device: ./.mongo
       o: bind

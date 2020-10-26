@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/sirupsen/logrus"
@@ -9,7 +8,7 @@ import (
 
 //KeyValidator validator
 type KeyValidator interface {
-	IsValid(string) (bool, error)
+	IsValid(string, bool) (bool, error)
 }
 
 type keyValid struct {
@@ -26,10 +25,8 @@ func KeyValid(next http.Handler, kv KeyValidator) http.Handler {
 }
 
 func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	key, _ := r.Context().Value(CtxKey).(string)
-	log.Println("Url Param 'key' is: " + string(key))
-
-	ok, err := h.kv.IsValid(key)
+	rn, ctx := customContext(r)
+	ok, err := h.kv.IsValid(ctx.Key, ctx.Manual)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
 		logrus.Error("Can't check key. ", err)
@@ -41,6 +38,6 @@ func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.next != nil {
-		h.next.ServeHTTP(w, r)
+		h.next.ServeHTTP(w, rn)
 	}
 }

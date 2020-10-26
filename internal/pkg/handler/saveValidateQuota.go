@@ -26,23 +26,24 @@ func QuotaValidate(next http.Handler, qv QuotaValidator) http.Handler {
 }
 
 func (h *quotaSaveValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	key, _ := r.Context().Value(CtxKey).(string)
-	quotaV, _ := r.Context().Value(CtxQuotaValue).(float64)
-	logrus.Infof("Url Param 'key' is: " + string(key))
+	rn, ctx := customContext(r)
+	quotaV := ctx.QuotaValue
 	logrus.Infof("Quota value: %f", quotaV)
 
-	ok, err := h.qv.SaveValidate(key, utils.ExtractIP(r), quotaV)
+	ok, err := h.qv.SaveValidate(ctx.Key, utils.ExtractIP(rn), quotaV)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
 		logrus.Error("Can't save quota/validate key. ", err)
+		ctx.ResponseCode = http.StatusInternalServerError
 		return
 	}
 	if !ok {
 		http.Error(w, "Quota reached", http.StatusForbidden)
+		ctx.ResponseCode = http.StatusForbidden
 		return
 	}
 
 	if h.next != nil {
-		h.next.ServeHTTP(w, r)
+		h.next.ServeHTTP(w, rn)
 	}
 }

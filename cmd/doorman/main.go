@@ -35,6 +35,16 @@ func main() {
 	data.KeyValidator = keysValidator
 	data.QuotaValidator = keysValidator
 
+	saver, err := mongodb.NewLogSaver(mongoSessionProvider)
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "Can't init log saver"))
+	}
+	data.LogSaver = saver
+	data.IPSaver, err = mongodb.NewIPSaver(mongoSessionProvider)
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "Can't init IP saver"))
+	}
+
 	err = service.StartWebServer(&data)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can't start the service"))

@@ -1,4 +1,4 @@
 go.sum
-deploy/local/mongo/**
+deploy/local/.mongo/**
 .vscode/**
 deploy/local/.env

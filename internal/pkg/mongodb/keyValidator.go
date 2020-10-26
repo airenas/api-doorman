@@ -22,7 +22,7 @@ func NewKeyValidator(sessionProvider *SessionProvider) (*KeyValidator, error) {
 }
 
 // IsValid validates key
-func (ss *KeyValidator) IsValid(key string) (bool, error) {
+func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
 	logrus.Infof("Validating key")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -34,7 +34,7 @@ func (ss *KeyValidator) IsValid(key string) (bool, error) {
 
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(store).Collection(keyTable)
-	cursor, err := c.Find(ctx, bson.M{"key": key}, options.Find().SetLimit(1))
+	cursor, err := c.Find(ctx, bson.M{"key": key, "manual": manual}, options.Find().SetLimit(1))
 	if err != nil {
 		return false, errors.Wrap(err, "Can't get keys")
 	}
@@ -75,7 +75,7 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, e
 	}
 	res.QuotaValue += qv
 	ok := true
-	if res.QuotaValue > (res.Limit - res.QuotaValueFailed) {
+	if res.Limit < (res.QuotaValue - res.QuotaValueFailed) {
 		res.QuotaValueFailed += qv
 		ok = false
 	}
