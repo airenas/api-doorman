@@ -59,14 +59,14 @@ func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
 }
 
 //SaveValidate add qv to quota and validates with quota limit
-func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, error) {
+func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, float64, float64, error) {
 	logrus.Infof("Validating key")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
-		return false, err
+		return false, 0, 0, err
 	}
 
 	defer session.EndSession(context.Background())
@@ -76,7 +76,7 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, e
 	var res keyRecord
 	err = c.FindOne(ctx, bson.M{"key": key}).Decode(&res)
 	if err != nil {
-		return false, err
+		return false, 0, 0, err
 	}
 	res.QuotaValue += qv
 	ok := true
@@ -91,9 +91,9 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, e
 		"lastUsed": res.LastUsed, "lastIP": res.LastIP}}
 	err = c.FindOneAndUpdate(ctx, bson.M{"key": key}, update).Err()
 	if err != nil {
-		return false, err
+		return false, 0, 0, err
 	}
 	session.CommitTransaction(ctx)
 
-	return ok, nil
+	return ok, res.Limit - (res.QuotaValue - res.QuotaValueFailed), res.Limit, nil
 }

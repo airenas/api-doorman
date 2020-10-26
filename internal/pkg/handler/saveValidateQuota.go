@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/airenas/api-doorman/internal/pkg/utils"
@@ -9,7 +10,7 @@ import (
 
 //QuotaValidator validator
 type QuotaValidator interface {
-	SaveValidate(string, string, float64) (bool, error)
+	SaveValidate(string, string, float64) (bool, float64, float64, error)
 }
 
 type quotaSaveValidate struct {
@@ -30,19 +31,24 @@ func (h *quotaSaveValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	quotaV := ctx.QuotaValue
 	logrus.Infof("Quota value: %f", quotaV)
 
-	ok, err := h.qv.SaveValidate(ctx.Key, utils.ExtractIP(rn), quotaV)
+	ok, rem, tot, err := h.qv.SaveValidate(ctx.Key, utils.ExtractIP(rn), quotaV)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
 		logrus.Error("Can't save quota/validate key. ", err)
 		ctx.ResponseCode = http.StatusInternalServerError
 		return
 	}
+	if rem >= 0 {
+		w.Header().Set("X-Rate-Limit-Remaining", fmt.Sprintf("%.0f", rem))
+	}
+	if tot >= 0 {
+		w.Header().Set("X-Rate-Limit-Limit", fmt.Sprintf("%.0f", tot))
+	}
 	if !ok {
 		http.Error(w, "Quota reached", http.StatusForbidden)
 		ctx.ResponseCode = http.StatusForbidden
 		return
 	}
-
 	if h.next != nil {
 		h.next.ServeHTTP(w, rn)
 	}
