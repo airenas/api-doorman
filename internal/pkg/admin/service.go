@@ -25,6 +25,11 @@ type (
 		Create(*adminapi.Key) (*adminapi.Key, error)
 	}
 
+	// KeyUpdater creates key
+	KeyUpdater interface {
+		Update(string, map[string]interface{}) (*adminapi.Key, error)
+	}
+
 	// KeyRetriever gets keys list from db
 	KeyRetriever interface {
 		List() ([]*adminapi.Key, error)
@@ -42,11 +47,12 @@ type (
 
 	//Data is service operation data
 	Data struct {
-		Config       *Config
-		KeySaver     KeyCreator
-		KeyGetter    KeyRetriever
-		OneKeyGetter OneKeyRetriever
-		LogGetter    LogRetriever
+		Config        *Config
+		KeySaver      KeyCreator
+		KeyGetter     KeyRetriever
+		OneKeyGetter  OneKeyRetriever
+		LogGetter     LogRetriever
+		OneKeyUpdater KeyUpdater
 	}
 )
 
@@ -70,6 +76,7 @@ func NewRouter(data *Data) *mux.Router {
 	router.Methods("POST").Path("/key").Handler(&keyAddHandler{data: data})
 	router.Methods("GET").Path("/key-list").Handler(&keyListHandler{data: data})
 	router.Methods("GET").Path("/key/{key}").Handler(&keyInfoHandler{data: data})
+	router.Methods("PATCH").Path("/key/{key}").Handler(&keyUpdateHandler{data: data})
 	return router
 }
 
@@ -191,6 +198,46 @@ func (h *keyInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
 	err = encoder.Encode(&res)
+	if err != nil {
+		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
+		logrus.Error(err)
+	}
+}
+
+type keyUpdateHandler struct {
+	data *Data
+}
+
+func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	logrus.Infof("Request from %s", r.Host)
+
+	key := mux.Vars(r)["key"]
+	if key == "" {
+		http.Error(w, "No Key", http.StatusBadRequest)
+		logrus.Errorf("No Key")
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var input map[string]interface{}
+	err := decoder.Decode(&input)
+	if err != nil {
+		http.Error(w, "Cannot decode input", http.StatusBadRequest)
+		logrus.Error("Cannot decode input" + err.Error())
+		return
+	}
+
+	keyResp, err := h.data.OneKeyUpdater.Update(key, input)
+
+	if err != nil {
+		http.Error(w, "Service error", http.StatusInternalServerError)
+		logrus.Error("Can't create key. ", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	err = encoder.Encode(&keyResp)
 	if err != nil {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
 		logrus.Error(err)

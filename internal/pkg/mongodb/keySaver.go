@@ -10,6 +10,7 @@ import (
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // KeySaver saves keys to mongo db
@@ -100,6 +101,60 @@ func (ss *KeySaver) Get(key string) (*adminapi.Key, error) {
 	return nil, nil
 }
 
+//Update update key record
+func (ss *KeySaver) Update(key string, data map[string]interface{}) (*adminapi.Key, error) {
+	logrus.Infof("Updating key")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	session, err := ss.SessionProvider.NewSession()
+	if err != nil {
+		return nil, err
+	}
+
+	defer session.EndSession(context.Background())
+	c := session.Client().Database(store).Collection(keyTable)
+
+	session.StartTransaction()
+	var res keyRecord
+	err = c.FindOne(ctx, bson.M{"key": key}).Decode(&res)
+	if err != nil {
+		return nil, err
+	}
+
+	updates := bson.M{}
+	for k, v := range data {
+		var err error
+		ok := true
+		if k == "limit" {
+			updates["limit"], ok = v.(float64)
+		} else if k == "validTo" {
+			updates["validTo"], ok = v.(time.Time)
+		} else if k == "disabled" {
+			updates["disabled"], ok = v.(bool)
+		} else {
+			err = errors.New("Unknown field " + k)
+		}
+		if !ok {
+			return nil, errors.Errorf("Can't parse %s: '%s'", k, v)
+		}
+		if err != nil {
+			return nil, errors.Wrap(err, "Can't parse input")
+		}
+	}
+	updates["updated"] = time.Now()
+
+	update := bson.M{"$set": updates}
+	err = c.FindOneAndUpdate(ctx, bson.M{"key": key}, update,
+		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&res)
+	if err != nil {
+		return nil, err
+	}
+	session.CommitTransaction(ctx)
+
+	return mapTo(&res), nil
+}
+
 func mapTo(v *keyRecord) *adminapi.Key {
 	res := &adminapi.Key{}
 	res.Key = v.Key
@@ -111,5 +166,7 @@ func mapTo(v *keyRecord) *adminapi.Key {
 	res.Created = v.Created
 	res.LastUsed = v.LastUsed
 	res.LastIP = v.LastIP
+	res.Updated = v.Updated
+	res.Disabled = v.Disabled
 	return res
 }

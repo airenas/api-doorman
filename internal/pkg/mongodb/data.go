@@ -10,6 +10,7 @@ type keyRecord struct {
 	QuotaValue       float64   `json:"quotaValue,omitempty"`
 	QuotaValueFailed float64   `json:"quotaValueFailed,omitempty"`
 	Created          time.Time `json:"created,omitempty"`
+	Updated          time.Time `json:"updated,omitempty"`
 	LastUsed         time.Time `json:"lastUsed,omitempty"`
 	LastIP           string    `json:"lastIP,omitempty"`
 	Disabled         bool      `json:"disabled,omitempty"`

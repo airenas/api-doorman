@@ -11,6 +11,7 @@ type Key struct {
 	QuotaValue  float64   `json:"quotaValue,omitempty"`
 	QuotaFailed float64   `json:"quotaFailed,omitempty"`
 	Created     time.Time `json:"created,omitempty"`
+	Updated     time.Time `json:"updated,omitempty"`
 	LastUsed    time.Time `json:"lastUsed,omitempty"`
 	LastIP      string    `json:"lastIP,omitempty"`
 	Disabled    bool      `json:"disabled,omitempty"`
