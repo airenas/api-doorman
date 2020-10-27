@@ -13,13 +13,6 @@ import (
 )
 
 type (
-	//Config is a struct to contain all the needed configuration for our Service
-	Config struct {
-		Port       int    `envconfig:"HTTP_PORT"`
-		DebugLevel string `envconfig:"DEBUG_LEVEL"`
-		MongoURL   string `envconfig:"MONGO_URL"`
-	}
-
 	// KeyCreator creates key
 	KeyCreator interface {
 		Create(*adminapi.Key) (*adminapi.Key, error)
@@ -47,7 +40,8 @@ type (
 
 	//Data is service operation data
 	Data struct {
-		Config        *Config
+		Port int
+
 		KeySaver      KeyCreator
 		KeyGetter     KeyRetriever
 		OneKeyGetter  OneKeyRetriever
@@ -58,10 +52,10 @@ type (
 
 //StartWebServer starts the HTTP service and listens for the admin requests
 func StartWebServer(data *Data) error {
-	logrus.Infof("Starting HTTP doorman admin service at %d", data.Config.Port)
+	logrus.Infof("Starting HTTP doorman admin service at %d", data.Port)
 	r := NewRouter(data)
 	http.Handle("/", r)
-	portStr := strconv.Itoa(data.Config.Port)
+	portStr := strconv.Itoa(data.Port)
 	err := http.ListenAndServe(":"+portStr, nil)
 
 	if err != nil {

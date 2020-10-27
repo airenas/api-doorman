@@ -1,32 +1,42 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"time"
+
+	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin"
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-
-	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
-	cfg := defaultConfig()
-	envconfig.Process("", cfg)
-	setLogLevel(cfg)
+	cFile := flag.String("c", "", "Config yml file")
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:[params] \n", os.Args[0])
+		flag.PrintDefaults()
+	}
+	flag.Parse()
+	err := cmdapp.InitConfig(*cFile)
+	if err != nil {
+		cmdapp.Log.Fatal(errors.Wrap(err, "Can't init app"))
+	}
+
 	rand.Seed(time.Now().UnixNano())
 
-	mongoSessionProvider, err := mongodb.NewSessionProvider(cfg.MongoURL)
+	mongoSessionProvider, err := mongodb.NewSessionProvider(cmdapp.Config.GetString("mongo.url"))
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can't init mongo provider"))
 	}
 	defer mongoSessionProvider.Close()
 
 	data := admin.Data{}
-	data.Config = cfg
+	data.Port = cmdapp.Config.GetInt("port")
 	keysManager, err := mongodb.NewKeySaver(mongoSessionProvider)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can't init saver"))
@@ -44,21 +54,4 @@ func main() {
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can't start the service"))
 	}
-}
-
-func defaultConfig() *admin.Config {
-	res := admin.Config{}
-	res.Port = 8001
-	res.DebugLevel = logrus.InfoLevel.String()
-	return &res
-}
-
-func setLogLevel(cfg *admin.Config) {
-	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
-	l, err := logrus.ParseLevel(cfg.DebugLevel)
-	if err != nil {
-		logrus.Error(err)
-		return
-	}
-	logrus.SetLevel(l)
 }
