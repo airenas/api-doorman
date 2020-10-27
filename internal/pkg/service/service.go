@@ -1,87 +1,79 @@
 package service
 
 import (
-	"log"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"strconv"
+	"strings"
 
+	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/airenas/api-doorman/internal/pkg/handler"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type (
-
-	//Config is a struct to contain all the needed configuration for our Service
-	Config struct {
-		Port       int    `envconfig:"HTTP_PORT"`
-		DebugLevel string `envconfig:"DEBUG_LEVEL"`
-		MongoURL   string `envconfig:"MONGO_URL"`
-	}
-
 	//IPManager manages IP in DB
 	IPManager interface {
 		CheckCreate(string, float64) error
 	}
 
+	//ProxyRoute keeps config for one proxy route
+	ProxyRoute struct {
+		BackendURL   string
+		PrefixURL    string
+		Method       string
+		QuotaType    string
+		QuotaField   string
+		DefaultLimit float64
+	}
+
 	//Data is service operation data
 	Data struct {
-		Config         *Config
+		Port           int
 		KeyValidator   handler.KeyValidator
 		QuotaValidator handler.QuotaValidator
 		LogSaver       handler.DBSaver
 		IPSaver        IPManager
+		Proxy          ProxyRoute
 	}
 )
 
 type mainHandler struct {
-	data *Data
+	data     *Data
+	handlers []*hWrap
+	def      http.Handler
 }
 
-func (t *mainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// url, _ := url.Parse("http://localhost:80/")
-	url, _ := url.Parse("http://list.airenas.eu:6080/")
-	proxy := httputil.NewSingleHostReverseProxy(url)
-
-	// Update the headers to allow for SSL redirection
-	r.URL.Host = url.Host
-	r.URL.Scheme = url.Scheme
-	r.Header.Set("X-Forwarded-Host", r.Header.Get("Host"))
-	r.Host = url.Host
-
-	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	proxy.ModifyResponse = rewriteBody
-	proxy.ServeHTTP(w, r)
+type hWrap struct {
+	prefix string
+	method string
+	h      http.Handler
 }
 
-func rewriteBody(resp *http.Response) (err error) {
-	log.Printf("Resp: %d", resp.StatusCode)
-	resp.Header.Set("olia", "oooo")
-	return nil
+func (h *mainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+	path = strings.ToLower(path)
+	for _, hi := range h.handlers {
+		if strings.HasPrefix(path, hi.prefix) && hi.method == r.Method {
+			cmdapp.Log.Info("Serving " + hi.prefix)
+			hi.h.ServeHTTP(w, r)
+			return
+		}
+	}
+	cmdapp.Log.Info("Serving default")
+	h.def.ServeHTTP(w, r)
 }
 
 //StartWebServer starts the HTTP service and listens for the requests
 func StartWebServer(data *Data) error {
-	logrus.Infof("Starting HTTP service at %d", data.Config.Port)
-	// http.Handle("/", handler.NewKeyExtract(handler.KeyValid(
-	// 	handler.RequestAsQuota(
-	// 		handler.QuotaValidate(
-	// 			&mainHandler{}, data.QuotaValidator)), data.KeyValidator)))
-
-	h := handler.Proxy("http://list.airenas.eu:6080/")
-	h = handler.QuotaValidate(h, data.QuotaValidator)
-	h = handler.TakeJSON(handler.JSONAsQuota(h), "text")
-	h = handler.LogDB(h, data.LogSaver)
-	hKey := handler.KeyValid(h, data.KeyValidator)
-	hIP := handler.IPAsKey(hKey, getIPSaver(data))
-	hKeyIP := handler.KeyValidOrIP(hKey, hIP)
-	h = handler.KeyExtract(hKeyIP)
+	cmdapp.Log.Infof("Starting HTTP service at %d", data.Port)
+	h, err := newMainHandler(data)
+	if err != nil {
+		return errors.Wrap(err, "Can't init handlers")
+	}
 
 	http.Handle("/", h)
-	portStr := strconv.Itoa(data.Config.Port)
-	err := http.ListenAndServe(":"+portStr, nil)
+	portStr := strconv.Itoa(data.Port)
+	err = http.ListenAndServe(":"+portStr, nil)
 
 	if err != nil {
 		return errors.Wrap(err, "Can't start HTTP listener at port "+portStr)
@@ -92,6 +84,47 @@ func StartWebServer(data *Data) error {
 func getIPSaver(data *Data) handler.IPSaver {
 	res := &ipSaver{}
 	res.saver = data.IPSaver
-	res.limit = 100
+	res.limit = data.Proxy.DefaultLimit
 	return res
+}
+
+func newMainHandler(data *Data) (http.Handler, error) {
+	res := &mainHandler{}
+	if data.Proxy.BackendURL == "" {
+		return nil, errors.New("No backend")
+	}
+	cmdapp.Log.Infof("Backend: %s", data.Proxy.BackendURL)
+	res.def = handler.Proxy(data.Proxy.BackendURL)
+	if data.Proxy.PrefixURL == "" {
+		return nil, errors.New("No prefix URL")
+	}
+	if data.Proxy.Method == "" {
+		return nil, errors.New("No proxy method")
+	}
+	if data.Proxy.QuotaType == "" {
+		return nil, errors.New("No proxy quota type")
+	}
+	hw := &hWrap{}
+	res.handlers = append(res.handlers, hw)
+	hw.prefix = strings.ToLower(data.Proxy.PrefixURL)
+	hw.method = data.Proxy.Method
+	cmdapp.Log.Infof("PrefixURL: %s", hw.prefix)
+
+	h := handler.QuotaValidate(res.def, data.QuotaValidator)
+	if data.Proxy.QuotaType == "json" {
+		cmdapp.Log.Infof("Quota extract: %s(%s)", data.Proxy.QuotaType, data.Proxy.QuotaField)
+		h = handler.TakeJSON(handler.JSONAsQuota(h), data.Proxy.QuotaField)
+	} else {
+		return nil, errors.Errorf("Unknown proxy quota type '%s'", data.Proxy.QuotaType)
+	}
+	h = handler.LogDB(h, data.LogSaver)
+	hKey := handler.KeyValid(h, data.KeyValidator)
+	if data.Proxy.DefaultLimit > 0 {
+		cmdapp.Log.Infof("Default IP quota: %.f", data.Proxy.DefaultLimit)
+		hIP := handler.IPAsKey(hKey, getIPSaver(data))
+		hKey = handler.KeyValidOrIP(hKey, hIP)
+	}
+	hw.h = handler.KeyExtract(hKey)
+
+	return res, nil
 }

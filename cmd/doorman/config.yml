@@ -1,0 +1,9 @@
+port: 8000 
+proxy:
+    backend: http://list.airenas.eu:6080/
+    prefixURL: /synthesis.service/synthesizer
+    method: POST
+    quota:
+        type: json
+        field: text
+        default: 15
