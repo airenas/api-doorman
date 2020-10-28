@@ -1,5 +1,6 @@
 go.sum
-deploy/local/.mongo/**
+**/.mongo/**
 .vscode/**
 deploy/local/.env
 Makefile.option
+deploy/**/data/**

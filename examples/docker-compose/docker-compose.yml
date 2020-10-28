@@ -1,0 +1,30 @@
+version: '3.7'
+
+services:
+  doorman:
+    image: airenas/api-doorman:${DOORMAN_VERSION}
+    ports:
+      - "${DOORMAN_PORT}:8000"
+    environment:
+      MONGO_URL: "${MONGO_URL}"  
+    # restart: unless-stopped
+
+  doorman-admin:
+    image: airenas/api-doorman-admin:${ADMIN_VERSION}
+    ports:
+      - "${ADMIN_PORT}:8000"
+    environment:
+      MONGO_URL: "${MONGO_URL}"  
+    # restart: unless-stopped
+
+  mongo:
+    image: mongo:4.4.1
+    environment:
+      MONGO_DATA_DIR: "/data/db"
+      MONGO_LOG_DIR: "/dev/null"
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+    volumes:
+      - ./.mongo:/data/db
+    # restart: unless-stopped     
+    command: mongod --logpath=/dev/null # --quiet
