@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"net/url"
 )
 
 //KeyExtract extract key from request and put into context
@@ -23,6 +24,9 @@ func (h *keyExtract) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		key := keys[0]
 		ctx.Key = key
 		ctx.Manual = true
+		q, _ := url.ParseQuery(rn.URL.RawQuery)
+		q.Del("key")
+		rn.URL.RawQuery = q.Encode()
 	}
 	if h.next != nil {
 		h.next.ServeHTTP(w, rn)

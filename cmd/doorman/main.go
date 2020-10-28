@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/airenas/api-doorman/internal/pkg/audio"
+
 	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/api-doorman/internal/pkg/service"
@@ -54,6 +56,14 @@ func main() {
 	if err != nil {
 		cmdapp.Log.Fatal(errors.Wrap(err, "Can't init IP saver"))
 	}
+	dsURL := cmdapp.Config.GetString("proxy.quota.service")
+	if dsURL != "" {
+		data.DurationService, err = audio.NewDurationClient(dsURL)
+		if err != nil {
+			cmdapp.Log.Fatal(errors.Wrap(err, "Can't init Duration service"))
+		}
+		cmdapp.Log.Infof("Duration service: %s", dsURL)
+	}
 
 	err = service.StartWebServer(&data)
 	if err != nil {
@@ -69,5 +79,6 @@ func loadDataFromConfig(cfg *viper.Viper) (service.ProxyRoute, error) {
 	res.QuotaType = cfg.GetString("quota.type")
 	res.QuotaField = cfg.GetString("quota.field")
 	res.DefaultLimit = cfg.GetFloat64("quota.default")
+
 	return res, nil
 }

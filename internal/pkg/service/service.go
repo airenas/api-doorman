@@ -28,12 +28,13 @@ type (
 
 	//Data is service operation data
 	Data struct {
-		Port           int
-		KeyValidator   handler.KeyValidator
-		QuotaValidator handler.QuotaValidator
-		LogSaver       handler.DBSaver
-		IPSaver        IPManager
-		Proxy          ProxyRoute
+		Port            int
+		KeyValidator    handler.KeyValidator
+		QuotaValidator  handler.QuotaValidator
+		DurationService handler.AudioLenGetter
+		LogSaver        handler.DBSaver
+		IPSaver         IPManager
+		Proxy           ProxyRoute
 	}
 )
 
@@ -114,6 +115,12 @@ func newMainHandler(data *Data) (http.Handler, error) {
 	if data.Proxy.QuotaType == "json" {
 		cmdapp.Log.Infof("Quota extract: %s(%s)", data.Proxy.QuotaType, data.Proxy.QuotaField)
 		h = handler.TakeJSON(handler.JSONAsQuota(h), data.Proxy.QuotaField)
+	} else if data.Proxy.QuotaType == "audioDuration" {
+		if data.DurationService == nil {
+			return nil, errors.New("No duration service initialized")
+		}
+		cmdapp.Log.Infof("Quota extract: %s(%s) using duration service", data.Proxy.QuotaType, data.Proxy.QuotaField)
+		h = handler.AudioLenQuota(h, data.Proxy.QuotaField, data.DurationService)
 	} else {
 		return nil, errors.Errorf("Unknown proxy quota type '%s'", data.Proxy.QuotaType)
 	}
