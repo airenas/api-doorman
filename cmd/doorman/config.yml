@@ -7,3 +7,7 @@ proxy:
         type: json
         field: text
         default: 15
+
+# overwrite with env variable MONGO_URL
+mongo: 
+    url: mongodb://xxx:xxx@localhost:27017      

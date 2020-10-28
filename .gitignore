@@ -2,3 +2,4 @@ go.sum
 deploy/local/.mongo/**
 .vscode/**
 deploy/local/.env
+Makefile.option
