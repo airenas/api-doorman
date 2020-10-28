@@ -1,6 +1,6 @@
 # api-doorman
 
-![](https://github.com/airenas/api-doorman/workflows/Go/badge.svg) [![Coverage Status](https://coveralls.io/repos/github/airenas/api-doorman/badge.svg)](https://coveralls.io/github/airenas/api-doorman)
+![](https://github.com/airenas/api-doorman/workflows/Go/badge.svg) [![Coverage Status](https://coveralls.io/repos/github/airenas/api-doorman/badge.svg?branch=main)](https://coveralls.io/github/airenas/api-doorman?branch=main)
 
 Simple proxy for traking API usage in DB and authenticating request by keys
 
