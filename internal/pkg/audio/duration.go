@@ -13,18 +13,21 @@ import (
 )
 
 //Duration comunicates with duration service
-type duration struct {
+type Duration struct {
 	httpclient *http.Client
 	url        string
 }
 
 //NewDurationClient creates a transcriber client
-func NewDurationClient(urlStr string) (*duration, error) {
-	res := duration{}
+func NewDurationClient(urlStr string) (*Duration, error) {
+	res := Duration{}
 	var err error
 	urlRes, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't parse url "+urlStr)
+	}
+	if urlRes.Host == "" {
+		return nil, errors.New("Can't parse url " + urlStr)
 	}
 	res.url = urlRes.String()
 	res.httpclient = &http.Client{}
@@ -32,7 +35,7 @@ func NewDurationClient(urlStr string) (*duration, error) {
 }
 
 //Get return duration by calling the service
-func (dc *duration) Get(name string, file io.Reader) (float64, error) {
+func (dc *Duration) Get(name string, file io.Reader) (float64, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, err := writer.CreateFormFile("file", name)
