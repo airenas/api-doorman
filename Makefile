@@ -15,7 +15,17 @@ build-docker:
 push-docker:
 	cd deploy/doorman && $(MAKE) dpush
 
+run-admin:
+	cd cmd/doorman-admin/ && go run . -c config.yml	
+
+build-docker-admin:
+	cd deploy/doorman-admin && $(MAKE) dbuild	
+
+push-docker-admin:
+	cd deploy/doorman-admin && $(MAKE) dpush	
+
 clean:
 	rm -f cmd/audio-len/audio-len
 	cd deploy/doorman && $(MAKE) clean
+	cd deploy/doorman-admin && $(MAKE) clean
 

@@ -1,1 +1,5 @@
 port: 8001
+
+# overwrite with env variable MONGO_URL
+mongo: 
+    url: mongodb://xxx:xxx@localhost:27017    
