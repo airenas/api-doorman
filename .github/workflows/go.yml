@@ -50,7 +50,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-     - name: Calc coverage
+    - name: Calc coverage
       run: |
         go test -v -covermode=count -coverprofile=coverage.out ./...
     - name: Convert coverage.out to coverage.lcov
