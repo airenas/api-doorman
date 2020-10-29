@@ -37,7 +37,7 @@ func main() {
 	defer mongoSessionProvider.Close()
 
 	data := service.Data{}
-	data.Proxy, err = loadDataFromConfig(cmdapp.Config.Sub("proxy"))
+	data.Proxy, err = loadDataFromConfig(cmdapp.Sub(cmdapp.Config, "proxy"))
 	data.Port = cmdapp.Config.GetInt("port")
 
 	keysValidator, err := mongodb.NewKeyValidator(mongoSessionProvider)

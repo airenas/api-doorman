@@ -35,6 +35,13 @@ func TestEnvBeatsConfig(t *testing.T) {
 	assert.Equal(t, "xxxx", Config.GetString("messageServer.url"))
 }
 
+func TestEnvBeatsSubConfig(t *testing.T) {
+	os.Setenv("MESSAGESERVER_URL", "xxxx")
+	initAppFromTempFile(t, "messageServer:\n     url: olia\n")
+
+	assert.Equal(t, "xxxx", Sub(Config, "messageServer").GetString("url"))
+}
+
 func TestDefaultLogger(t *testing.T) {
 	initDefaultLevel()
 	initAppFromTempFile(t, "")
