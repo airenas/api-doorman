@@ -7,9 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-
-  build:
-    name: Build
+  setup:
     runs-on: ubuntu-latest
     steps:
 
@@ -24,20 +22,35 @@ jobs:
     - name: Get dependencies
       run: |
         go get -v -t -d ./...
+    
+    - name: Generate mocks
+      run: make generate
 
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
     - name: Build
       run: go build -v ./...
 
+  test:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
     - name: Test
-      run: go test -v ./...
+      run: make test
 
     - name: Run vet & lint
       run: |
         go vet ./...
         go get -u golang.org/x/lint/golint
-        golint ./...  
+        golint ./...
 
-    - name: Calc coverage
+  coverage:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+     - name: Calc coverage
       run: |
         go test -v -covermode=count -coverprofile=coverage.out ./...
     - name: Convert coverage.out to coverage.lcov
@@ -46,4 +59,5 @@ jobs:
       uses: coverallsapp/github-action@v1.1.2
       with:
           github-token: ${{ secrets.github_token }}
-          path-to-lcov: coverage.lcov        
+          path-to-lcov: coverage.lcov    
+  
