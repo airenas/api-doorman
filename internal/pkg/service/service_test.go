@@ -68,6 +68,63 @@ func TestMainHandler_Prefix(t *testing.T) {
 	testCode(t, &mh, httptest.NewRequest("DELETE", "/invalid/olia", nil), 222)
 }
 
+func TestMainHandlerCreate_FailBackend(t *testing.T) {
+	data := newTestData()
+	data.Proxy.BackendURL = ""
+	_, err := newMainHandler(data)
+	assert.NotNil(t, err)
+}
+
+func TestMainHandlerCreate_FailPrefixURL(t *testing.T) {
+	data := newTestData()
+	data.Proxy.PrefixURL = ""
+	_, err := newMainHandler(data)
+	assert.NotNil(t, err)
+}
+
+func TestMainHandlerCreate_FailMethod(t *testing.T) {
+	data := newTestData()
+	data.Proxy.Method = ""
+	_, err := newMainHandler(data)
+	assert.NotNil(t, err)
+}
+
+func TestMainHandlerCreate_FailQuotaType(t *testing.T) {
+	data := newTestData()
+	data.Proxy.QuotaType = ""
+	_, err := newMainHandler(data)
+	assert.NotNil(t, err)
+}
+
+func TestMainHandlerCreate_FailAudio(t *testing.T) {
+	data := newTestData()
+	data.Proxy.QuotaType = "audioDuration"
+	data.DurationService = nil
+	_, err := newMainHandler(data)
+	assert.NotNil(t, err)
+}
+
+func TestMainHandlerCreate_FailQuotaType1(t *testing.T) {
+	data := newTestData()
+	data.Proxy.QuotaType = "olia"
+	_, err := newMainHandler(data)
+	assert.NotNil(t, err)
+}
+
+func TestMainHandlerCreate_Audio(t *testing.T) {
+	data := newTestData()
+	data.Proxy.QuotaType = "audioDuration"
+	_, err := newMainHandler(data)
+	assert.Nil(t, err)
+}
+
+func TestMainHandlerCreate_Json(t *testing.T) {
+	data := newTestData()
+	data.Proxy.QuotaType = "json"
+	_, err := newMainHandler(data)
+	assert.Nil(t, err)
+}
+
 func newTestData() *Data {
 	res := &Data{DurationService: audioLenGetterMock,
 		IPSaver:        ipManagerMock,
@@ -75,6 +132,12 @@ func newTestData() *Data {
 		LogSaver:       dbSaverMock,
 		QuotaValidator: quotaValidatorMock,
 	}
+	res.Proxy.BackendURL = "http://be"
+	res.Proxy.Method = "POST"
+	res.Proxy.PrefixURL = "/olia"
+	res.Proxy.QuotaType = "json"
+	res.Proxy.QuotaField = "text"
+	res.Proxy.DefaultLimit = 10
 	return res
 }
 
