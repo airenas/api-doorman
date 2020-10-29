@@ -140,6 +140,39 @@ func TestAddKey_FailValidTo(t *testing.T) {
 	testCode(t, req, 400)
 }
 
+func TestUpdateKey(t *testing.T) {
+	initTest(t)
+	pegomock.When(keyUpdaterMock.Update(pegomock.AnyString(), matchers.AnyMapOfStringToInterface())).
+		ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
+	req := httptest.NewRequest("PATCH", "/key/kkk", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	resp := testCode(t, req, 200)
+	bytes, _ := ioutil.ReadAll(resp.Body)
+	assert.Contains(t, string(bytes), `"key":"kkk"`)
+	cKey, cMap := keyUpdaterMock.VerifyWasCalled(pegomock.Once()).Update(pegomock.AnyString(), matchers.AnyMapOfStringToInterface()).
+		GetCapturedArguments()
+	assert.Equal(t, "kkk", cKey)
+	_, ok := cMap["limit"]
+	assert.True(t, ok)
+	_, ok = cMap["validTo"]
+	assert.True(t, ok)
+}
+
+func TestUpdateKey_FailInput(t *testing.T) {
+	initTest(t)
+	pegomock.When(keyUpdaterMock.Update(pegomock.AnyString(), matchers.AnyMapOfStringToInterface())).
+		ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
+	req := httptest.NewRequest("PATCH", "/key/kkk", strings.NewReader("{{{"))
+	testCode(t, req, 400)
+}
+
+func TestUpdateKey_Fail(t *testing.T) {
+	initTest(t)
+	pegomock.When(keyUpdaterMock.Update(pegomock.AnyString(), matchers.AnyMapOfStringToInterface())).
+		ThenReturn(nil, errors.New("olia"))
+	req := httptest.NewRequest("PATCH", "/key/kkk", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	testCode(t, req, 500)
+}
+
 func newTestRouter() *mux.Router {
 	return NewRouter(newTestData())
 }
