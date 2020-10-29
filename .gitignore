@@ -4,3 +4,4 @@ go.sum
 deploy/local/.env
 Makefile.option
 deploy/**/data/**
+internal/pkg/test/mocks/**

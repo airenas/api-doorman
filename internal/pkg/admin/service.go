@@ -7,6 +7,7 @@ import (
 	"time"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
+	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -124,13 +125,13 @@ type keyListHandler struct {
 }
 
 func (h *keyListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logrus.Infof("Request list from %s", r.Host)
+	cmdapp.Log.Infof("Request list from %s", r.RemoteAddr)
 
 	keyResp, err := h.data.KeyGetter.List()
 
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		logrus.Error("Can't get keys. ", err)
+		cmdapp.Log.Error("Can't get keys. ", err)
 		return
 	}
 
@@ -139,7 +140,7 @@ func (h *keyListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = encoder.Encode(&keyResp)
 	if err != nil {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		logrus.Error(err)
+		cmdapp.Log.Error(err)
 	}
 }
 

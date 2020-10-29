@@ -3,6 +3,10 @@
 test: 
 	go test ./...
 
+generate: 
+	go get github.com/petergtz/pegomock/...
+	go generate ./...
+
 build:
 	cd cmd/doorman/ && go build .
 
