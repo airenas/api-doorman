@@ -10,7 +10,6 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type (
@@ -53,7 +52,7 @@ type (
 
 //StartWebServer starts the HTTP service and listens for the admin requests
 func StartWebServer(data *Data) error {
-	logrus.Infof("Starting HTTP doorman admin service at %d", data.Port)
+	cmdapp.Log.Infof("Starting HTTP doorman admin service at %d", data.Port)
 	r := NewRouter(data)
 	http.Handle("/", r)
 	portStr := strconv.Itoa(data.Port)
@@ -80,26 +79,26 @@ type keyAddHandler struct {
 }
 
 func (h *keyAddHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logrus.Infof("Request from %s", r.Host)
+	cmdapp.Log.Infof("Request from %s", r.RemoteAddr)
 
 	decoder := json.NewDecoder(r.Body)
 	var input adminapi.Key
 	err := decoder.Decode(&input)
 	if err != nil {
 		http.Error(w, "Cannot decode input", http.StatusBadRequest)
-		logrus.Error("Cannot decode input" + err.Error())
+		cmdapp.Log.Error("Cannot decode input" + err.Error())
 		return
 	}
 
 	if input.Limit < 0.1 {
 		http.Error(w, "No limit", http.StatusBadRequest)
-		logrus.Error("No input text")
+		cmdapp.Log.Error("No input text")
 		return
 	}
 
 	if input.ValidTo.Before(time.Now()) {
 		http.Error(w, "Wrong valid to", http.StatusBadRequest)
-		logrus.Error("Wrong valid to")
+		cmdapp.Log.Error("Wrong valid to")
 		return
 	}
 
@@ -107,7 +106,7 @@ func (h *keyAddHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		logrus.Error("Can't create key. ", err)
+		cmdapp.Log.Error("Can't create key. ", err)
 		return
 	}
 
@@ -116,7 +115,7 @@ func (h *keyAddHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = encoder.Encode(&keyResp)
 	if err != nil {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		logrus.Error(err)
+		cmdapp.Log.Error(err)
 	}
 }
 
@@ -154,11 +153,11 @@ type keyInfoResp struct {
 }
 
 func (h *keyInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logrus.Infof("Request key from %s", r.Host)
+	cmdapp.Log.Infof("Request key from %s", r.RemoteAddr)
 	key := mux.Vars(r)["key"]
 	if key == "" {
 		http.Error(w, "No Key", http.StatusBadRequest)
-		logrus.Errorf("No Key")
+		cmdapp.Log.Errorf("No Key")
 		return
 	}
 	query := r.URL.Query()
@@ -173,19 +172,19 @@ func (h *keyInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	res.Key, err = h.data.OneKeyGetter.Get(key)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		logrus.Error("Can't get key. ", err)
+		cmdapp.Log.Error("Can't get key. ", err)
 		return
 	}
 	if res.Key == nil {
 		http.Error(w, "Key not found", http.StatusBadRequest)
-		logrus.Error("Key not found.")
+		cmdapp.Log.Error("Key not found.")
 		return
 	}
 	if full {
 		res.Logs, err = h.data.LogGetter.Get(key)
 		if err != nil {
 			http.Error(w, "Service error", http.StatusInternalServerError)
-			logrus.Error("Can't get logs. ", err)
+			cmdapp.Log.Error("Can't get logs. ", err)
 			return
 		}
 	}
@@ -195,7 +194,7 @@ func (h *keyInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = encoder.Encode(&res)
 	if err != nil {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		logrus.Error(err)
+		cmdapp.Log.Error(err)
 	}
 }
 
@@ -204,12 +203,12 @@ type keyUpdateHandler struct {
 }
 
 func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logrus.Infof("Request from %s", r.Host)
+	cmdapp.Log.Infof("Request from %s", r.RemoteAddr)
 
 	key := mux.Vars(r)["key"]
 	if key == "" {
 		http.Error(w, "No Key", http.StatusBadRequest)
-		logrus.Errorf("No Key")
+		cmdapp.Log.Errorf("No Key")
 		return
 	}
 
@@ -218,7 +217,7 @@ func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&input)
 	if err != nil {
 		http.Error(w, "Cannot decode input", http.StatusBadRequest)
-		logrus.Error("Cannot decode input" + err.Error())
+		cmdapp.Log.Error("Cannot decode input" + err.Error())
 		return
 	}
 
@@ -226,7 +225,7 @@ func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		logrus.Error("Can't create key. ", err)
+		cmdapp.Log.Error("Can't create key. ", err)
 		return
 	}
 
@@ -235,6 +234,6 @@ func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = encoder.Encode(&keyResp)
 	if err != nil {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		logrus.Error(err)
+		cmdapp.Log.Error(err)
 	}
 }
