@@ -111,6 +111,22 @@ func TestMainHandlerCreate_FailQuotaType1(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestMainHandlerCreate_FailJson(t *testing.T) {
+	data := newTestData()
+	data.Proxy.QuotaType = "json"
+	data.Proxy.QuotaField = ""
+	_, err := newMainHandler(data)
+	assert.NotNil(t, err)
+}
+
+func TestMainHandlerCreate_AudioJson(t *testing.T) {
+	data := newTestData()
+	data.Proxy.QuotaType = "audioDuration"
+	data.Proxy.QuotaField = ""
+	_, err := newMainHandler(data)
+	assert.NotNil(t, err)
+}
+
 func TestMainHandlerCreate_Audio(t *testing.T) {
 	data := newTestData()
 	data.Proxy.QuotaType = "audioDuration"

@@ -106,11 +106,17 @@ func newMainHandler(data *Data) (http.Handler, error) {
 
 	h := handler.QuotaValidate(res.def, data.QuotaValidator)
 	if data.Proxy.QuotaType == "json" {
+		if data.Proxy.QuotaField == "" {
+			return nil, errors.New("No field")
+		}
 		cmdapp.Log.Infof("Quota extract: %s(%s)", data.Proxy.QuotaType, data.Proxy.QuotaField)
 		h = handler.TakeJSON(handler.JSONAsQuota(h), data.Proxy.QuotaField)
 	} else if data.Proxy.QuotaType == "audioDuration" {
 		if data.DurationService == nil {
 			return nil, errors.New("No duration service initialized")
+		}
+		if data.Proxy.QuotaField == "" {
+			return nil, errors.New("No field")
 		}
 		cmdapp.Log.Infof("Quota extract: %s(%s) using duration service", data.Proxy.QuotaType, data.Proxy.QuotaField)
 		h = handler.AudioLenQuota(h, data.Proxy.QuotaField, data.DurationService)
