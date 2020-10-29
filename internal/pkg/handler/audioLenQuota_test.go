@@ -24,7 +24,7 @@ func initAudioTest(t *testing.T) {
 	audioLenGetterMock = mocks.NewMockAudioLenGetter()
 }
 
-func TestReturns(t *testing.T) {
+func TestAudio(t *testing.T) {
 	initAudioTest(t)
 	req := newTestAudioRequest("test.mp3")
 	resp := httptest.NewRecorder()
@@ -35,7 +35,7 @@ func TestReturns(t *testing.T) {
 	assert.Equal(t, "test.mp3", cf)
 }
 
-func TestReturns_Fail(t *testing.T) {
+func TestAudio_Fail(t *testing.T) {
 	initAudioTest(t)
 	req := newTestAudioRequest("test.mp3")
 	resp := httptest.NewRecorder()
@@ -44,7 +44,7 @@ func TestReturns_Fail(t *testing.T) {
 	assert.Equal(t, 400, resp.Code)
 }
 
-func TestReturns_FailBody(t *testing.T) {
+func TestAudio_FailBody(t *testing.T) {
 	initAudioTest(t)
 	req := httptest.NewRequest("POST", "/duration", nil)
 	resp := httptest.NewRecorder()
@@ -52,7 +52,7 @@ func TestReturns_FailBody(t *testing.T) {
 	assert.Equal(t, 400, resp.Code)
 }
 
-func TestReturns_FailAudio(t *testing.T) {
+func TestAudio_FailAudio(t *testing.T) {
 	initAudioTest(t)
 	req := newTestAudioRequest("test.mp3")
 	resp := httptest.NewRecorder()
@@ -61,7 +61,7 @@ func TestReturns_FailAudio(t *testing.T) {
 	assert.Equal(t, 500, resp.Code)
 }
 
-func Test_SetResult(t *testing.T) {
+func TestAudio_SetResult(t *testing.T) {
 	initAudioTest(t)
 	req, ctx := customContext(newTestAudioRequest("test.mp3"))
 	resp := httptest.NewRecorder()

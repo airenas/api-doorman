@@ -35,7 +35,5 @@ func (h *ipAsKey) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		logrus.Error("Can't save ip as key. ", err)
 		return
 	}
-	if h.next != nil {
-		h.next.ServeHTTP(w, rn)
-	}
+	h.next.ServeHTTP(w, rn)
 }

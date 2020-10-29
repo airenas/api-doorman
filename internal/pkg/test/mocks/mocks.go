@@ -17,8 +17,9 @@ import (
 //go:generate pegomock generate --package=mocks --output=quotaValidator.go -m github.com/airenas/api-doorman/internal/pkg/handler QuotaValidator
 //go:generate pegomock generate --package=mocks --output=audioLenGetter.go -m github.com/airenas/api-doorman/internal/pkg/handler AudioLenGetter
 //go:generate pegomock generate --package=mocks --output=dbSaver.go -m github.com/airenas/api-doorman/internal/pkg/handler DBSaver
+//go:generate pegomock generate --package=mocks --output=ipSaver.go -m github.com/airenas/api-doorman/internal/pkg/handler IPSaver
 
-	//go:generate pegomock generate --package=mocks --output=ipManager.go -m github.com/airenas/api-doorman/internal/pkg/service IPManager
+//go:generate pegomock generate --package=mocks --output=ipManager.go -m github.com/airenas/api-doorman/internal/pkg/service IPManager
 
 //AttachMockToTest register pegomock verification to be passed to testing engine
 func AttachMockToTest(t *testing.T) {

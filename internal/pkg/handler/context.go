@@ -5,6 +5,13 @@ import (
 	"net/http"
 )
 
+type key int
+
+const (
+	// CtxContext context key for custom context object
+	CtxContext key = iota
+)
+
 type customData struct {
 	ResponseCode int
 	Key          string
