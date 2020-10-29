@@ -16,11 +16,16 @@ import (
 // KeySaver saves keys to mongo db
 type KeySaver struct {
 	SessionProvider *SessionProvider
+	NewKeySize      int
 }
 
 //NewKeySaver creates KeySaver instance
-func NewKeySaver(sessionProvider *SessionProvider) (*KeySaver, error) {
+func NewKeySaver(sessionProvider *SessionProvider, keySize int) (*KeySaver, error) {
 	f := KeySaver{SessionProvider: sessionProvider}
+	if keySize < 10 || keySize > 100 {
+		return nil, errors.New("Wrong keySize")
+	}
+	f.NewKeySize = keySize
 	return &f, nil
 }
 
@@ -37,7 +42,7 @@ func (ss *KeySaver) Create(key *adminapi.Key) (*adminapi.Key, error) {
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(store).Collection(keyTable)
 	res := &keyRecord{}
-	res.Key = randkey.Generate()
+	res.Key = randkey.Generate(ss.NewKeySize)
 	res.Limit = key.Limit
 	res.ValidTo = key.ValidTo
 	res.Created = time.Now()
