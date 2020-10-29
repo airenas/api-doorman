@@ -3,7 +3,6 @@ package cmdapp
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/heirko/go-contrib/logrusHelper"
 	"github.com/heralight/logrus_mate"
@@ -12,8 +11,7 @@ import (
 
 //InitConfig tries to load config.yml from exe's dir
 func InitConfig(configFile string) error {
-	Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	Config.AutomaticEnv()
+	InitEnv(Config)
 
 	failOnNoFail := false
 	if configFile != "" {
