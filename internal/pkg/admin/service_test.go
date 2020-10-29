@@ -35,7 +35,6 @@ func initTest(t *testing.T) {
 	oneKeyRetrieverMock = mocks.NewMockOneKeyRetriever()
 	logRetrieverMock = mocks.NewMockLogRetriever()
 	keyUpdaterMock = mocks.NewMockKeyUpdater()
-	//	pegomock.When(recognizerMapMock.Get(pegomock.AnyString())).ThenReturn("recID", nil)
 }
 
 func TestWrongPath(t *testing.T) {

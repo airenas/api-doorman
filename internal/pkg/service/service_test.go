@@ -1,225 +1,86 @@
-package service_test
+package service
 
-// var data *service.Data
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
 
-// func initTest(t *testing.T) {
-// 	sr := &api.SegmenterResult{Seg: [][]int{{0, 4}, {5, 1}}}
-// 	tr := &api.TaggerResult{Msd: [][][]string{{{"xxxx", "mama"}, {"xxxx", "."}}, {{"xxx", "."}}}}
-// 	data = newTestData(&testTagger{res: tr}, &testLex{res: sr})
-// }
+	"github.com/stretchr/testify/assert"
 
-// func TestNotFound(t *testing.T) {
-// 	initTest(t)
-// 	req, err := http.NewRequest("GET", "/any", nil)
-// 	assert.Nil(t, err)
-// 	resp := httptest.NewRecorder()
+	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
+)
 
-// 	service.NewRouter(data).ServeHTTP(resp, req)
-// 	assert.Equal(t, resp.Code, http.StatusNotFound)
-// }
+var (
+	keyValidatorMock   *mocks.MockKeyValidator
+	quotaValidatorMock *mocks.MockQuotaValidator
+	audioLenGetterMock *mocks.MockAudioLenGetter
+	dbSaverMock        *mocks.MockDBSaver
+	ipManagerMock      *mocks.MockIPManager
+)
 
-// func TestProvides(t *testing.T) {
-// 	initTest(t)
-// 	req, err := http.NewRequest("POST", "/tag", newTestInput("mama o"))
-// 	assert.Nil(t, err)
-// 	resp := httptest.NewRecorder()
+func initTest(t *testing.T) {
+	mocks.AttachMockToTest(t)
+	keyValidatorMock = mocks.NewMockKeyValidator()
+	quotaValidatorMock = mocks.NewMockQuotaValidator()
+	audioLenGetterMock = mocks.NewMockAudioLenGetter()
+	dbSaverMock = mocks.NewMockDBSaver()
+	ipManagerMock = mocks.NewMockIPManager()
+}
 
-// 	service.NewRouter(data).ServeHTTP(resp, req)
+type testHandler struct {
+	f func(http.ResponseWriter, *http.Request)
+}
 
-// 	assert.Equal(t, http.StatusOK, resp.Code)
-// 	assert.Equal(t, `[{"type":"WORD","string":"mama","mi":"mama","lemma":"xxxx"},{"type":"SPACE","string":" "},{"type":"WORD","string":"o","mi":".","lemma":"xxx"}]`,
-// 		strings.TrimSpace(resp.Body.String()))
-// }
+func (h *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.f(w, r)
+}
 
-// func TestFailsPreprocess(t *testing.T) {
-// 	initTest(t)
-// 	req, err := http.NewRequest("POST", "/tag", newTestInput("mama o"))
-// 	assert.Nil(t, err)
-// 	resp := httptest.NewRecorder()
+func codeFunc(code int) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(code)
+	}
+}
 
-// 	data.Preprocesor = &testPreprocessor{err: errors.New("err")}
-// 	service.NewRouter(data).ServeHTTP(resp, req)
+func TestMainHandler_Default(t *testing.T) {
+	initTest(t)
+	mh := mainHandler{}
+	mh.data = newTestData()
+	mh.def = &testHandler{f: codeFunc(222)}
+	testCode(t, &mh, httptest.NewRequest("GET", "/invalid", nil), 222)
+	testCode(t, &mh, httptest.NewRequest("GET", "/invalid/olia", nil), 222)
+	testCode(t, &mh, httptest.NewRequest("POST", "/invalid/olia", nil), 222)
+	testCode(t, &mh, httptest.NewRequest("PATCH", "/invalid/olia", nil), 222)
+	testCode(t, &mh, httptest.NewRequest("DELETE", "/invalid/olia", nil), 222)
+}
 
-// 	assert.Equal(t, http.StatusInternalServerError, resp.Code)
-// }
+func TestMainHandler_Prefix(t *testing.T) {
+	initTest(t)
+	mh := mainHandler{}
+	mh.data = newTestData()
+	mh.def = &testHandler{f: codeFunc(222)}
+	mh.handlers = []*hWrap{&hWrap{method: "POST", prefix: "/pref", h: &testHandler{f: codeFunc(333)}}}
 
-// func TestFailsMorph(t *testing.T) {
-// 	initTest(t)
-// 	req, err := http.NewRequest("POST", "/tag", newTestInput("mama o"))
-// 	assert.Nil(t, err)
-// 	resp := httptest.NewRecorder()
+	testCode(t, &mh, httptest.NewRequest("POST", "/pref", nil), 333)
+	testCode(t, &mh, httptest.NewRequest("POST", "/Pref", nil), 333)
+	testCode(t, &mh, httptest.NewRequest("GET", "/pref", nil), 222)
+	testCode(t, &mh, httptest.NewRequest("POST", "/invalid/olia", nil), 222)
+	testCode(t, &mh, httptest.NewRequest("PATCH", "/invalid/olia", nil), 222)
+	testCode(t, &mh, httptest.NewRequest("DELETE", "/invalid/olia", nil), 222)
+}
 
-// 	data.Tagger = &testTagger{err: errors.New("err")}
-// 	service.NewRouter(data).ServeHTTP(resp, req)
+func newTestData() *Data {
+	res := &Data{DurationService: audioLenGetterMock,
+		IPSaver:        ipManagerMock,
+		KeyValidator:   keyValidatorMock,
+		LogSaver:       dbSaverMock,
+		QuotaValidator: quotaValidatorMock,
+	}
+	return res
+}
 
-// 	assert.Equal(t, http.StatusInternalServerError, resp.Code)
-// }
-
-// func TestFailsLex(t *testing.T) {
-// 	initTest(t)
-// 	req, err := http.NewRequest("POST", "/tag", newTestInput("mama o"))
-// 	assert.Nil(t, err)
-// 	resp := httptest.NewRecorder()
-
-// 	data.Segmenter = &testLex{err: errors.New("err")}
-// 	service.NewRouter(data).ServeHTTP(resp, req)
-
-// 	assert.Equal(t, http.StatusInternalServerError, resp.Code)
-// }
-
-// func TestMapOK(t *testing.T) {
-// 	sr := &api.SegmenterResult{Seg: [][]int{{0, 4}}}
-// 	tr := &api.TaggerResult{Msd: [][][]string{{{"mama", "xxxx"}}}}
-// 	r, err := service.MapRes("mami", tr, sr)
-// 	assert.Nil(t, err)
-// 	assert.Equal(t, 1, len(r))
-// 	assert.Equal(t, "WORD", r[0].Type)
-// 	assert.Equal(t, "mami", r[0].String)
-// 	assert.Equal(t, "mama", r[0].Lemma)
-// 	assert.Equal(t, "xxxx", r[0].Mi)
-// }
-
-// func TestMapSeveral(t *testing.T) {
-// 	sr := &api.SegmenterResult{Seg: [][]int{{0, 4}, {5, 2}}}
-// 	tr := &api.TaggerResult{Msd: [][][]string{{{"mama", "xxxx"}}, {{"oo", "xoo"}}}}
-// 	r, err := service.MapRes("mami oi", tr, sr)
-// 	assert.Nil(t, err)
-// 	assert.Equal(t, 3, len(r))
-// 	assert.Equal(t, "WORD", r[0].Type)
-// 	assert.Equal(t, "mami", r[0].String)
-// 	assert.Equal(t, "mama", r[0].Lemma)
-// 	assert.Equal(t, "xxxx", r[0].Mi)
-
-// 	assert.Equal(t, "SPACE", r[1].Type)
-// 	assert.Equal(t, " ", r[1].String)
-
-// 	assert.Equal(t, "WORD", r[2].Type)
-// 	assert.Equal(t, "oi", r[2].String)
-// 	assert.Equal(t, "oo", r[2].Lemma)
-// 	assert.Equal(t, "xoo", r[2].Mi)
-// }
-
-// func TestMapUTF(t *testing.T) {
-// 	sr := &api.SegmenterResult{Seg: [][]int{{0, 4}, {5, 2}}}
-// 	tr := &api.TaggerResult{Msd: [][][]string{{{"mama", "xxxx"}}, {{"oo", "xoo"}}}}
-// 	r, err := service.MapRes("mamą oš", tr, sr)
-// 	assert.Nil(t, err)
-// 	assert.Equal(t, 3, len(r))
-// 	assert.Equal(t, "WORD", r[0].Type)
-// 	assert.Equal(t, "mamą", r[0].String)
-// 	assert.Equal(t, "mama", r[0].Lemma)
-// 	assert.Equal(t, "xxxx", r[0].Mi)
-
-// 	assert.Equal(t, "SPACE", r[1].Type)
-
-// 	assert.Equal(t, "WORD", r[2].Type)
-// 	assert.Equal(t, "oš", r[2].String)
-// 	assert.Equal(t, "oo", r[2].Lemma)
-// 	assert.Equal(t, "xoo", r[2].Mi)
-// }
-
-// func TestMapSep(t *testing.T) {
-// 	sr := &api.SegmenterResult{Seg: [][]int{{0, 1}}}
-// 	tr := &api.TaggerResult{Msd: [][][]string{{{".", "T."}}}}
-// 	r, err := service.MapRes(".", tr, sr)
-// 	assert.Nil(t, err)
-// 	assert.Equal(t, 1, len(r))
-// 	assert.Equal(t, "SEPARATOR", r[0].Type)
-// 	assert.Equal(t, ".", r[0].String)
-// 	assert.Equal(t, "", r[0].Lemma)
-// 	assert.Equal(t, "T.", r[0].Mi)
-// }
-
-// func TestMapSpace(t *testing.T) {
-// 	sr := &api.SegmenterResult{Seg: [][]int{{0, 1}, {6, 1}}}
-// 	tr := &api.TaggerResult{Msd: [][][]string{{{".", "T."}},{{".", "T."}}}}
-// 	r, err := service.MapRes(".  \n \n.", tr, sr)
-// 	assert.Nil(t, err)
-// 	assert.Equal(t, 3, len(r))
-// 	assert.Equal(t, "SPACE", r[1].Type)
-// 	assert.Equal(t, "  \n \n", r[1].String)
-// }
-
-// func TestMapNumber(t *testing.T) {
-// 	sr := &api.SegmenterResult{Seg: [][]int{{0, 4}}}
-// 	tr := &api.TaggerResult{Msd: [][][]string{{{"1234", "M----d-"}}}}
-// 	r, err := service.MapRes("1234", tr, sr)
-// 	assert.Nil(t, err)
-// 	assert.Equal(t, 1, len(r))
-// 	assert.Equal(t, "NUMBER", r[0].Type)
-// 	assert.Equal(t, "1234", r[0].String)
-// 	assert.Equal(t, "M----d-", r[0].Mi)
-// }
-
-// func TestMapErrTooLongSeg(t *testing.T) {
-// 	sr := &api.SegmenterResult{Seg: [][]int{{0, 4}}}
-// 	tr := &api.TaggerResult{Msd: [][][]string{{{"1234", "M----d-"}}}}
-// 	_, err := service.MapRes("123", tr, sr)
-// 	assert.NotNil(t, err)
-// }
-
-// func TestMapErrWrongSeg(t *testing.T) {
-// 	sr := &api.SegmenterResult{Seg: [][]int{{0, -1}}}
-// 	tr := &api.TaggerResult{Msd: [][][]string{{{"1234", "M----d-"}}}}
-// 	_, err := service.MapRes("123", tr, sr)
-// 	assert.NotNil(t, err)
-// 	sr = &api.SegmenterResult{Seg: [][]int{{0, 0}}}
-// 	_, err = service.MapRes("123", tr, sr)
-// 	assert.NotNil(t, err)
-// 	sr = &api.SegmenterResult{Seg: [][]int{{0}}}
-// 	_, err = service.MapRes("123", tr, sr)
-// 	assert.NotNil(t, err)
-// 	sr = &api.SegmenterResult{Seg: [][]int{{0, 1}, {0, 2}}}
-// 	_, err = service.MapRes("1234", tr, sr)
-// 	assert.NotNil(t, err)
-// }
-
-// func TestMapErrWrongMorph(t *testing.T) {
-// 	sr := &api.SegmenterResult{Seg: [][]int{{0, 4}}}
-// 	tr := &api.TaggerResult{Msd: [][][]string{{{"1234"}}}}
-// 	_, err := service.MapRes("1234", tr, sr)
-// 	assert.NotNil(t, err)
-// 	tr = &api.TaggerResult{Msd: [][][]string{{{}}}}
-// 	_, err = service.MapRes("1234", tr, sr)
-// 	assert.NotNil(t, err)
-// 	sr = &api.SegmenterResult{Seg: [][]int{{0, 4}, {5, 1}}}
-// 	tr = &api.TaggerResult{Msd: [][][]string{{{"1234", "xx"}}}}
-// 	_, err = service.MapRes("1234 .", tr, sr)
-// 	assert.NotNil(t, err)
-// }
-
-// func newTestInput(text string) *bytes.Buffer {
-// 	result := new(bytes.Buffer)
-// 	result.WriteString(text)
-// 	return result
-// }
-
-// type testTagger struct {
-// 	res *api.TaggerResult
-// 	err error
-// }
-
-// func (s *testTagger) Process(string, *api.SegmenterResult) (*api.TaggerResult, error) {
-// 	return s.res, s.err
-// }
-
-// type testLex struct {
-// 	res *api.SegmenterResult
-// 	err error
-// }
-
-// func (s *testLex) Process(string) (*api.SegmenterResult, error) {
-// 	return s.res, s.err
-// }
-
-// type testPreprocessor struct {
-// 	err error
-// }
-
-// func (s *testPreprocessor) Process(text string) (string, error) {
-// 	return text, s.err
-// }
-
-// func newTestData(t service.Tagger, s service.Segmenter) *service.Data {
-// 	return &service.Data{Tagger: t, Segmenter: s, Preprocesor: &testPreprocessor{}}
-// }
+func testCode(t *testing.T, h http.Handler, req *http.Request, code int) *httptest.ResponseRecorder {
+	resp := httptest.NewRecorder()
+	h.ServeHTTP(resp, req)
+	assert.Equal(t, code, resp.Code)
+	return resp
+}

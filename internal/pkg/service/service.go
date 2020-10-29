@@ -82,13 +82,6 @@ func StartWebServer(data *Data) error {
 	return nil
 }
 
-func getIPSaver(data *Data) handler.IPSaver {
-	res := &ipSaver{}
-	res.saver = data.IPSaver
-	res.limit = data.Proxy.DefaultLimit
-	return res
-}
-
 func newMainHandler(data *Data) (http.Handler, error) {
 	res := &mainHandler{}
 	if data.Proxy.BackendURL == "" {
@@ -128,7 +121,7 @@ func newMainHandler(data *Data) (http.Handler, error) {
 	hKey := handler.KeyValid(h, data.KeyValidator)
 	if data.Proxy.DefaultLimit > 0 {
 		cmdapp.Log.Infof("Default IP quota: %.f", data.Proxy.DefaultLimit)
-		hIP := handler.IPAsKey(hKey, getIPSaver(data))
+		hIP := handler.IPAsKey(hKey, newIPSaver(data))
 		hKey = handler.KeyValidOrIP(hKey, hIP)
 	}
 	hw.h = handler.KeyExtract(hKey)
