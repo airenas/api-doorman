@@ -10,6 +10,10 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=keyRetriever.go -m github.com/airenas/api-doorman/internal/pkg/admin KeyRetriever
 
+//go:generate pegomock generate --package=mocks --output=oneKeyRetriever.go -m github.com/airenas/api-doorman/internal/pkg/admin OneKeyRetriever
+
+//go:generate pegomock generate --package=mocks --output=logRetriever.go -m github.com/airenas/api-doorman/internal/pkg/admin LogRetriever
+
 //AttachMockToTest register pegomock verification to be passed to testing engine
 func AttachMockToTest(t *testing.T) {
 	pegomock.RegisterMockFailHandler(handleByTest(t))

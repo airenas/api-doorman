@@ -15,14 +15,19 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 )
 
-var keyCreatorMock *mocks.MockKeyCreator
-
-var keyRetrieverMock *mocks.MockKeyRetriever
+var (
+	keyCreatorMock      *mocks.MockKeyCreator
+	keyRetrieverMock    *mocks.MockKeyRetriever
+	oneKeyRetrieverMock *mocks.MockOneKeyRetriever
+	logRetrieverMock    *mocks.MockLogRetriever
+)
 
 func initTest(t *testing.T) {
 	mocks.AttachMockToTest(t)
 	keyCreatorMock = mocks.NewMockKeyCreator()
 	keyRetrieverMock = mocks.NewMockKeyRetriever()
+	oneKeyRetrieverMock = mocks.NewMockOneKeyRetriever()
+	logRetrieverMock = mocks.NewMockLogRetriever()
 	//	pegomock.When(recognizerMapMock.Get(pegomock.AnyString())).ThenReturn("recID", nil)
 }
 
@@ -57,13 +62,57 @@ func TestKeyList_Fail(t *testing.T) {
 	testCode(t, req, 500)
 }
 
+func TestKey(t *testing.T) {
+	initTest(t)
+	pegomock.When(oneKeyRetrieverMock.Get(pegomock.EqString("kkk"))).ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
+	req := httptest.NewRequest("GET", "/key/kkk", nil)
+	resp := testCode(t, req, 200)
+	bytes, _ := ioutil.ReadAll(resp.Body)
+	assert.Contains(t, string(bytes), `"key":"kkk"`)
+}
+
+func TestKey_ReturnsFull(t *testing.T) {
+	initTest(t)
+	pegomock.When(oneKeyRetrieverMock.Get(pegomock.EqString("kkk"))).ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
+	pegomock.When(logRetrieverMock.Get(pegomock.EqString("kkk"))).ThenReturn([]*adminapi.Log{&adminapi.Log{IP: "101010"}}, nil)
+	req := httptest.NewRequest("GET", "/key/kkk?full=1", nil)
+	resp := testCode(t, req, 200)
+	bytes, _ := ioutil.ReadAll(resp.Body)
+	assert.Contains(t, string(bytes), `"ip":"101010"`)
+}
+
+func TestKey_Fail(t *testing.T) {
+	initTest(t)
+	pegomock.When(oneKeyRetrieverMock.Get(pegomock.EqString("kkk"))).ThenReturn(nil, errors.New("fail"))
+	req := httptest.NewRequest("GET", "/key/kkk", nil)
+	testCode(t, req, 500)
+}
+
+func TestKey_FailFull(t *testing.T) {
+	initTest(t)
+	pegomock.When(oneKeyRetrieverMock.Get(pegomock.EqString("kkk"))).ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
+	pegomock.When(logRetrieverMock.Get(pegomock.EqString("kkk"))).ThenReturn(nil, errors.New("fail"))
+	req := httptest.NewRequest("GET", "/key/kkk?full=1", nil)
+	testCode(t, req, 500)
+}
+
+func TestKey_FailNoKey(t *testing.T) {
+	initTest(t)
+	pegomock.When(oneKeyRetrieverMock.Get(pegomock.EqString("kkk"))).ThenReturn(nil, nil)
+	req := httptest.NewRequest("GET", "/key/kkk", nil)
+	testCode(t, req, 400)
+}
+
 func newTestRouter() *mux.Router {
 	return NewRouter(newTestData())
 }
 
 func newTestData() *Data {
 	res := &Data{KeySaver: keyCreatorMock,
-		KeyGetter: keyRetrieverMock}
+		KeyGetter:    keyRetrieverMock,
+		OneKeyGetter: oneKeyRetrieverMock,
+		LogGetter:    logRetrieverMock,
+	}
 	return res
 }
 
