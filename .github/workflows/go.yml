@@ -37,6 +37,9 @@ jobs:
         go vet ./...
         go get -u golang.org/x/lint/golint
         golint ./...
+        
+    - name: Go report
+      uses: creekorful/goreportcard-action@v1.0
 
     - name: Calc coverage
       run: |
