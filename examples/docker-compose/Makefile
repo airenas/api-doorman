@@ -16,12 +16,20 @@ key?=u2OA9U4yLB
 adm-key-list:
 	curl -X GET http://localhost:$(ADMIN_PORT)/key-list | jq
 adm-add:
-	curl -i -X POST http://localhost:8001/key -d '{"limit":500, "validTo":"2030-11-24T11:07:00Z"}'
+	curl -i -X POST http://localhost:$(ADMIN_PORT)/key -d '{"limit":500, "validTo":"2030-11-24T11:07:00Z"}'
 adm-get:
-	curl -X GET http://localhost:8001/key/$(key)?full=1 | jq
+	curl -X GET http://localhost:$(ADMIN_PORT)/key/$(key)?full=1 | jq
 adm-update:
-	curl -X PATCH http://localhost:8001/key/$(key) -d '{"limit":1110, "disabled":false}'
+	curl -X PATCH http://localhost:$(ADMIN_PORT)/key/$(key) -d '{"limit":1110, "disabled":false}'
 
+#####################################################################################
+test-public:
+	curl -i -X POST http://localhost:$(DOORMAN_PORT)/public -d '{"text": "public text data"}'
 
+test-private:
+	curl -i -X POST http://localhost:$(DOORMAN_PORT)/private -d '{"text": "private text data"}'
+
+test-private-key:
+	curl -i -X POST http://localhost:$(DOORMAN_PORT)/private?key=$(key) -d '{"text": "private text data with key"}'	
 
 

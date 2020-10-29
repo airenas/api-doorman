@@ -8,6 +8,10 @@ services:
     environment:
       MONGO_URL: "${MONGO_URL}"  
       PROXY_BACKEND: "http://test-api:8000/"
+      PROXY_PREFIXURL: "/private"
+      PROXY_QUOTA_TYPE: "json"
+      PROXY_QUOTA_FIELD: "text"
+      PROXY_QUOTA_DEFAULT: 100
     # restart: unless-stopped
 
   doorman-admin:
