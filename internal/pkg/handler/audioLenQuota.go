@@ -58,7 +58,5 @@ func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx.QuotaValue = dur
 	rn.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
-	if h.next != nil {
-		h.next.ServeHTTP(w, rn)
-	}
+	h.next.ServeHTTP(w, rn)
 }
