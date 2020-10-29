@@ -1,1 +1,3 @@
 port: 8000 
+
+keySize: 20

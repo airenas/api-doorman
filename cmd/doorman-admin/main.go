@@ -4,9 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
-	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 
@@ -27,8 +25,6 @@ func main() {
 		cmdapp.Log.Fatal(errors.Wrap(err, "Can't init app"))
 	}
 
-	rand.Seed(time.Now().UnixNano())
-
 	mongoSessionProvider, err := mongodb.NewSessionProvider(cmdapp.Config.GetString("mongo.url"))
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can't init mongo provider"))
@@ -37,7 +33,7 @@ func main() {
 
 	data := admin.Data{}
 	data.Port = cmdapp.Config.GetInt("port")
-	keysManager, err := mongodb.NewKeySaver(mongoSessionProvider)
+	keysManager, err := mongodb.NewKeySaver(mongoSessionProvider, cmdapp.Config.GetInt("keySize"))
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can't init saver"))
 	}

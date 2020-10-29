@@ -3,9 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"math/rand"
 	"os"
-	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/audio"
 
@@ -27,8 +25,6 @@ func main() {
 	if err != nil {
 		cmdapp.Log.Fatal(errors.Wrap(err, "Can't init app"))
 	}
-
-	rand.Seed(time.Now().UnixNano())
 
 	mongoSessionProvider, err := mongodb.NewSessionProvider(cmdapp.Config.GetString("mongo.url"))
 	if err != nil {
