@@ -37,7 +37,7 @@ func main() {
 	defer mongoSessionProvider.Close()
 
 	data := service.Data{}
-	data.Proxy, err = loadDataFromConfig(cmdapp.Sub(cmdapp.Config, "proxy"))
+	data.Proxy = loadDataFromConfig(cmdapp.Sub(cmdapp.Config, "proxy"))
 	data.Port = cmdapp.Config.GetInt("port")
 
 	keysValidator, err := mongodb.NewKeyValidator(mongoSessionProvider)
@@ -71,7 +71,7 @@ func main() {
 	}
 }
 
-func loadDataFromConfig(cfg *viper.Viper) (service.ProxyRoute, error) {
+func loadDataFromConfig(cfg *viper.Viper) service.ProxyRoute {
 	res := service.ProxyRoute{}
 	res.BackendURL = cfg.GetString("backend")
 	res.PrefixURL = cfg.GetString("prefixURL")
@@ -80,5 +80,5 @@ func loadDataFromConfig(cfg *viper.Viper) (service.ProxyRoute, error) {
 	res.QuotaField = cfg.GetString("quota.field")
 	res.DefaultLimit = cfg.GetFloat64("quota.default")
 
-	return res, nil
+	return res
 }
