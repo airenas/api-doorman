@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  setup:
+  build:
     runs-on: ubuntu-latest
     steps:
 
@@ -25,18 +25,10 @@ jobs:
     
     - name: Generate mocks
       run: make generate
-
-  build:
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
+ 
     - name: Build
       run: go build -v ./...
 
-  test:
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
     - name: Test
       run: make test
 
@@ -46,10 +38,6 @@ jobs:
         go get -u golang.org/x/lint/golint
         golint ./...
 
-  coverage:
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
     - name: Calc coverage
       run: |
         go test -v -covermode=count -coverprofile=coverage.out ./...
