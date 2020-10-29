@@ -1,10 +1,14 @@
 package admin
 
 import (
+	"encoding/json"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/petergtz/pegomock"
@@ -13,6 +17,7 @@ import (
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
+	"github.com/airenas/api-doorman/internal/pkg/test/mocks/matchers"
 )
 
 var (
@@ -20,6 +25,7 @@ var (
 	keyRetrieverMock    *mocks.MockKeyRetriever
 	oneKeyRetrieverMock *mocks.MockOneKeyRetriever
 	logRetrieverMock    *mocks.MockLogRetriever
+	keyUpdaterMock      *mocks.MockKeyUpdater
 )
 
 func initTest(t *testing.T) {
@@ -28,6 +34,7 @@ func initTest(t *testing.T) {
 	keyRetrieverMock = mocks.NewMockKeyRetriever()
 	oneKeyRetrieverMock = mocks.NewMockOneKeyRetriever()
 	logRetrieverMock = mocks.NewMockLogRetriever()
+	keyUpdaterMock = mocks.NewMockKeyUpdater()
 	//	pegomock.When(recognizerMapMock.Get(pegomock.AnyString())).ThenReturn("recID", nil)
 }
 
@@ -103,15 +110,51 @@ func TestKey_FailNoKey(t *testing.T) {
 	testCode(t, req, 400)
 }
 
+func TestAddKey(t *testing.T) {
+	initTest(t)
+	pegomock.When(keyCreatorMock.Create(matchers.AnyPtrToApiKey())).ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
+	req := httptest.NewRequest("POST", "/key", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	resp := testCode(t, req, 200)
+	bytes, _ := ioutil.ReadAll(resp.Body)
+	assert.Contains(t, string(bytes), `"key":"kkk"`)
+}
+
+func TestAddKey_Fail(t *testing.T) {
+	initTest(t)
+	pegomock.When(keyCreatorMock.Create(matchers.AnyPtrToApiKey())).ThenReturn(nil, errors.New("err"))
+	req := httptest.NewRequest("POST", "/key", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	testCode(t, req, 500)
+}
+
+func TestAddKey_FailLimit(t *testing.T) {
+	initTest(t)
+	pegomock.When(keyCreatorMock.Create(matchers.AnyPtrToApiKey())).ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
+	req := httptest.NewRequest("POST", "/key", toReader(adminapi.Key{Limit: 0, ValidTo: time.Now().Add(time.Minute)}))
+	testCode(t, req, 400)
+}
+
+func TestAddKey_FailValidTo(t *testing.T) {
+	initTest(t)
+	pegomock.When(keyCreatorMock.Create(matchers.AnyPtrToApiKey())).ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
+	req := httptest.NewRequest("POST", "/key", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(-time.Minute)}))
+	testCode(t, req, 400)
+}
+
 func newTestRouter() *mux.Router {
 	return NewRouter(newTestData())
 }
 
+func toReader(key adminapi.Key) io.Reader {
+	bytes, _ := json.Marshal(key)
+	return strings.NewReader(string(bytes))
+}
+
 func newTestData() *Data {
 	res := &Data{KeySaver: keyCreatorMock,
-		KeyGetter:    keyRetrieverMock,
-		OneKeyGetter: oneKeyRetrieverMock,
-		LogGetter:    logRetrieverMock,
+		KeyGetter:     keyRetrieverMock,
+		OneKeyGetter:  oneKeyRetrieverMock,
+		LogGetter:     logRetrieverMock,
+		OneKeyUpdater: keyUpdaterMock,
 	}
 	return res
 }
