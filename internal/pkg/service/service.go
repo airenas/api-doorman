@@ -2,9 +2,10 @@ package service
 
 import (
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 
 	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/airenas/api-doorman/internal/pkg/handler"
@@ -89,7 +90,7 @@ func newMainHandler(data *Data) (http.Handler, error) {
 		return nil, errors.New("No backend")
 	}
 	cmdapp.Log.Infof("Backend: %s", data.Proxy.BackendURL)
-	url, err := url.Parse(data.Proxy.BackendURL)
+	url, err := utils.ParseURL(data.Proxy.BackendURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "Wrong backendURL")
 	}

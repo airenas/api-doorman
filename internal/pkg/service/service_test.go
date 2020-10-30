@@ -73,6 +73,9 @@ func TestMainHandlerCreate_FailBackend(t *testing.T) {
 	data.Proxy.BackendURL = ""
 	_, err := newMainHandler(data)
 	assert.NotNil(t, err)
+	data.Proxy.BackendURL = "http://"
+	_, err = newMainHandler(data)
+	assert.NotNil(t, err)
 }
 
 func TestMainHandlerCreate_FailPrefixURL(t *testing.T) {
