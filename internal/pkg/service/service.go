@@ -2,6 +2,7 @@ package service
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -88,7 +89,11 @@ func newMainHandler(data *Data) (http.Handler, error) {
 		return nil, errors.New("No backend")
 	}
 	cmdapp.Log.Infof("Backend: %s", data.Proxy.BackendURL)
-	res.def = handler.Proxy(data.Proxy.BackendURL)
+	url, err := url.Parse(data.Proxy.BackendURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "Wrong backendURL")
+	}
+	res.def = handler.Proxy(url)
 	if data.Proxy.PrefixURL == "" {
 		return nil, errors.New("No prefix URL")
 	}
