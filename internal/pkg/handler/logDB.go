@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
+	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 //DBSaver logs to db
@@ -17,6 +17,7 @@ type DBSaver interface {
 type logDB struct {
 	next http.Handler
 	dbs  DBSaver
+	sync bool
 }
 
 //LogDB creates handler
@@ -38,13 +39,22 @@ func (h *logDB) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data.QuotaValue = ctx.QuotaValue
 	data.Key = ctx.Key
 	data.IP = utils.ExtractIP(r)
-	data.URL = r.URL.String()
+	data.URL = rn.URL.String()
 	data.ResponseCode = ctx.ResponseCode
-	data.Fail = !(data.ResponseCode >= 200 && data.ResponseCode < 300)
-	go func() {
+	data.Fail = responseCodeIsFail(data.ResponseCode)
+	sf := func() {
 		err := h.dbs.Save(data)
 		if err != nil {
-			logrus.Error("Can't save lod. ", err)
+			cmdapp.Log.Error("Can't save log. ", err)
 		}
-	}()
+	}
+	if h.sync {
+		sf()
+	} else {
+		go func() { sf() }()
+	}
+}
+
+func responseCodeIsFail(code int) bool {
+	return !(code >= 200 && code < 300)
 }
