@@ -9,6 +9,7 @@ import (
 func TestNewNewKeySaver(t *testing.T) {
 	pr, err := NewKeySaver(nil, 10)
 	assert.NotNil(t, pr)
+	assert.Nil(t, err)
 	_, err = NewKeySaver(nil, 50)
 	assert.Nil(t, err)
 }
