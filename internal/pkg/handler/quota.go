@@ -18,7 +18,5 @@ func RequestAsQuota(next http.Handler) http.Handler {
 func (h *requestAsQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
 	ctx.QuotaValue = 1
-	if h.next != nil {
-		h.next.ServeHTTP(w, rn)
-	}
+	h.next.ServeHTTP(w, rn)
 }
