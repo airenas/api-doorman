@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/sirupsen/logrus"
+	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 )
 
 //KeyValidator validator
@@ -29,7 +29,7 @@ func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ok, err := h.kv.IsValid(ctx.Key, ctx.Manual)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		logrus.Error("Can't check key. ", err)
+		cmdapp.Log.Error("Can't check key. ", err)
 		return
 	}
 	if !ok {
@@ -37,7 +37,5 @@ func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.next != nil {
-		h.next.ServeHTTP(w, rn)
-	}
+	h.next.ServeHTTP(w, rn)
 }

@@ -16,6 +16,7 @@ func TestKeyExtract(t *testing.T) {
 	KeyExtract(&testHandler{}).ServeHTTP(resp, req)
 	assert.Equal(t, testCode, resp.Code)
 	assert.Equal(t, "oooo", ctx.Key)
+	assert.True(t, ctx.Manual)
 }
 
 func TestKeyExtract_Empty(t *testing.T) {
@@ -24,6 +25,7 @@ func TestKeyExtract_Empty(t *testing.T) {
 
 	KeyExtract(&testHandler{}).ServeHTTP(resp, req)
 	assert.Equal(t, "", ctx.Key)
+	assert.False(t, ctx.Manual)
 	assert.Equal(t, testCode, resp.Code)
 }
 
