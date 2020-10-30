@@ -18,7 +18,5 @@ func JSONAsQuota(next http.Handler) http.Handler {
 func (h *jsonAsQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
 	ctx.QuotaValue = float64(len([]rune(ctx.Value)))
-	if h.next != nil {
-		h.next.ServeHTTP(w, rn)
-	}
+	h.next.ServeHTTP(w, rn)
 }
