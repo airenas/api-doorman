@@ -2,10 +2,10 @@
 
 ![](https://github.com/airenas/api-doorman/workflows/Go/badge.svg) [![Coverage Status](https://coveralls.io/repos/github/airenas/api-doorman/badge.svg?branch=main)](https://coveralls.io/github/airenas/api-doorman?branch=main) [![Go Report Card](https://goreportcard.com/badge/github.com/airenas/api-doorman)](https://goreportcard.com/report/github.com/airenas/api-doorman) 
 
-Simple proxy for traking API usage in DB and authenticating requests by keys.
+Simple proxy for traking API usage in Mongo DB and authenticating requests by keys.
 
 The proxy is prepared to be used for Text-to-Spech application. We want to deny unlimited access to everyone.
-Lets say we have API with a path *http://localhost:8002/private*. The API accepts JSON `{"text":"Some text to synthesize"}`. And we want to add quota for users based on count of characters in JSON's *text* field. The proxy can allow 1) access with some default quota to everyone (based on referrer's IP), 2) access with configured quota values for users with provided *key*.
+Lets say we have API with a path *http://localhost:8002/private*. The API accepts JSON `{"text":"Some text to synthesize"}`. And we want to add quota for users based on count of characters in JSON's *text* field. The proxy can allow 1) access with some default quota to everyone (based on referer's IP), 2) access with configured quota values for users with provided *key*.
 
 ## Demo
 
