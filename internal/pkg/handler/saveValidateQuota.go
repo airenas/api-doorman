@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 //QuotaValidator validator
@@ -29,12 +29,12 @@ func QuotaValidate(next http.Handler, qv QuotaValidator) http.Handler {
 func (h *quotaSaveValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
 	quotaV := ctx.QuotaValue
-	logrus.Infof("Quota value: %f", quotaV)
+	cmdapp.Log.Debugf("Quota value: %f", quotaV)
 
 	ok, rem, tot, err := h.qv.SaveValidate(ctx.Key, utils.ExtractIP(rn), quotaV)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		logrus.Error("Can't save quota/validate key. ", err)
+		cmdapp.Log.Error("Can't save quota/validate key. ", err)
 		ctx.ResponseCode = http.StatusInternalServerError
 		return
 	}
@@ -49,7 +49,5 @@ func (h *quotaSaveValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx.ResponseCode = http.StatusForbidden
 		return
 	}
-	if h.next != nil {
-		h.next.ServeHTTP(w, rn)
-	}
+	h.next.ServeHTTP(w, rn)
 }
