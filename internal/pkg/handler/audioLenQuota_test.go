@@ -88,6 +88,8 @@ type testHandler struct {
 	f func(http.ResponseWriter, *http.Request)
 }
 
+const testCode = 555
+
 func (h *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(555)
+	w.WriteHeader(testCode)
 }
