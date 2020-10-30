@@ -5,7 +5,7 @@
 Simple proxy for traking API usage in DB and authenticating requests by keys.
 
 The proxy is prepared to be used for Text-to-Spech application. We want to deny unlimited access to everyone.
-Lets say we have API with a path *http://localhost:8002/private*. The API accepts JSON `{"text":"Some text to synthesize"}`. And we want to add quota for users based on count of JSON's *text* field. The proxy can allow 1) access with some default quota to everyone (based on referrer's IP), 2) access with configured quota values for users with provided *key*.
+Lets say we have API with a path *http://localhost:8002/private*. The API accepts JSON `{"text":"Some text to synthesize"}`. And we want to add quota for users based on count of characters in JSON's *text* field. The proxy can allow 1) access with some default quota to everyone (based on referrer's IP), 2) access with configured quota values for users with provided *key*.
 
 ## Demo
 
@@ -23,15 +23,12 @@ Lets say we have API with a path *http://localhost:8002/private*. The API accept
 
 1. Add new key to DB: `make adm-add`
 Expected result: 
-```json
-{"key":"XK3JoSyC48cxgvvkpUF4",
-"manual":true,
-"validTo":"2030-11-24T11:07:00Z",
-"limit":500 ...}
+    ```json
+    {"key":"XK3JoSyC48cxgvvkpUF4", "manual":true,
+    "validTo":"2030-11-24T11:07:00Z", "limit":500 ...}
+    ```
 
-```
-
-1. See keys in DB: `make adm-key-list`
+1. Retrieve available keys from DB: `make adm-key-list`
 
 1. Access private API: `make test-private-key key=<<created key>>` . Sample: `make test-private-key key=XK3JoSyC48cxgvvkpUF4`
 
