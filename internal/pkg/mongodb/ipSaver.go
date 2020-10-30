@@ -35,7 +35,7 @@ func (ss *IPSaver) CheckCreate(ip string, limit float64) error {
 	c := session.Client().Database(store).Collection(keyTable)
 
 	session.StartTransaction()
-	cursor, err := c.Find(ctx, bson.M{"key": ip, "manual": false}, options.Find().SetLimit(1))
+	cursor, err := c.Find(ctx, bson.M{"key": sanitize(ip), "manual": false}, options.Find().SetLimit(1))
 	if err != nil {
 		return errors.Wrap(err, "Can't get keys")
 	}

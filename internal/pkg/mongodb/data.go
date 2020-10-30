@@ -1,6 +1,8 @@
 package mongodb
 
-import "time"
+import (
+	"time"
+)
 
 type keyRecord struct {
 	Key              string    `json:"key,omitempty"`

@@ -50,7 +50,7 @@ func (ss *LogSaver) Get(key string) ([]*adminapi.Log, error) {
 	}
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(store).Collection(logTable)
-	cursor, err := c.Find(ctx, bson.M{"key": key})
+	cursor, err := c.Find(ctx, bson.M{"key": sanitize(key)})
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't get logs")
 	}

@@ -51,3 +51,10 @@ func TestQuotaUpdate_WithFail(t *testing.T) {
 	assert.Equal(t, 110.0, res.QuotaValue)
 	assert.Equal(t, 19.0, res.QuotaValueFailed)
 }
+
+func TestSanitize(t *testing.T) {
+	assert.Equal(t, "olia", sanitize("olia"))
+	assert.Equal(t, "olia", sanitize("$^olia$"))
+	assert.Equal(t, "olia", sanitize("\\olia$ "))
+	assert.Equal(t, "olia", sanitize("/$olia"))
+}

@@ -91,7 +91,7 @@ func (ss *KeySaver) Get(key string) (*adminapi.Key, error) {
 	}
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(store).Collection(keyTable)
-	cursor, err := c.Find(ctx, bson.M{"key": key})
+	cursor, err := c.Find(ctx, bson.M{"key": sanitize(key)})
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't get keys")
 	}
@@ -122,7 +122,7 @@ func (ss *KeySaver) Update(key string, data map[string]interface{}) (*adminapi.K
 
 	session.StartTransaction()
 	var res keyRecord
-	err = c.FindOne(ctx, bson.M{"key": key}).Decode(&res)
+	err = c.FindOne(ctx, bson.M{"key": sanitize(key)}).Decode(&res)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (ss *KeySaver) Update(key string, data map[string]interface{}) (*adminapi.K
 	updates["updated"] = time.Now()
 
 	update := bson.M{"$set": updates}
-	err = c.FindOneAndUpdate(ctx, bson.M{"key": key}, update,
+	err = c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key)}, update,
 		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&res)
 	if err != nil {
 		return nil, err

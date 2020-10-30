@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -101,4 +102,8 @@ func quotaUpdateValidate(res *keyRecord, qv float64) bool {
 		return false
 	}
 	return true
+}
+
+func sanitize(s string) string {
+	return strings.Trim(s, " $/^\\")
 }
