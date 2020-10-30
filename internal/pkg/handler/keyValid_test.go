@@ -24,7 +24,7 @@ func TestKeyValid(t *testing.T) {
 	ctx.Manual = true
 	resp := httptest.NewRecorder()
 	pegomock.When(keyValidatorMock.IsValid(pegomock.AnyString(), pegomock.AnyBool())).ThenReturn(true, nil)
-	KeyValid(&testHandler{}, keyValidatorMock).ServeHTTP(resp, req)
+	KeyValid(newTestHandler(), keyValidatorMock).ServeHTTP(resp, req)
 	assert.Equal(t, testCode, resp.Code)
 	cKey, cM := keyValidatorMock.VerifyWasCalledOnce().IsValid(pegomock.AnyString(), pegomock.AnyBool()).GetCapturedArguments()
 	assert.Equal(t, "kkk", cKey)
@@ -38,7 +38,7 @@ func TestKeyValid_Unauthorized(t *testing.T) {
 	ctx.Manual = true
 	resp := httptest.NewRecorder()
 	pegomock.When(keyValidatorMock.IsValid(pegomock.AnyString(), pegomock.AnyBool())).ThenReturn(false, nil)
-	KeyValid(&testHandler{}, keyValidatorMock).ServeHTTP(resp, req)
+	KeyValid(newTestHandler(), keyValidatorMock).ServeHTTP(resp, req)
 	assert.Equal(t, 401, resp.Code)
 }
 
@@ -49,6 +49,6 @@ func TestKeyValid_Fail(t *testing.T) {
 	ctx.Manual = true
 	resp := httptest.NewRecorder()
 	pegomock.When(keyValidatorMock.IsValid(pegomock.AnyString(), pegomock.AnyBool())).ThenReturn(false, errors.New("olia"))
-	KeyValid(&testHandler{}, keyValidatorMock).ServeHTTP(resp, req)
+	KeyValid(newTestHandler(), keyValidatorMock).ServeHTTP(resp, req)
 	assert.Equal(t, 500, resp.Code)
 }

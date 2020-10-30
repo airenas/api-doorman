@@ -23,7 +23,7 @@ func TestIP(t *testing.T) {
 	req, ctx := customContext(httptest.NewRequest("POST", "/duration", nil))
 	resp := httptest.NewRecorder()
 
-	IPAsKey(&testHandler{}, ipSaverMock).ServeHTTP(resp, req)
+	IPAsKey(newTestHandler(), ipSaverMock).ServeHTTP(resp, req)
 	str := ipSaverMock.VerifyWasCalledOnce().Save(pegomock.AnyString()).GetCapturedArguments()
 	assert.Equal(t, 555, resp.Code)
 	assert.Equal(t, "192.0.2.1", str)
@@ -35,6 +35,6 @@ func TestIP_Fail(t *testing.T) {
 	pegomock.When(ipSaverMock.Save(pegomock.AnyString())).ThenReturn(errors.New("olia"))
 	req := httptest.NewRequest("POST", "/duration", nil)
 	resp := httptest.NewRecorder()
-	IPAsKey(&testHandler{}, ipSaverMock).ServeHTTP(resp, req)
+	IPAsKey(newTestHandler(), ipSaverMock).ServeHTTP(resp, req)
 	assert.Equal(t, 500, resp.Code)
 }
