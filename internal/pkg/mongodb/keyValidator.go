@@ -79,11 +79,7 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, f
 		return false, 0, 0, err
 	}
 	res.QuotaValue += qv
-	ok := true
-	if res.Limit < (res.QuotaValue - res.QuotaValueFailed) {
-		res.QuotaValueFailed += qv
-		ok = false
-	}
+	ok := quotaUpdateValidate(&res, qv)
 	res.LastUsed = time.Now()
 	res.LastIP = ip
 
@@ -96,4 +92,13 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, f
 	session.CommitTransaction(ctx)
 
 	return ok, res.Limit - (res.QuotaValue - res.QuotaValueFailed), res.Limit, nil
+}
+
+func quotaUpdateValidate(res *keyRecord, qv float64) bool {
+	res.QuotaValue += qv
+	if res.Limit < (res.QuotaValue - res.QuotaValueFailed) {
+		res.QuotaValueFailed += qv
+		return false
+	}
+	return true
 }
