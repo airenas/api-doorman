@@ -5,7 +5,6 @@ import (
 	"net/url"
 )
 
-//KeyExtract extract key from request and put into context
 type keyExtract struct {
 	next http.Handler
 }
@@ -28,7 +27,6 @@ func (h *keyExtract) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		q.Del("key")
 		rn.URL.RawQuery = q.Encode()
 	}
-	if h.next != nil {
-		h.next.ServeHTTP(w, rn)
-	}
+
+	h.next.ServeHTTP(w, rn)
 }
