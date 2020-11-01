@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
 	"github.com/pkg/errors"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -31,7 +31,7 @@ func NewKeySaver(sessionProvider *SessionProvider, keySize int) (*KeySaver, erro
 
 // Create key to DB
 func (ss *KeySaver) Create(key *adminapi.Key) (*adminapi.Key, error) {
-	logrus.Infof("Saving key - valid to: %v, limit: %f", key.ValidTo, key.Limit)
+	cmdapp.Log.Infof("Saving key - valid to: %v, limit: %f", key.ValidTo, key.Limit)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -53,7 +53,7 @@ func (ss *KeySaver) Create(key *adminapi.Key) (*adminapi.Key, error) {
 
 // List return all keys
 func (ss *KeySaver) List() ([]*adminapi.Key, error) {
-	logrus.Infof("getting list")
+	cmdapp.Log.Infof("getting list")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -81,7 +81,7 @@ func (ss *KeySaver) List() ([]*adminapi.Key, error) {
 
 // Get return one key record
 func (ss *KeySaver) Get(key string) (*adminapi.Key, error) {
-	logrus.Infof("getting list")
+	cmdapp.Log.Infof("getting list")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -108,7 +108,7 @@ func (ss *KeySaver) Get(key string) (*adminapi.Key, error) {
 
 //Update update key record
 func (ss *KeySaver) Update(key string, data map[string]interface{}) (*adminapi.Key, error) {
-	logrus.Infof("Updating key")
+	cmdapp.Log.Infof("Updating key")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

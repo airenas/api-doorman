@@ -8,7 +8,6 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -61,7 +60,7 @@ func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
 
 //SaveValidate add qv to quota and validates with quota limit
 func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, float64, float64, error) {
-	logrus.Infof("Validating key")
+	cmdapp.Log.Debugf("Validating key")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

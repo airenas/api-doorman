@@ -3,8 +3,8 @@ package handler
 import (
 	"net/http"
 
+	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 //IPSaver saves ip a=as key into DB
@@ -32,7 +32,7 @@ func (h *ipAsKey) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := h.ipSaver.Save(key)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		logrus.Error("Can't save ip as key. ", err)
+		cmdapp.Log.Error("Can't save ip as key. ", err)
 		return
 	}
 	h.next.ServeHTTP(w, rn)

@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -23,7 +23,7 @@ func NewIPSaver(sessionProvider *SessionProvider) (*IPSaver, error) {
 
 // CheckCreate new key record if no exist
 func (ss *IPSaver) CheckCreate(ip string, limit float64) error {
-	logrus.Infof("Validating ip")
+	cmdapp.Log.Infof("Validating ip")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

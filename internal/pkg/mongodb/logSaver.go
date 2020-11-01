@@ -5,8 +5,8 @@ import (
 	"time"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
+	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -23,7 +23,7 @@ func NewLogSaver(sessionProvider *SessionProvider) (*LogSaver, error) {
 
 // Save log key to DB
 func (ss *LogSaver) Save(log *adminapi.Log) error {
-	logrus.Infof("Saving log - %s, ip: %s, response: %d", log.URL, log.IP, log.ResponseCode)
+	cmdapp.Log.Infof("Saving log - %s, ip: %s, response: %d", log.URL, log.IP, log.ResponseCode)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -40,7 +40,7 @@ func (ss *LogSaver) Save(log *adminapi.Log) error {
 
 // Get return all logs for key
 func (ss *LogSaver) Get(key string) ([]*adminapi.Log, error) {
-	logrus.Infof("getting log list")
+	cmdapp.Log.Infof("getting log list")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

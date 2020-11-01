@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/sirupsen/logrus"
+	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 )
 
 type jsonField struct {
@@ -31,7 +31,7 @@ func (h *jsonField) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := json.Unmarshal(bodyBytes, &data)
 	if err != nil {
 		http.Error(w, "No field "+h.field, http.StatusBadRequest)
-		logrus.Error("Can't extract json field. ", err)
+		cmdapp.Log.Error("Can't extract json field. ", err)
 		return
 	}
 	f := data[h.field]
