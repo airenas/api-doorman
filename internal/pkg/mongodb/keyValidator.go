@@ -42,9 +42,9 @@ func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			cmdapp.Log.Infof("No key")
-			return false, errors.Wrap(err, "Can't get key")
+			return false, nil
 		}
-		return false, errors.Wrap(err, "Can't get keys")
+		return false, errors.Wrap(err, "Can't get key")
 	}
 	ok := res.ValidTo.After(time.Now())
 	if !ok {
