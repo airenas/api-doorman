@@ -5,9 +5,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
+
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -24,8 +27,8 @@ func NewKeyValidator(sessionProvider *SessionProvider) (*KeyValidator, error) {
 
 // IsValid validates key
 func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
-	logrus.Infof("Validating key")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	cmdapp.Log.Debugf("Validating key")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
@@ -35,34 +38,31 @@ func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
 
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(store).Collection(keyTable)
-	cursor, err := c.Find(ctx, bson.M{"key": key, "manual": manual}, options.Find().SetLimit(1))
+	var res keyRecord
+	err = c.FindOne(ctx, bson.M{"key": sanitize(key), "manual": manual}).Decode(&res)
 	if err != nil {
-		return false, errors.Wrap(err, "Can't get keys")
-	}
-	defer cursor.Close(ctx)
-	for cursor.Next(ctx) {
-		var res keyRecord
-		if err = cursor.Decode(&res); err != nil {
+		if err == mongo.ErrNoDocuments {
+			cmdapp.Log.Infof("No key")
 			return false, errors.Wrap(err, "Can't get key")
 		}
-		ok := res.ValidTo.After(time.Now())
-		if !ok {
-			logrus.Infof("Key expired")
-			return ok, nil
-		}
-		ok = !res.Disabled
-		if !ok {
-			logrus.Infof("Key disabled")
-		}
+		return false, errors.Wrap(err, "Can't get keys")
+	}
+	ok := res.ValidTo.After(time.Now())
+	if !ok {
+		cmdapp.Log.Infof("Key expired")
 		return ok, nil
 	}
-	return false, nil
+	ok = !res.Disabled
+	if !ok {
+		cmdapp.Log.Infof("Key disabled")
+	}
+	return ok, nil
 }
 
 //SaveValidate add qv to quota and validates with quota limit
 func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, float64, float64, error) {
 	logrus.Infof("Validating key")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
@@ -73,35 +73,44 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, f
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(store).Collection(keyTable)
 
-	session.StartTransaction()
 	var res keyRecord
-	err = c.FindOne(ctx, bson.M{"key": key}).Decode(&res)
+	err = c.FindOne(ctx, bson.M{"key": sanitize(key)}).Decode(&res)
 	if err != nil {
 		return false, 0, 0, err
 	}
-	res.QuotaValue += qv
-	ok := quotaUpdateValidate(&res, qv)
-	res.LastUsed = time.Now()
-	res.LastIP = ip
 
-	update := bson.M{"$set": bson.M{"quotaValue": res.QuotaValue, "quotaValueFailed": res.QuotaValueFailed,
-		"lastUsed": res.LastUsed, "lastIP": res.LastIP}}
-	err = c.FindOneAndUpdate(ctx, bson.M{"key": key}, update).Err()
+	remRequired := res.Limit - qv
+	if remRequired <= 0 {
+		return ss.updateFailed(c, key, ip, qv)
+	}
+	update := bson.M{"$set": bson.M{"lastUsed": time.Now(), "lastIP": ip},
+		"$inc": bson.M{"quotaValue": qv}}
+	var resNew keyRecord
+	err = c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key),
+		"quotaValue": bson.M{"$not": bson.M{"$gt": remRequired}}},
+		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&resNew)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return ss.updateFailed(c, key, ip, qv)
+		}
 		return false, 0, 0, err
 	}
-	session.CommitTransaction(ctx)
 
-	return ok, res.Limit - (res.QuotaValue - res.QuotaValueFailed), res.Limit, nil
+	return true, resNew.Limit - resNew.QuotaValue, resNew.Limit, nil
 }
 
-func quotaUpdateValidate(res *keyRecord, qv float64) bool {
-	res.QuotaValue += qv
-	if res.Limit < (res.QuotaValue - res.QuotaValueFailed) {
-		res.QuotaValueFailed += qv
-		return false
+func (ss *KeyValidator) updateFailed(c *mongo.Collection, key string, ip string, qv float64) (bool, float64, float64, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	update := bson.M{"$set": bson.M{"lastUsed": time.Now(), "lastIP": ip},
+		"$inc": bson.M{"quotaValueFailed": qv}}
+	var res keyRecord
+	err := c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key)},
+		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&res)
+	if err != nil {
+		return false, 0, 0, err
 	}
-	return true
+	return false, res.Limit - res.QuotaValue, res.Limit, nil
 }
 
 func sanitize(s string) string {

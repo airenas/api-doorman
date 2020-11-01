@@ -166,7 +166,7 @@ func mapTo(v *keyRecord) *adminapi.Key {
 	res.Manual = v.Manual
 	res.ValidTo = v.ValidTo
 	res.Limit = v.Limit
-	res.QuotaValue = v.QuotaValue - v.QuotaValueFailed
+	res.QuotaValue = v.QuotaValue
 	res.QuotaFailed = v.QuotaValueFailed
 	res.Created = v.Created
 	res.LastUsed = v.LastUsed
