@@ -167,6 +167,9 @@ func prepareUpdates(data map[string]interface{}) (bson.M, error) {
 			return nil, errors.Wrap(err, "Can't parse input")
 		}
 	}
+	if len(res) == 0 {
+		return nil, errors.Wrapf(adminapi.ErrWrongField, "No updates")
+	}
 	res["updated"] = time.Now()
 	return res, nil
 }
