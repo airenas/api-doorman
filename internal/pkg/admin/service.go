@@ -223,7 +223,15 @@ func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	keyResp, err := h.data.OneKeyUpdater.Update(key, input)
 
-	if err != nil {
+	if errors.Is(err, adminapi.ErrNoRecord) {
+		http.Error(w, "Key not found", http.StatusBadRequest)
+		cmdapp.Log.Error("Key not found. ", err)
+		return
+	} else if errors.Is(err, adminapi.ErrWrongField) {
+		http.Error(w, "Wrong field. "+err.Error(), http.StatusBadRequest)
+		cmdapp.Log.Error("Key not found. ", err)
+		return
+	} else if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
 		cmdapp.Log.Error("Can't create key. ", err)
 		return
