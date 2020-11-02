@@ -27,7 +27,7 @@ func NewKeyValidator(sessionProvider *SessionProvider) (*KeyValidator, error) {
 // IsValid validates key
 func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
 	cmdapp.Log.Debugf("Validating key")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := mongoContext()
 	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
@@ -61,7 +61,7 @@ func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
 //SaveValidate add qv to quota and validates with quota limit
 func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, float64, float64, error) {
 	cmdapp.Log.Debugf("Validating key")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := mongoContext()
 	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
@@ -99,7 +99,7 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, f
 }
 
 func (ss *KeyValidator) updateFailed(c *mongo.Collection, key string, ip string, qv float64) (bool, float64, float64, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := mongoContext()
 	defer cancel()
 	update := bson.M{"$set": bson.M{"lastUsed": time.Now(), "lastIP": ip},
 		"$inc": bson.M{"quotaValueFailed": qv}}

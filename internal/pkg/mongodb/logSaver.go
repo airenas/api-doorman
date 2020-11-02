@@ -2,7 +2,6 @@ package mongodb
 
 import (
 	"context"
-	"time"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
@@ -24,7 +23,7 @@ func NewLogSaver(sessionProvider *SessionProvider) (*LogSaver, error) {
 // Save log key to DB
 func (ss *LogSaver) Save(log *adminapi.Log) error {
 	cmdapp.Log.Infof("Saving log - %s, ip: %s, response: %d", log.URL, log.IP, log.ResponseCode)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := mongoContext()
 	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
@@ -41,7 +40,7 @@ func (ss *LogSaver) Save(log *adminapi.Log) error {
 // Get return all logs for key
 func (ss *LogSaver) Get(key string) ([]*adminapi.Log, error) {
 	cmdapp.Log.Infof("getting log list")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := mongoContext()
 	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()

@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -42,7 +44,7 @@ func NewSessionProvider(url string) (*SessionProvider, error) {
 //Close closes mongo session
 func (sp *SessionProvider) Close() {
 	if sp.client != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := mongoContext()
 		defer cancel()
 		sp.client.Disconnect(ctx)
 	}
@@ -54,8 +56,8 @@ func (sp *SessionProvider) NewSession() (mongo.Session, error) {
 	defer sp.m.Unlock()
 
 	if sp.client == nil {
-		//cmdapp.Log.Info("Dial mongo: " + utils.HidePass(sp.URL))
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		cmdapp.Log.Info("Dial mongo: " + utils.HidePass(sp.URL))
+		ctx, cancel := mongoContext()
 		defer cancel()
 		client, err := mongo.Connect(ctx, options.Client().ApplyURI(sp.URL))
 		if err != nil {
@@ -107,4 +109,8 @@ func (sp *SessionProvider) Healthy() error {
 	}
 	defer session.EndSession(context.Background())
 	return session.Client().Ping(context.Background(), nil)
+}
+
+func mongoContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 5*time.Second)
 }

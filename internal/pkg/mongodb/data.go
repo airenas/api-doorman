@@ -9,7 +9,7 @@ type keyRecord struct {
 	Manual           bool      `json:"manual,omitempty"`
 	ValidTo          time.Time `json:"validTo"`
 	Limit            float64   `json:"limit,omitempty"`
-	QuotaValue       float64   `json:"quotaValue,omitempty"`
+	QuotaValue       float64   `json:"quotaValue"`
 	QuotaValueFailed float64   `json:"quotaValueFailed,omitempty"`
 	Created          time.Time `json:"created,omitempty"`
 	Updated          time.Time `json:"updated,omitempty"`

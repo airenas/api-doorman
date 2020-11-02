@@ -23,8 +23,8 @@ func NewIPSaver(sessionProvider *SessionProvider) (*IPSaver, error) {
 
 // CheckCreate new key record if no exist
 func (ss *IPSaver) CheckCreate(ip string, limit float64) error {
-	cmdapp.Log.Infof("Validating ip")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	cmdapp.Log.Infof("Validating IP")
+	ctx, cancel := mongoContext()
 	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()

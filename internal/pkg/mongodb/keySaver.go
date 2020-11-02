@@ -32,7 +32,7 @@ func NewKeySaver(sessionProvider *SessionProvider, keySize int) (*KeySaver, erro
 // Create key to DB
 func (ss *KeySaver) Create(key *adminapi.Key) (*adminapi.Key, error) {
 	cmdapp.Log.Infof("Saving key - valid to: %v, limit: %f", key.ValidTo, key.Limit)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := mongoContext()
 	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
@@ -54,7 +54,7 @@ func (ss *KeySaver) Create(key *adminapi.Key) (*adminapi.Key, error) {
 // List return all keys
 func (ss *KeySaver) List() ([]*adminapi.Key, error) {
 	cmdapp.Log.Infof("getting list")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := mongoContext()
 	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
@@ -81,8 +81,8 @@ func (ss *KeySaver) List() ([]*adminapi.Key, error) {
 
 // Get return one key record
 func (ss *KeySaver) Get(key string) (*adminapi.Key, error) {
-	cmdapp.Log.Infof("getting list")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	cmdapp.Log.Debug("Getting key")
+	ctx, cancel := mongoContext()
 	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
@@ -109,7 +109,7 @@ func (ss *KeySaver) Get(key string) (*adminapi.Key, error) {
 //Update update key record
 func (ss *KeySaver) Update(key string, data map[string]interface{}) (*adminapi.Key, error) {
 	cmdapp.Log.Infof("Updating key")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := mongoContext()
 	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
