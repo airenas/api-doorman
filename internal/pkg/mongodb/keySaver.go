@@ -155,6 +155,11 @@ func prepareUpdates(data map[string]interface{}) (bson.M, error) {
 			res["limit"], ok = v.(float64)
 		} else if k == "validTo" {
 			res["validTo"], ok = v.(time.Time)
+			if !ok {
+				res["validTo"], err = time.Parse(time.RFC3339, v.(string))
+				ok = err == nil
+			}
+
 		} else if k == "disabled" {
 			res["disabled"], ok = v.(bool)
 		} else {

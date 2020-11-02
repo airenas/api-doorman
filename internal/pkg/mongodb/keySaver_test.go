@@ -44,6 +44,24 @@ func TestPrepareUpdates(t *testing.T) {
 	assert.Equal(t, tn, pr["validTo"])
 }
 
+func TestPrepareUpdates_ParseTime(t *testing.T) {
+	data := make(map[string]interface{})
+	data["validTo"] = "2030-11-24T11:07:00Z"
+	pr, err := prepareUpdates(data)
+	assert.Nil(t, err)
+	assert.NotNil(t, pr)
+	ts := pr["validTo"]
+	tp := ts.(time.Time)
+	assert.True(t, time.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC).Before(tp))
+}
+
+func TestPrepareUpdates_FailParseTime(t *testing.T) {
+	data := make(map[string]interface{})
+	data["validTo"] = "2030-11-24"
+	_, err := prepareUpdates(data)
+	assert.True(t, errors.Is(err, api.ErrWrongField))
+}
+
 func TestPrepareUpdates_Fail(t *testing.T) {
 	data := make(map[string]interface{})
 	data["limit1"] = 10.0
