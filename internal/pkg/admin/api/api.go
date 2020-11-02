@@ -1,6 +1,9 @@
 package api
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // Key structure for key data
 type Key struct {
@@ -28,3 +31,9 @@ type Log struct {
 	Fail         bool      `json:"fail,omitempty"`
 	ResponseCode int       `json:"response,omitempty"`
 }
+
+//ErrNoRecord indicates no record found error
+var ErrNoRecord = errors.New("no record found")
+
+//ErrWrongField indicates wrong passed field on update
+var ErrWrongField = errors.New("wrong field")

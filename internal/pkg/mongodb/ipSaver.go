@@ -7,7 +7,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // IPSaver validates saves ip into DB
@@ -23,7 +23,7 @@ func NewIPSaver(sessionProvider *SessionProvider) (*IPSaver, error) {
 
 // CheckCreate new key record if no exist
 func (ss *IPSaver) CheckCreate(ip string, limit float64) error {
-	cmdapp.Log.Infof("Validating IP")
+	cmdapp.Log.Debug("Validating IP")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -34,19 +34,14 @@ func (ss *IPSaver) CheckCreate(ip string, limit float64) error {
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(store).Collection(keyTable)
 
-	session.StartTransaction()
-	cursor, err := c.Find(ctx, bson.M{"key": sanitize(ip), "manual": false}, options.Find().SetLimit(1))
-	if err != nil {
-		return errors.Wrap(err, "Can't get keys")
-	}
-	defer cursor.Close(ctx)
-	for cursor.Next(ctx) {
-		var res keyRecord
-		if err = cursor.Decode(&res); err != nil {
-			return errors.Wrap(err, "Can't get key")
-		}
+	err = c.FindOne(ctx, bson.M{"key": sanitize(ip), "manual": false}).Err()
+	if err == nil {
 		return nil
 	}
+	if err != mongo.ErrNoDocuments {
+		return errors.Wrap(err, "Can't get keys")
+	}
+
 	res := &keyRecord{}
 	res.Key = ip
 	res.Manual = false
@@ -57,6 +52,5 @@ func (ss *IPSaver) CheckCreate(ip string, limit float64) error {
 	if err != nil {
 		return err
 	}
-	session.CommitTransaction(ctx)
 	return nil
 }

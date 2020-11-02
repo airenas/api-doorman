@@ -10,6 +10,7 @@ import (
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -91,24 +92,20 @@ func (ss *KeySaver) Get(key string) (*adminapi.Key, error) {
 	}
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(store).Collection(keyTable)
-	cursor, err := c.Find(ctx, bson.M{"key": sanitize(key)})
+	var res keyRecord
+	err = c.FindOne(ctx, bson.M{"key": sanitize(key)}).Decode(&res)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, adminapi.ErrNoRecord
+		}
 		return nil, errors.Wrap(err, "Can't get keys")
 	}
-	defer cursor.Close(ctx)
-	for cursor.Next(ctx) {
-		var key keyRecord
-		if err = cursor.Decode(&key); err != nil {
-			return nil, errors.Wrap(err, "Can't get key")
-		}
-		return mapTo(&key), nil
-	}
-	return nil, nil
+	return mapTo(&res), nil
 }
 
 //Update update key record
 func (ss *KeySaver) Update(key string, data map[string]interface{}) (*adminapi.Key, error) {
-	cmdapp.Log.Infof("Updating key")
+	cmdapp.Log.Debug("Updating key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -124,30 +121,19 @@ func (ss *KeySaver) Update(key string, data map[string]interface{}) (*adminapi.K
 	var res keyRecord
 	err = c.FindOne(ctx, bson.M{"key": sanitize(key)}).Decode(&res)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, adminapi.ErrNoRecord
+		}
 		return nil, err
 	}
 
-	updates := bson.M{}
-	for k, v := range data {
-		var err error
-		ok := true
-		if k == "limit" {
-			updates["limit"], ok = v.(float64)
-		} else if k == "validTo" {
-			updates["validTo"], ok = v.(time.Time)
-		} else if k == "disabled" {
-			updates["disabled"], ok = v.(bool)
-		} else {
-			err = errors.New("Unknown field " + k)
+	updates, err := prepareUpdates(data)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, adminapi.ErrNoRecord
 		}
-		if !ok {
-			return nil, errors.Errorf("Can't parse %s: '%s'", k, v)
-		}
-		if err != nil {
-			return nil, errors.Wrap(err, "Can't parse input")
-		}
+		return nil, err
 	}
-	updates["updated"] = time.Now()
 
 	update := bson.M{"$set": updates}
 	err = c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key)}, update,
@@ -158,6 +144,31 @@ func (ss *KeySaver) Update(key string, data map[string]interface{}) (*adminapi.K
 	session.CommitTransaction(ctx)
 
 	return mapTo(&res), nil
+}
+
+func prepareUpdates(data map[string]interface{}) (bson.M, error) {
+	res := bson.M{}
+	for k, v := range data {
+		var err error
+		ok := true
+		if k == "limit" {
+			res["limit"], ok = v.(float64)
+		} else if k == "validTo" {
+			res["validTo"], ok = v.(time.Time)
+		} else if k == "disabled" {
+			res["disabled"], ok = v.(bool)
+		} else {
+			err = errors.Wrapf(adminapi.ErrWrongField, "Unknown field '%s'", k)
+		}
+		if !ok {
+			return nil, errors.Wrapf(adminapi.ErrWrongField, "Can't parse %s: '%s'", k, v)
+		}
+		if err != nil {
+			return nil, errors.Wrap(err, "Can't parse input")
+		}
+	}
+	res["updated"] = time.Now()
+	return res, nil
 }
 
 func mapTo(v *keyRecord) *adminapi.Key {
