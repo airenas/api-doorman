@@ -170,14 +170,14 @@ func (h *keyInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	res := &keyInfoResp{}
 	var err error
 	res.Key, err = h.data.OneKeyGetter.Get(key)
+	if errors.Is(err, adminapi.ErrNoRecord) {
+		http.Error(w, "Key not found", http.StatusBadRequest)
+		cmdapp.Log.Error("Key not found.")
+		return
+	}
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
 		cmdapp.Log.Error("Can't get key. ", err)
-		return
-	}
-	if res.Key == nil {
-		http.Error(w, "Key not found", http.StatusBadRequest)
-		cmdapp.Log.Error("Key not found.")
 		return
 	}
 	if full {
