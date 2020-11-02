@@ -104,7 +104,7 @@ func TestKey_FailFull(t *testing.T) {
 
 func TestKey_FailNoKey(t *testing.T) {
 	initTest(t)
-	pegomock.When(oneKeyRetrieverMock.Get(pegomock.EqString("kkk"))).ThenReturn(nil, nil)
+	pegomock.When(oneKeyRetrieverMock.Get(pegomock.EqString("kkk"))).ThenReturn(nil, adminapi.ErrNoRecord)
 	req := httptest.NewRequest("GET", "/key/kkk", nil)
 	testCode(t, req, 400)
 }
@@ -170,6 +170,22 @@ func TestUpdateKey_Fail(t *testing.T) {
 		ThenReturn(nil, errors.New("olia"))
 	req := httptest.NewRequest("PATCH", "/key/kkk", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
 	testCode(t, req, 500)
+}
+
+func TestUpdateKey_FailWrongKey(t *testing.T) {
+	initTest(t)
+	pegomock.When(keyUpdaterMock.Update(pegomock.AnyString(), matchers.AnyMapOfStringToInterface())).
+		ThenReturn(nil, errors.Wrap(adminapi.ErrNoRecord, "olia"))
+	req := httptest.NewRequest("PATCH", "/key/kkk", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	testCode(t, req, 400)
+}
+
+func TestUpdateKey_FailWrongField(t *testing.T) {
+	initTest(t)
+	pegomock.When(keyUpdaterMock.Update(pegomock.AnyString(), matchers.AnyMapOfStringToInterface())).
+		ThenReturn(nil, errors.Wrap(adminapi.ErrWrongField, "olia"))
+	req := httptest.NewRequest("PATCH", "/key/kkk", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	testCode(t, req, 400)
 }
 
 func newTestRouter() *mux.Router {
