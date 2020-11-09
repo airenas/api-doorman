@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
+	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
@@ -32,7 +32,7 @@ func NewKeySaver(sessionProvider *SessionProvider, keySize int) (*KeySaver, erro
 
 // Create key to DB
 func (ss *KeySaver) Create(key *adminapi.Key) (*adminapi.Key, error) {
-	cmdapp.Log.Infof("Saving key - valid to: %v, limit: %f", key.ValidTo, key.Limit)
+	goapp.Log.Infof("Saving key - valid to: %v, limit: %f", key.ValidTo, key.Limit)
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -54,7 +54,7 @@ func (ss *KeySaver) Create(key *adminapi.Key) (*adminapi.Key, error) {
 
 // List return all keys
 func (ss *KeySaver) List() ([]*adminapi.Key, error) {
-	cmdapp.Log.Infof("getting list")
+	goapp.Log.Infof("getting list")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -82,7 +82,7 @@ func (ss *KeySaver) List() ([]*adminapi.Key, error) {
 
 // Get return one key record
 func (ss *KeySaver) Get(key string) (*adminapi.Key, error) {
-	cmdapp.Log.Debug("Getting key")
+	goapp.Log.Debug("Getting key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -105,7 +105,7 @@ func (ss *KeySaver) Get(key string) (*adminapi.Key, error) {
 
 //Update update key record
 func (ss *KeySaver) Update(key string, data map[string]interface{}) (*adminapi.Key, error) {
-	cmdapp.Log.Debug("Updating key")
+	goapp.Log.Debug("Updating key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 

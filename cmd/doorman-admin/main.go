@@ -6,10 +6,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
-
 	"github.com/airenas/api-doorman/internal/pkg/admin"
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
+	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 )
 
@@ -20,20 +19,20 @@ func main() {
 		flag.PrintDefaults()
 	}
 	flag.Parse()
-	err := cmdapp.InitConfig(*cFile)
+	err := goapp.InitConfig(*cFile)
 	if err != nil {
-		cmdapp.Log.Fatal(errors.Wrap(err, "Can't init app"))
+		goapp.Log.Fatal(errors.Wrap(err, "Can't init app"))
 	}
 
-	mongoSessionProvider, err := mongodb.NewSessionProvider(cmdapp.Config.GetString("mongo.url"))
+	mongoSessionProvider, err := mongodb.NewSessionProvider(goapp.Config.GetString("mongo.url"))
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can't init mongo provider"))
 	}
 	defer mongoSessionProvider.Close()
 
 	data := admin.Data{}
-	data.Port = cmdapp.Config.GetInt("port")
-	keysManager, err := mongodb.NewKeySaver(mongoSessionProvider, cmdapp.Config.GetInt("keySize"))
+	data.Port = goapp.Config.GetInt("port")
+	keysManager, err := mongodb.NewKeySaver(mongoSessionProvider, goapp.Config.GetInt("keySize"))
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can't init saver"))
 	}

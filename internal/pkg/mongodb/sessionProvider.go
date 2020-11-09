@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -56,7 +56,7 @@ func (sp *SessionProvider) NewSession() (mongo.Session, error) {
 	defer sp.m.Unlock()
 
 	if sp.client == nil {
-		cmdapp.Log.Info("Dial mongo: " + utils.HidePass(sp.URL))
+		goapp.Log.Info("Dial mongo: " + utils.HidePass(sp.URL))
 		ctx, cancel := mongoContext()
 		defer cancel()
 		client, err := mongo.Connect(ctx, options.Client().ApplyURI(sp.URL))

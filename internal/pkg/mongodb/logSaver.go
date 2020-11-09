@@ -4,7 +4,7 @@ import (
 	"context"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
+	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -22,7 +22,7 @@ func NewLogSaver(sessionProvider *SessionProvider) (*LogSaver, error) {
 
 // Save log key to DB
 func (ss *LogSaver) Save(log *adminapi.Log) error {
-	cmdapp.Log.Infof("Saving log - %s, ip: %s, response: %d", log.URL, log.IP, log.ResponseCode)
+	goapp.Log.Infof("Saving log - %s, ip: %s, response: %d", log.URL, log.IP, log.ResponseCode)
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -39,7 +39,7 @@ func (ss *LogSaver) Save(log *adminapi.Log) error {
 
 // Get return all logs for key
 func (ss *LogSaver) Get(key string) ([]*adminapi.Log, error) {
-	cmdapp.Log.Infof("getting log list")
+	goapp.Log.Infof("getting log list")
 	ctx, cancel := mongoContext()
 	defer cancel()
 

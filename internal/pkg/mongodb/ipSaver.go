@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
+	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -23,7 +23,7 @@ func NewIPSaver(sessionProvider *SessionProvider) (*IPSaver, error) {
 
 // CheckCreate new key record if no exist
 func (ss *IPSaver) CheckCreate(ip string, limit float64) error {
-	cmdapp.Log.Debug("Validating IP")
+	goapp.Log.Debug("Validating IP")
 	ctx, cancel := mongoContext()
 	defer cancel()
 

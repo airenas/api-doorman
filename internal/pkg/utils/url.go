@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/url"
 
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
+	"github.com/airenas/go-app/pkg/goapp"
 )
 
 //ParseURL parse url and checks is not empty
@@ -23,7 +23,7 @@ func ParseURL(str string) (*url.URL, error) {
 func HidePass(link string) string {
 	u, err := url.Parse(link)
 	if err != nil {
-		cmdapp.Log.Warn("Can't parse url.")
+		goapp.Log.Warn("Can't parse url.")
 		return ""
 	}
 	if u.User != nil {

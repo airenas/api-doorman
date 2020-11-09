@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
+	"github.com/airenas/go-app/pkg/goapp"
 )
 
 //KeyValidator validator
@@ -29,7 +29,7 @@ func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ok, err := h.kv.IsValid(ctx.Key, ctx.Manual)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		cmdapp.Log.Error("Can't check key. ", err)
+		goapp.Log.Error("Can't check key. ", err)
 		return
 	}
 	if !ok {

@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"sync/atomic"
 
+	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 )
 
@@ -26,7 +26,7 @@ func main() {
 
 	err := startWebServer(*port)
 	if err != nil {
-		cmdapp.Log.Fatal(errors.Wrap(err, "Can't start the service"))
+		goapp.Log.Fatal(errors.Wrap(err, "Can't start the service"))
 	}
 }
 

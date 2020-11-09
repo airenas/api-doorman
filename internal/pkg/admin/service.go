@@ -7,7 +7,7 @@ import (
 	"time"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
+	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
@@ -52,7 +52,7 @@ type (
 
 //StartWebServer starts the HTTP service and listens for the admin requests
 func StartWebServer(data *Data) error {
-	cmdapp.Log.Infof("Starting HTTP doorman admin service at %d", data.Port)
+	goapp.Log.Infof("Starting HTTP doorman admin service at %d", data.Port)
 	r := NewRouter(data)
 	http.Handle("/", r)
 	portStr := strconv.Itoa(data.Port)
@@ -79,26 +79,26 @@ type keyAddHandler struct {
 }
 
 func (h *keyAddHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	cmdapp.Log.Infof("Request from %s", r.RemoteAddr)
+	goapp.Log.Infof("Request from %s", r.RemoteAddr)
 
 	decoder := json.NewDecoder(r.Body)
 	var input adminapi.Key
 	err := decoder.Decode(&input)
 	if err != nil {
 		http.Error(w, "Cannot decode input", http.StatusBadRequest)
-		cmdapp.Log.Error("Cannot decode input" + err.Error())
+		goapp.Log.Error("Cannot decode input" + err.Error())
 		return
 	}
 
 	if input.Limit < 0.1 {
 		http.Error(w, "No limit", http.StatusBadRequest)
-		cmdapp.Log.Error("No input text")
+		goapp.Log.Error("No input text")
 		return
 	}
 
 	if input.ValidTo.Before(time.Now()) {
 		http.Error(w, "Wrong valid to", http.StatusBadRequest)
-		cmdapp.Log.Error("Wrong valid to")
+		goapp.Log.Error("Wrong valid to")
 		return
 	}
 
@@ -106,7 +106,7 @@ func (h *keyAddHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		cmdapp.Log.Error("Can't create key. ", err)
+		goapp.Log.Error("Can't create key. ", err)
 		return
 	}
 
@@ -115,7 +115,7 @@ func (h *keyAddHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = encoder.Encode(&keyResp)
 	if err != nil {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		cmdapp.Log.Error(err)
+		goapp.Log.Error(err)
 	}
 }
 
@@ -124,13 +124,13 @@ type keyListHandler struct {
 }
 
 func (h *keyListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	cmdapp.Log.Infof("Request list from %s", r.RemoteAddr)
+	goapp.Log.Infof("Request list from %s", r.RemoteAddr)
 
 	keyResp, err := h.data.KeyGetter.List()
 
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		cmdapp.Log.Error("Can't get keys. ", err)
+		goapp.Log.Error("Can't get keys. ", err)
 		return
 	}
 
@@ -139,7 +139,7 @@ func (h *keyListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = encoder.Encode(&keyResp)
 	if err != nil {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		cmdapp.Log.Error(err)
+		goapp.Log.Error(err)
 	}
 }
 
@@ -153,11 +153,11 @@ type keyInfoResp struct {
 }
 
 func (h *keyInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	cmdapp.Log.Infof("Request key from %s", r.RemoteAddr)
+	goapp.Log.Infof("Request key from %s", r.RemoteAddr)
 	key := mux.Vars(r)["key"]
 	if key == "" {
 		http.Error(w, "No Key", http.StatusBadRequest)
-		cmdapp.Log.Errorf("No Key")
+		goapp.Log.Errorf("No Key")
 		return
 	}
 	query := r.URL.Query()
@@ -172,19 +172,19 @@ func (h *keyInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	res.Key, err = h.data.OneKeyGetter.Get(key)
 	if errors.Is(err, adminapi.ErrNoRecord) {
 		http.Error(w, "Key not found", http.StatusBadRequest)
-		cmdapp.Log.Error("Key not found.")
+		goapp.Log.Error("Key not found.")
 		return
 	}
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		cmdapp.Log.Error("Can't get key. ", err)
+		goapp.Log.Error("Can't get key. ", err)
 		return
 	}
 	if full {
 		res.Logs, err = h.data.LogGetter.Get(key)
 		if err != nil {
 			http.Error(w, "Service error", http.StatusInternalServerError)
-			cmdapp.Log.Error("Can't get logs. ", err)
+			goapp.Log.Error("Can't get logs. ", err)
 			return
 		}
 	}
@@ -194,7 +194,7 @@ func (h *keyInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = encoder.Encode(&res)
 	if err != nil {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		cmdapp.Log.Error(err)
+		goapp.Log.Error(err)
 	}
 }
 
@@ -203,12 +203,12 @@ type keyUpdateHandler struct {
 }
 
 func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	cmdapp.Log.Infof("Request from %s", r.RemoteAddr)
+	goapp.Log.Infof("Request from %s", r.RemoteAddr)
 
 	key := mux.Vars(r)["key"]
 	if key == "" {
 		http.Error(w, "No Key", http.StatusBadRequest)
-		cmdapp.Log.Errorf("No Key")
+		goapp.Log.Errorf("No Key")
 		return
 	}
 
@@ -217,7 +217,7 @@ func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&input)
 	if err != nil {
 		http.Error(w, "Cannot decode input", http.StatusBadRequest)
-		cmdapp.Log.Error("Cannot decode input" + err.Error())
+		goapp.Log.Error("Cannot decode input" + err.Error())
 		return
 	}
 
@@ -225,15 +225,15 @@ func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if errors.Is(err, adminapi.ErrNoRecord) {
 		http.Error(w, "Key not found", http.StatusBadRequest)
-		cmdapp.Log.Error("Key not found. ", err)
+		goapp.Log.Error("Key not found. ", err)
 		return
 	} else if errors.Is(err, adminapi.ErrWrongField) {
 		http.Error(w, "Wrong field. "+err.Error(), http.StatusBadRequest)
-		cmdapp.Log.Error("Key not found. ", err)
+		goapp.Log.Error("Key not found. ", err)
 		return
 	} else if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		cmdapp.Log.Error("Can't create key. ", err)
+		goapp.Log.Error("Can't create key. ", err)
 		return
 	}
 
@@ -242,6 +242,6 @@ func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = encoder.Encode(&keyResp)
 	if err != nil {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		cmdapp.Log.Error(err)
+		goapp.Log.Error(err)
 	}
 }

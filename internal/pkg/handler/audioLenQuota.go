@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
+	"github.com/airenas/go-app/pkg/goapp"
 )
 
 //AudioLenGetter get duration
@@ -42,7 +42,7 @@ func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "No file", http.StatusBadRequest)
 		ctx.ResponseCode = http.StatusBadRequest
-		cmdapp.Log.Error(err)
+		goapp.Log.Error(err)
 		return
 	}
 	defer file.Close()
@@ -51,7 +51,7 @@ func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Can't get audio duration", http.StatusInternalServerError)
 		ctx.ResponseCode = http.StatusInternalServerError
-		cmdapp.Log.Error(err)
+		goapp.Log.Error(err)
 		return
 	}
 

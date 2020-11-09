@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/airenas/go-app/pkg/goapp"
 )
 
 //DBSaver logs to db
@@ -45,7 +45,7 @@ func (h *logDB) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	sf := func() {
 		err := h.dbs.Save(data)
 		if err != nil {
-			cmdapp.Log.Error("Can't save log. ", err)
+			goapp.Log.Error("Can't save log. ", err)
 		}
 	}
 	if h.sync {

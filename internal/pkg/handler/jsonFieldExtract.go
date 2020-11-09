@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
+	"github.com/airenas/go-app/pkg/goapp"
 )
 
 type jsonField struct {
@@ -31,7 +31,7 @@ func (h *jsonField) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := json.Unmarshal(bodyBytes, &data)
 	if err != nil {
 		http.Error(w, "No field "+h.field, http.StatusBadRequest)
-		cmdapp.Log.Error("Can't extract json field. ", err)
+		goapp.Log.Error("Can't extract json field. ", err)
 		return
 	}
 	f := data[h.field]

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
+	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 )
 
@@ -53,7 +53,7 @@ func (dc *Duration) Get(name string, file io.Reader) (float64, error) {
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	cmdapp.Log.Debugf("Sending audio to: %s", dc.url)
+	goapp.Log.Debugf("Sending audio to: %s", dc.url)
 	resp, err := dc.httpclient.Do(req)
 	if err != nil {
 		return 0, err

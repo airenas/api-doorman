@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/airenas/go-app/pkg/goapp"
 )
 
 //QuotaValidator validator
@@ -29,12 +29,12 @@ func QuotaValidate(next http.Handler, qv QuotaValidator) http.Handler {
 func (h *quotaSaveValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
 	quotaV := ctx.QuotaValue
-	cmdapp.Log.Debugf("Quota value: %f", quotaV)
+	goapp.Log.Debugf("Quota value: %f", quotaV)
 
 	ok, rem, tot, err := h.qv.SaveValidate(ctx.Key, utils.ExtractIP(rn), quotaV)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		cmdapp.Log.Error("Can't save quota/validate key. ", err)
+		goapp.Log.Error("Can't save quota/validate key. ", err)
 		ctx.ResponseCode = http.StatusInternalServerError
 		return
 	}

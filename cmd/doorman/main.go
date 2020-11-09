@@ -1,69 +1,56 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"os"
-
 	"github.com/airenas/api-doorman/internal/pkg/audio"
 
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/api-doorman/internal/pkg/service"
+	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
 func main() {
-	cFile := flag.String("c", "", "Config yml file")
-	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:[params] \n", os.Args[0])
-		flag.PrintDefaults()
-	}
-	flag.Parse()
-	err := cmdapp.InitConfig(*cFile)
-	if err != nil {
-		cmdapp.Log.Fatal(errors.Wrap(err, "Can't init app"))
-	}
+	goapp.StartWithDefault()
 
-	mongoSessionProvider, err := mongodb.NewSessionProvider(cmdapp.Config.GetString("mongo.url"))
+	mongoSessionProvider, err := mongodb.NewSessionProvider(goapp.Config.GetString("mongo.url"))
 	if err != nil {
-		cmdapp.Log.Fatal(errors.Wrap(err, "Can't init mongo provider"))
+		goapp.Log.Fatal(errors.Wrap(err, "Can't init mongo provider"))
 	}
 	defer mongoSessionProvider.Close()
 
 	data := service.Data{}
-	data.Proxy = loadDataFromConfig(cmdapp.Sub(cmdapp.Config, "proxy"))
-	data.Port = cmdapp.Config.GetInt("port")
+	data.Proxy = loadDataFromConfig(goapp.Sub(goapp.Config, "proxy"))
+	data.Port = goapp.Config.GetInt("port")
 
 	keysValidator, err := mongodb.NewKeyValidator(mongoSessionProvider)
 	if err != nil {
-		cmdapp.Log.Fatal(errors.Wrap(err, "Can't init saver"))
+		goapp.Log.Fatal(errors.Wrap(err, "Can't init saver"))
 	}
 	data.KeyValidator = keysValidator
 	data.QuotaValidator = keysValidator
 
 	saver, err := mongodb.NewLogSaver(mongoSessionProvider)
 	if err != nil {
-		cmdapp.Log.Fatal(errors.Wrap(err, "Can't init log saver"))
+		goapp.Log.Fatal(errors.Wrap(err, "Can't init log saver"))
 	}
 	data.LogSaver = saver
 	data.IPSaver, err = mongodb.NewIPSaver(mongoSessionProvider)
 	if err != nil {
-		cmdapp.Log.Fatal(errors.Wrap(err, "Can't init IP saver"))
+		goapp.Log.Fatal(errors.Wrap(err, "Can't init IP saver"))
 	}
-	dsURL := cmdapp.Config.GetString("proxy.quota.service")
+	dsURL := goapp.Config.GetString("proxy.quota.service")
 	if dsURL != "" {
 		data.DurationService, err = audio.NewDurationClient(dsURL)
 		if err != nil {
-			cmdapp.Log.Fatal(errors.Wrap(err, "Can't init Duration service"))
+			goapp.Log.Fatal(errors.Wrap(err, "Can't init Duration service"))
 		}
-		cmdapp.Log.Infof("Duration service: %s", dsURL)
+		goapp.Log.Infof("Duration service: %s", dsURL)
 	}
 
 	err = service.StartWebServer(&data)
 	if err != nil {
-		cmdapp.Log.Fatal(errors.Wrap(err, "Can't start the service"))
+		goapp.Log.Fatal(errors.Wrap(err, "Can't start the service"))
 	}
 }
 

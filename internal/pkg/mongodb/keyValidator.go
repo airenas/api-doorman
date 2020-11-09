@@ -5,8 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/airenas/api-doorman/internal/pkg/cmdapp"
-
+	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -26,7 +25,7 @@ func NewKeyValidator(sessionProvider *SessionProvider) (*KeyValidator, error) {
 
 // IsValid validates key
 func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
-	cmdapp.Log.Debugf("Validating key")
+	goapp.Log.Debugf("Validating key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -41,26 +40,26 @@ func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
 	err = c.FindOne(ctx, bson.M{"key": sanitize(key), "manual": manual}).Decode(&res)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			cmdapp.Log.Infof("No key")
+			goapp.Log.Infof("No key")
 			return false, nil
 		}
 		return false, errors.Wrap(err, "Can't get key")
 	}
 	ok := res.ValidTo.After(time.Now())
 	if !ok {
-		cmdapp.Log.Infof("Key expired")
+		goapp.Log.Infof("Key expired")
 		return ok, nil
 	}
 	ok = !res.Disabled
 	if !ok {
-		cmdapp.Log.Infof("Key disabled")
+		goapp.Log.Infof("Key disabled")
 	}
 	return ok, nil
 }
 
 //SaveValidate add qv to quota and validates with quota limit
 func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, float64, float64, error) {
-	cmdapp.Log.Debugf("Validating key")
+	goapp.Log.Debugf("Validating key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
