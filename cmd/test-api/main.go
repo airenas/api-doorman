@@ -3,26 +3,19 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"sync/atomic"
 
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
 
 	"github.com/pkg/errors"
 )
 
 func main() {
 	port := flag.Int("p", 8000, "Port")
-	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:[params] \n", os.Args[0])
-		flag.PrintDefaults()
-	}
-	flag.Parse()
+	goapp.StartWithDefault()
 
 	err := startWebServer(*port)
 	if err != nil {
@@ -31,7 +24,7 @@ func main() {
 }
 
 func startWebServer(port int) error {
-	logrus.Infof("Starting test service on %d", port)
+	goapp.Log.Infof("Starting test service on %d", port)
 	http.Handle("/", newRouter())
 	portStr := strconv.Itoa(port)
 	err := http.ListenAndServe(":"+portStr, nil)
@@ -60,7 +53,7 @@ type response struct {
 }
 
 func (h *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logrus.Infof("Request from %s", r.RemoteAddr)
+	goapp.Log.Infof("Request from %s", r.RemoteAddr)
 
 	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
@@ -71,6 +64,6 @@ func (h *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := encoder.Encode(&result)
 	if err != nil {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		logrus.Error(err)
+		goapp.Log.Error(err)
 	}
 }

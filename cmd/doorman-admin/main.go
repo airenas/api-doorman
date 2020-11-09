@@ -1,10 +1,7 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"log"
-	"os"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin"
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
@@ -13,16 +10,7 @@ import (
 )
 
 func main() {
-	cFile := flag.String("c", "", "Config yml file")
-	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:[params] \n", os.Args[0])
-		flag.PrintDefaults()
-	}
-	flag.Parse()
-	err := goapp.InitConfig(*cFile)
-	if err != nil {
-		goapp.Log.Fatal(errors.Wrap(err, "Can't init app"))
-	}
+	goapp.StartWithDefault()
 
 	mongoSessionProvider, err := mongodb.NewSessionProvider(goapp.Config.GetString("mongo.url"))
 	if err != nil {
