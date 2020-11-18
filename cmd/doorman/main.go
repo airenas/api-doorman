@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/airenas/api-doorman/internal/pkg/audio"
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/api-doorman/internal/pkg/service"
@@ -46,6 +47,11 @@ func main() {
 			goapp.Log.Fatal(errors.Wrap(err, "Can't init Duration service"))
 		}
 		goapp.Log.Infof("Duration service: %s", dsURL)
+	}
+
+	utils.DefaultIPExtractor, err = utils.NewIPExtractor(goapp.Config.GetString("ipExtractType"))
+	if err != nil {
+		goapp.Log.Fatal(errors.Wrap(err, "Can't init IP extractor"))
 	}
 
 	err = service.StartWebServer(&data)

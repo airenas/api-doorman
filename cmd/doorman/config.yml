@@ -10,4 +10,6 @@ proxy:
 
 # overwrite with env variable MONGO_URL
 mongo: 
-    url: mongodb://xxx:xxx@localhost:27017      
+    url: mongodb://xxx:xxx@localhost:27017    
+
+ipExtractType: lastForwardFor    
