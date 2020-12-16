@@ -43,7 +43,10 @@ func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, er
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(project).Collection(keyTable)
 	res := &keyRecord{}
-	res.Key = randkey.Generate(ss.NewKeySize)
+	res.Key = key.Key
+	if res.Key == "" {
+		res.Key = randkey.Generate(ss.NewKeySize)
+	}
 	res.Limit = key.Limit
 	res.ValidTo = key.ValidTo
 	res.Created = time.Now()
