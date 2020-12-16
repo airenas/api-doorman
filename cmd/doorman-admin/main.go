@@ -33,6 +33,11 @@ func main() {
 	}
 	data.LogGetter = logManager
 
+	data.ProjectValidator, err = admin.NewProjectConfigValidator(goapp.Config.GetString("projects"))
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "Can't init log saver"))
+	}
+
 	err = admin.StartWebServer(&data)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can't start the service"))
