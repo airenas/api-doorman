@@ -14,11 +14,11 @@ import (
 
 // KeyValidator validates key in mongo db
 type KeyValidator struct {
-	SessionProvider *SessionProvider
+	SessionProvider *DBProvider
 }
 
 //NewKeyValidator creates KeyValidator instance
-func NewKeyValidator(sessionProvider *SessionProvider) (*KeyValidator, error) {
+func NewKeyValidator(sessionProvider *DBProvider) (*KeyValidator, error) {
 	f := KeyValidator{SessionProvider: sessionProvider}
 	return &f, nil
 }
@@ -29,13 +29,13 @@ func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
 	ctx, cancel := mongoContext()
 	defer cancel()
 
-	session, err := ss.SessionProvider.NewSession()
+	session, db, err := ss.SessionProvider.NewSesionDatabase()
 	if err != nil {
 		return false, err
 	}
 
 	defer session.EndSession(context.Background())
-	c := session.Client().Database(store).Collection(keyTable)
+	c := db.Collection(keyTable)
 	var res keyRecord
 	err = c.FindOne(ctx, bson.M{"key": sanitize(key), "manual": manual}).Decode(&res)
 	if err != nil {
@@ -63,13 +63,13 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, f
 	ctx, cancel := mongoContext()
 	defer cancel()
 
-	session, err := ss.SessionProvider.NewSession()
+	session, db, err := ss.SessionProvider.NewSesionDatabase()
 	if err != nil {
 		return false, 0, 0, err
 	}
 
 	defer session.EndSession(context.Background())
-	c := session.Client().Database(store).Collection(keyTable)
+	c := db.Collection(keyTable)
 
 	var res keyRecord
 	err = c.FindOne(ctx, bson.M{"key": sanitize(key)}).Decode(&res)

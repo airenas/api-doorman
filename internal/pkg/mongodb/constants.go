@@ -1,7 +1,6 @@
 package mongodb
 
 const (
-	store    = "doorman"
 	keyTable = "key"
 	logTable = "log"
 )

@@ -15,38 +15,44 @@ import (
 type (
 	// KeyCreator creates key
 	KeyCreator interface {
-		Create(*adminapi.Key) (*adminapi.Key, error)
+		Create(string, *adminapi.Key) (*adminapi.Key, error)
 	}
 
 	// KeyUpdater creates key
 	KeyUpdater interface {
-		Update(string, map[string]interface{}) (*adminapi.Key, error)
+		Update(string, string, map[string]interface{}) (*adminapi.Key, error)
 	}
 
 	// KeyRetriever gets keys list from db
 	KeyRetriever interface {
-		List() ([]*adminapi.Key, error)
+		List(string) ([]*adminapi.Key, error)
 	}
 
 	// OneKeyRetriever retrieves one list from db
 	OneKeyRetriever interface {
-		Get(key string) (*adminapi.Key, error)
+		Get(string, string) (*adminapi.Key, error)
 	}
 
 	// LogRetriever retrieves one list from db
 	LogRetriever interface {
-		Get(key string) ([]*adminapi.Log, error)
+		Get(string, string) ([]*adminapi.Log, error)
+	}
+
+	// PrValidator validates if project is available
+	PrValidator interface {
+		Check(string) bool
 	}
 
 	//Data is service operation data
 	Data struct {
 		Port int
 
-		KeySaver      KeyCreator
-		KeyGetter     KeyRetriever
-		OneKeyGetter  OneKeyRetriever
-		LogGetter     LogRetriever
-		OneKeyUpdater KeyUpdater
+		KeySaver         KeyCreator
+		KeyGetter        KeyRetriever
+		OneKeyGetter     OneKeyRetriever
+		LogGetter        LogRetriever
+		OneKeyUpdater    KeyUpdater
+		ProjectValidator PrValidator
 	}
 )
 
@@ -67,10 +73,10 @@ func StartWebServer(data *Data) error {
 //NewRouter creates the router for HTTP service
 func NewRouter(data *Data) *mux.Router {
 	router := mux.NewRouter()
-	router.Methods("POST").Path("/key").Handler(&keyAddHandler{data: data})
-	router.Methods("GET").Path("/key-list").Handler(&keyListHandler{data: data})
-	router.Methods("GET").Path("/key/{key}").Handler(&keyInfoHandler{data: data})
-	router.Methods("PATCH").Path("/key/{key}").Handler(&keyUpdateHandler{data: data})
+	router.Methods("POST").Path("/{project}/key").Handler(&keyAddHandler{data: data})
+	router.Methods("GET").Path("/{project}/key-list").Handler(&keyListHandler{data: data})
+	router.Methods("GET").Path("/{project}/key/{key}").Handler(&keyInfoHandler{data: data})
+	router.Methods("PATCH").Path("/{project}/key/{key}").Handler(&keyUpdateHandler{data: data})
 	return router
 }
 
@@ -80,7 +86,10 @@ type keyAddHandler struct {
 
 func (h *keyAddHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	goapp.Log.Infof("Request from %s", r.RemoteAddr)
-
+	project := mux.Vars(r)["project"]
+	if !validateProject(project, h.data.ProjectValidator, w) {
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	var input adminapi.Key
 	err := decoder.Decode(&input)
@@ -102,7 +111,7 @@ func (h *keyAddHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keyResp, err := h.data.KeySaver.Create(&input)
+	keyResp, err := h.data.KeySaver.Create(project, &input)
 
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
@@ -125,8 +134,11 @@ type keyListHandler struct {
 
 func (h *keyListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	goapp.Log.Infof("Request list from %s", r.RemoteAddr)
-
-	keyResp, err := h.data.KeyGetter.List()
+	project := mux.Vars(r)["project"]
+	if !validateProject(project, h.data.ProjectValidator, w) {
+		return
+	}
+	keyResp, err := h.data.KeyGetter.List(project)
 
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
@@ -160,6 +172,10 @@ func (h *keyInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		goapp.Log.Errorf("No Key")
 		return
 	}
+	project := mux.Vars(r)["project"]
+	if !validateProject(project, h.data.ProjectValidator, w) {
+		return
+	}
 	query := r.URL.Query()
 	qf, pf := query["full"]
 	full := false
@@ -169,7 +185,7 @@ func (h *keyInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	res := &keyInfoResp{}
 	var err error
-	res.Key, err = h.data.OneKeyGetter.Get(key)
+	res.Key, err = h.data.OneKeyGetter.Get(project, key)
 	if errors.Is(err, adminapi.ErrNoRecord) {
 		http.Error(w, "Key not found", http.StatusBadRequest)
 		goapp.Log.Error("Key not found.")
@@ -181,7 +197,7 @@ func (h *keyInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if full {
-		res.Logs, err = h.data.LogGetter.Get(key)
+		res.Logs, err = h.data.LogGetter.Get(project, key)
 		if err != nil {
 			http.Error(w, "Service error", http.StatusInternalServerError)
 			goapp.Log.Error("Can't get logs. ", err)
@@ -211,7 +227,10 @@ func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		goapp.Log.Errorf("No Key")
 		return
 	}
-
+	project := mux.Vars(r)["project"]
+	if !validateProject(project, h.data.ProjectValidator, w) {
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	var input map[string]interface{}
 	err := decoder.Decode(&input)
@@ -221,7 +240,7 @@ func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keyResp, err := h.data.OneKeyUpdater.Update(key, input)
+	keyResp, err := h.data.OneKeyUpdater.Update(project, key, input)
 
 	if errors.Is(err, adminapi.ErrNoRecord) {
 		http.Error(w, "Key not found", http.StatusBadRequest)
@@ -244,4 +263,18 @@ func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
 		goapp.Log.Error(err)
 	}
+}
+
+func validateProject(project string, prV PrValidator, w http.ResponseWriter) bool {
+	if project == "" {
+		http.Error(w, "No Project", http.StatusBadRequest)
+		goapp.Log.Errorf("No Project")
+		return false
+	}
+	if !prV.Check(project) {
+		http.Error(w, "Wrong project "+project, http.StatusBadRequest)
+		goapp.Log.Errorf("Wrong project %s", project)
+		return false
+	}
+	return true
 }

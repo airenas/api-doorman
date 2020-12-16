@@ -12,11 +12,11 @@ import (
 
 // IPSaver validates saves ip into DB
 type IPSaver struct {
-	SessionProvider *SessionProvider
+	SessionProvider *DBProvider
 }
 
 //NewIPSaver creates IPSaver instance
-func NewIPSaver(sessionProvider *SessionProvider) (*IPSaver, error) {
+func NewIPSaver(sessionProvider *DBProvider) (*IPSaver, error) {
 	f := IPSaver{SessionProvider: sessionProvider}
 	return &f, nil
 }
@@ -27,12 +27,12 @@ func (ss *IPSaver) CheckCreate(ip string, limit float64) error {
 	ctx, cancel := mongoContext()
 	defer cancel()
 
-	session, err := ss.SessionProvider.NewSession()
+	session, db, err := ss.SessionProvider.NewSesionDatabase()
 	if err != nil {
 		return err
 	}
 	defer session.EndSession(context.Background())
-	c := session.Client().Database(store).Collection(keyTable)
+	c := db.Collection(keyTable)
 
 	err = c.FindOne(ctx, bson.M{"key": sanitize(ip), "manual": false}).Err()
 	if err == nil {

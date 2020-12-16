@@ -31,17 +31,17 @@ func NewKeySaver(sessionProvider *SessionProvider, keySize int) (*KeySaver, erro
 }
 
 // Create key to DB
-func (ss *KeySaver) Create(key *adminapi.Key) (*adminapi.Key, error) {
+func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, error) {
 	goapp.Log.Infof("Saving key - valid to: %v, limit: %f", key.ValidTo, key.Limit)
 	ctx, cancel := mongoContext()
 	defer cancel()
 
-	session, err := ss.SessionProvider.NewSession()
+	session, err := ss.SessionProvider.NewSession(project)
 	if err != nil {
 		return nil, err
 	}
 	defer session.EndSession(context.Background())
-	c := session.Client().Database(store).Collection(keyTable)
+	c := session.Client().Database(project).Collection(keyTable)
 	res := &keyRecord{}
 	res.Key = randkey.Generate(ss.NewKeySize)
 	res.Limit = key.Limit
@@ -53,17 +53,17 @@ func (ss *KeySaver) Create(key *adminapi.Key) (*adminapi.Key, error) {
 }
 
 // List return all keys
-func (ss *KeySaver) List() ([]*adminapi.Key, error) {
+func (ss *KeySaver) List(project string) ([]*adminapi.Key, error) {
 	goapp.Log.Infof("getting list")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
-	session, err := ss.SessionProvider.NewSession()
+	session, err := ss.SessionProvider.NewSession(project)
 	if err != nil {
 		return nil, err
 	}
 	defer session.EndSession(context.Background())
-	c := session.Client().Database(store).Collection(keyTable)
+	c := session.Client().Database(project).Collection(keyTable)
 	cursor, err := c.Find(ctx, bson.M{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't get keys")
@@ -81,17 +81,17 @@ func (ss *KeySaver) List() ([]*adminapi.Key, error) {
 }
 
 // Get return one key record
-func (ss *KeySaver) Get(key string) (*adminapi.Key, error) {
+func (ss *KeySaver) Get(project string, key string) (*adminapi.Key, error) {
 	goapp.Log.Debug("Getting key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
-	session, err := ss.SessionProvider.NewSession()
+	session, err := ss.SessionProvider.NewSession(project)
 	if err != nil {
 		return nil, err
 	}
 	defer session.EndSession(context.Background())
-	c := session.Client().Database(store).Collection(keyTable)
+	c := session.Client().Database(project).Collection(keyTable)
 	var res keyRecord
 	err = c.FindOne(ctx, bson.M{"key": sanitize(key)}).Decode(&res)
 	if err != nil {
@@ -104,18 +104,18 @@ func (ss *KeySaver) Get(key string) (*adminapi.Key, error) {
 }
 
 //Update update key record
-func (ss *KeySaver) Update(key string, data map[string]interface{}) (*adminapi.Key, error) {
+func (ss *KeySaver) Update(project string, key string, data map[string]interface{}) (*adminapi.Key, error) {
 	goapp.Log.Debug("Updating key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
-	session, err := ss.SessionProvider.NewSession()
+	session, err := ss.SessionProvider.NewSession(project)
 	if err != nil {
 		return nil, err
 	}
 
 	defer session.EndSession(context.Background())
-	c := session.Client().Database(store).Collection(keyTable)
+	c := session.Client().Database(project).Collection(keyTable)
 
 	session.StartTransaction()
 	var res keyRecord

@@ -27,7 +27,7 @@ func main() {
 	data.KeyGetter, data.KeySaver, data.OneKeyUpdater = keysManager, keysManager, keysManager
 	data.OneKeyGetter = keysManager
 
-	logManager, err := mongodb.NewLogSaver(mongoSessionProvider)
+	logManager, err := mongodb.NewLogGetter(mongoSessionProvider)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can't init log saver"))
 	}

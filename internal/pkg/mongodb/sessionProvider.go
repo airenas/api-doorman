@@ -25,6 +25,12 @@ func newIndexData(table string, fields []string, unique bool) IndexData {
 	return IndexData{Table: table, Fields: fields, Unique: unique}
 }
 
+//SessionProviderWithDB keeps SessionProvider and database for mongo DB
+type SessionProviderWithDB struct {
+	sessionP *SessionProvider
+	db       string
+}
+
 //SessionProvider connects and provides session for mongo DB
 type SessionProvider struct {
 	client  *mongo.Client
@@ -51,7 +57,7 @@ func (sp *SessionProvider) Close() {
 }
 
 //NewSession creates mongo session
-func (sp *SessionProvider) NewSession() (mongo.Session, error) {
+func (sp *SessionProvider) NewSession(database string) (mongo.Session, error) {
 	sp.m.Lock()
 	defer sp.m.Unlock()
 
@@ -63,23 +69,25 @@ func (sp *SessionProvider) NewSession() (mongo.Session, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "Can't dial to mongo")
 		}
-		err = checkIndexes(client, sp.indexes)
-		if err != nil {
-			return nil, errors.Wrap(err, "Can't create indexes")
+		if database != "" {
+			err = checkIndexes(client, sp.indexes, database)
+			if err != nil {
+				return nil, errors.Wrap(err, "Can't create indexes")
+			}
 		}
 		sp.client = client
 	}
 	return sp.client.StartSession()
 }
 
-func checkIndexes(s *mongo.Client, indexes []IndexData) error {
+func checkIndexes(s *mongo.Client, indexes []IndexData, database string) error {
 	session, err := s.StartSession()
 	if err != nil {
 		return errors.Wrap(err, "Can't cinit session")
 	}
 	defer session.EndSession(context.Background())
 	for _, index := range indexes {
-		err := checkIndex(session, index)
+		err := checkIndex(session, index, database)
 		if err != nil {
 			return errors.Wrapf(err, "Can't create index: %s:%v", index.Table, index.Fields)
 		}
@@ -87,8 +95,8 @@ func checkIndexes(s *mongo.Client, indexes []IndexData) error {
 	return nil
 }
 
-func checkIndex(s mongo.Session, indexData IndexData) error {
-	c := s.Client().Database(store).Collection(indexData.Table)
+func checkIndex(s mongo.Session, indexData IndexData, database string) error {
+	c := s.Client().Database(database).Collection(indexData.Table)
 	keys := bsonx.Doc{}
 	for _, f := range indexData.Fields {
 		keys = keys.Append(f, bsonx.Int32(int32(1)))
@@ -103,7 +111,7 @@ func checkIndex(s mongo.Session, indexData IndexData) error {
 
 // Healthy checks if mongo DB is up
 func (sp *SessionProvider) Healthy() error {
-	session, err := sp.NewSession()
+	session, err := sp.NewSession("")
 	if err != nil {
 		return err
 	}
