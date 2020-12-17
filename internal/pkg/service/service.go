@@ -35,12 +35,6 @@ type mainHandler struct {
 	data *Data
 }
 
-type hWrap struct {
-	prefix string
-	method string
-	h      http.Handler
-}
-
 //StartWebServer starts the HTTP service and listens for the requests
 func StartWebServer(data *Data) error {
 	goapp.Log.Infof("Starting HTTP service at %d", data.Port)
