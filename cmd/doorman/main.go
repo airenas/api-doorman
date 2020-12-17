@@ -1,7 +1,8 @@
 package main
 
 import (
-	"github.com/airenas/api-doorman/internal/pkg/audio"
+	"strings"
+
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
@@ -21,33 +22,11 @@ func main() {
 	defer mongoSessionProvider.Close()
 
 	data := service.Data{}
-	data.Proxy = loadDataFromConfig(goapp.Sub(goapp.Config, "proxy"))
+	data.Handlers, err = initFromConfig(goapp.Sub(goapp.Config, "proxy"), mongoSessionProvider)
+	if err != nil {
+		goapp.Log.Fatal(errors.Wrap(err, "Can't init handlers"))
+	}
 	data.Port = goapp.Config.GetInt("port")
-
-	keysValidator, err := mongodb.NewKeyValidator(mongoSessionProvider)
-	if err != nil {
-		goapp.Log.Fatal(errors.Wrap(err, "Can't init saver"))
-	}
-	data.KeyValidator = keysValidator
-	data.QuotaValidator = keysValidator
-
-	saver, err := mongodb.NewLogSaver(mongoSessionProvider)
-	if err != nil {
-		goapp.Log.Fatal(errors.Wrap(err, "Can't init log saver"))
-	}
-	data.LogSaver = saver
-	data.IPSaver, err = mongodb.NewIPSaver(mongoSessionProvider)
-	if err != nil {
-		goapp.Log.Fatal(errors.Wrap(err, "Can't init IP saver"))
-	}
-	dsURL := goapp.Config.GetString("proxy.quota.service")
-	if dsURL != "" {
-		data.DurationService, err = audio.NewDurationClient(dsURL)
-		if err != nil {
-			goapp.Log.Fatal(errors.Wrap(err, "Can't init Duration service"))
-		}
-		goapp.Log.Infof("Duration service: %s", dsURL)
-	}
 
 	utils.DefaultIPExtractor, err = utils.NewIPExtractor(goapp.Config.GetString("ipExtractType"))
 	if err != nil {
@@ -60,14 +39,18 @@ func main() {
 	}
 }
 
-func loadDataFromConfig(cfg *viper.Viper) service.ProxyRoute {
-	res := service.ProxyRoute{}
-	res.BackendURL = cfg.GetString("backend")
-	res.PrefixURL = cfg.GetString("prefixURL")
-	res.Method = cfg.GetString("method")
-	res.QuotaType = cfg.GetString("quota.type")
-	res.QuotaField = cfg.GetString("quota.field")
-	res.DefaultLimit = cfg.GetFloat64("quota.default")
-
-	return res
+func initFromConfig(cfg *viper.Viper, ms *mongodb.SessionProvider) ([]service.HandlerWrap, error) {
+	res := make([]service.HandlerWrap, 0)
+	strHand := cfg.GetString("handlers")
+	for _, sh := range strings.Split(strHand, ",") {
+		sh = strings.TrimSpace(sh)
+		if sh != "" {
+			h, err := service.NewHandler(sh, cfg, ms)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Can't init handler '%s'", sh)
+			}
+			res = append(res, h)
+		}
+	}
+	return res, nil
 }

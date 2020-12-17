@@ -5,10 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 
-	"github.com/airenas/api-doorman/internal/pkg/handler"
 	"github.com/pkg/errors"
 )
 
@@ -18,52 +16,29 @@ type (
 		CheckCreate(string, float64) error
 	}
 
-	//ProxyRoute keeps config for one proxy route
-	ProxyRoute struct {
-		BackendURL   string
-		PrefixURL    string
-		Method       string
-		QuotaType    string
-		QuotaField   string
-		DefaultLimit float64
+	//HandlerWrap for check if handler valid
+	HandlerWrap interface {
+		Valid(r *http.Request) bool
+		Handler() http.Handler
+		Info() string
+		Name() string
 	}
 
 	//Data is service operation data
 	Data struct {
-		Port            int
-		KeyValidator    handler.KeyValidator
-		QuotaValidator  handler.QuotaValidator
-		DurationService handler.AudioLenGetter
-		LogSaver        handler.DBSaver
-		IPSaver         IPManager
-		Proxy           ProxyRoute
+		Port     int
+		Handlers []HandlerWrap
 	}
 )
 
 type mainHandler struct {
-	data     *Data
-	handlers []*hWrap
-	def      http.Handler
+	data *Data
 }
 
 type hWrap struct {
 	prefix string
 	method string
 	h      http.Handler
-}
-
-func (h *mainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	path = strings.ToLower(path)
-	for _, hi := range h.handlers {
-		if strings.HasPrefix(path, hi.prefix) && hi.method == r.Method {
-			goapp.Log.Info("Serving " + hi.prefix)
-			hi.h.ServeHTTP(w, r)
-			return
-		}
-	}
-	goapp.Log.Info("Serving default")
-	h.def.ServeHTTP(w, r)
 }
 
 //StartWebServer starts the HTTP service and listens for the requests
@@ -76,6 +51,9 @@ func StartWebServer(data *Data) error {
 
 	http.Handle("/", h)
 	portStr := strconv.Itoa(data.Port)
+
+	goapp.Log.Info(getInfo(data.Handlers))
+
 	err = http.ListenAndServe(":"+portStr, nil)
 
 	if err != nil {
@@ -86,57 +64,31 @@ func StartWebServer(data *Data) error {
 
 func newMainHandler(data *Data) (http.Handler, error) {
 	res := &mainHandler{}
-	if data.Proxy.BackendURL == "" {
-		return nil, errors.New("No backend")
+	if len(data.Handlers) == 0 {
+		return nil, errors.New("No handlers")
 	}
-	goapp.Log.Infof("Backend: %s", data.Proxy.BackendURL)
-	url, err := utils.ParseURL(data.Proxy.BackendURL)
-	if err != nil {
-		return nil, errors.Wrap(err, "Wrong backendURL")
-	}
-	res.def = handler.Proxy(url)
-	if data.Proxy.PrefixURL == "" {
-		return nil, errors.New("No prefix URL")
-	}
-	if data.Proxy.Method == "" {
-		return nil, errors.New("No proxy method")
-	}
-	if data.Proxy.QuotaType == "" {
-		return nil, errors.New("No proxy quota type")
-	}
-	hw := &hWrap{}
-	res.handlers = append(res.handlers, hw)
-	hw.prefix = strings.ToLower(data.Proxy.PrefixURL)
-	hw.method = data.Proxy.Method
-	goapp.Log.Infof("PrefixURL: %s", hw.prefix)
-
-	h := handler.QuotaValidate(res.def, data.QuotaValidator)
-	if data.Proxy.QuotaType == "json" {
-		if data.Proxy.QuotaField == "" {
-			return nil, errors.New("No field")
-		}
-		goapp.Log.Infof("Quota extract: %s(%s)", data.Proxy.QuotaType, data.Proxy.QuotaField)
-		h = handler.TakeJSON(handler.JSONAsQuota(h), data.Proxy.QuotaField)
-	} else if data.Proxy.QuotaType == "audioDuration" {
-		if data.DurationService == nil {
-			return nil, errors.New("No duration service initialized")
-		}
-		if data.Proxy.QuotaField == "" {
-			return nil, errors.New("No field")
-		}
-		goapp.Log.Infof("Quota extract: %s(%s) using duration service", data.Proxy.QuotaType, data.Proxy.QuotaField)
-		h = handler.AudioLenQuota(h, data.Proxy.QuotaField, data.DurationService)
-	} else {
-		return nil, errors.Errorf("Unknown proxy quota type '%s'", data.Proxy.QuotaType)
-	}
-	h = handler.LogDB(h, data.LogSaver)
-	hKey := handler.KeyValid(h, data.KeyValidator)
-	if data.Proxy.DefaultLimit > 0 {
-		goapp.Log.Infof("Default IP quota: %.f", data.Proxy.DefaultLimit)
-		hIP := handler.IPAsKey(hKey, newIPSaver(data))
-		hKey = handler.KeyValidOrIP(hKey, hIP)
-	}
-	hw.h = handler.KeyExtract(hKey)
-
+	res.data = data
 	return res, nil
+}
+
+func (h *mainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	for _, hi := range h.data.Handlers {
+		if hi.Valid(r) {
+			goapp.Log.Info("Handling with " + hi.Name())
+			hi.Handler().ServeHTTP(w, r)
+			return
+		}
+	}
+	goapp.Log.Error("No handler for " + r.URL.Path)
+	//serve not found
+	http.NotFound(w, r)
+}
+
+func getInfo(handlers []HandlerWrap) string {
+	sb := strings.Builder{}
+	for _, h := range handlers {
+		sb.WriteString(h.Info())
+		sb.WriteString("\n")
+	}
+	return sb.String()
 }

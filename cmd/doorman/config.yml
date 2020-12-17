@@ -1,12 +1,28 @@
 port: 8000 
 proxy:
-    backend: http://localhost:8002
-    prefixURL: /private
-    method: POST
-    quota:
-        type: json
-        field: text
-        default: 100
+    handlers: tts,asr,default
+    tts: 
+        type: quota
+        db: tts
+        backend: http://localhost:8002
+        prefixURL: /private
+        method: POST
+        quota:
+            type: json
+            field: text
+            default: 100
+    asr: 
+        type: quota
+        db: asr
+        backend: http://localhost:8002
+        prefixURL: /private
+        method: POST
+        quota:
+            type: json
+            field: text
+            default: 100
+    default:
+        backend: http://localhost:8002                     
 
 # overwrite with env variable MONGO_URL
 mongo: 
