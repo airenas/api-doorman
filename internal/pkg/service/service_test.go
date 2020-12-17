@@ -93,6 +93,15 @@ func TestMainHandlerCreate_Fail(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestGetInfo(t *testing.T) {
+	th := newTestQuotaH(&testHandler{f: codeFunc(222)}, "/pref", "GET")
+	th.name = "than"
+	th.proxyURL = "proxy"
+
+	hnds := []HandlerWrap{th, th}
+	assert.Equal(t, "than handler GET to 'proxy', prefix: /pref\nthan handler GET to 'proxy', prefix: /pref\n", getInfo(hnds))
+}
+
 func newTestData() *Data {
 	res := &Data{}
 	return res
