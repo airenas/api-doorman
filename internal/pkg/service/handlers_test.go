@@ -2,6 +2,11 @@ package service
 
 import (
 	"net/http"
+	"strings"
+	"testing"
+
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 )
 
 func newTestDefH(h http.Handler) *defaultHandler {
@@ -14,15 +19,33 @@ func newTestQuotaH(h http.Handler, prefix, method string) *quotaHandler {
 	return &res
 }
 
-// func TestMainHandlerCreate_FailBackend(t *testing.T) {
-// 	data := newTestData()
-// 	data.Proxy.BackendURL = ""
-// 	_, err := newMainHandler(data)
-// 	assert.NotNil(t, err)
-// 	data.Proxy.BackendURL = "http://"
-// 	_, err = newMainHandler(data)
-// 	assert.NotNil(t, err)
-// }
+func TestDefaultProvider(t *testing.T) {
+	h, err := NewHandler("default", newTestC(t, "default:\n  backend: http://olia.lt"), nil)
+	assert.NotNil(t, h)
+	assert.Nil(t, err)
+	hd := h.(*defaultHandler)
+	assert.NotNil(t, hd)
+	assert.Equal(t, "default", hd.Name())
+	assert.Equal(t, "Default handler to 'http://olia.lt'", hd.Info())
+	assert.NotNil(t, hd.Handler())
+	assert.Equal(t, "default", hd.Name())
+	assert.True(t, hd.Valid(nil))
+}
+
+func TestDefaultProvider_Fail(t *testing.T) {
+	h, err := NewHandler("default", newTestC(t, "default:\n  backend: http://"), nil)
+	assert.Nil(t, h)
+	assert.NotNil(t, err)
+}
+
+func TestNewHandler_Fail(t *testing.T) {
+	h, err := NewHandler("default1", newTestC(t, "default1:\n  type: olia"), nil)
+	assert.Nil(t, h)
+	assert.NotNil(t, err)
+	h, err = NewHandler("", newTestC(t, "default:\n  backend: http://olia.lt"), nil)
+	assert.Nil(t, h)
+	assert.NotNil(t, err)
+}
 
 // func TestMainHandlerCreate_FailPrefixURL(t *testing.T) {
 // 	data := newTestData()
@@ -89,3 +112,11 @@ func newTestQuotaH(h http.Handler, prefix, method string) *quotaHandler {
 // 	_, err := newMainHandler(data)
 // 	assert.Nil(t, err)
 // }
+
+func newTestC(t *testing.T, configStr string) *viper.Viper {
+	v := viper.New()
+	v.SetConfigType("yaml")
+	err := v.ReadConfig(strings.NewReader(configStr))
+	assert.Nil(t, err)
+	return v
+}

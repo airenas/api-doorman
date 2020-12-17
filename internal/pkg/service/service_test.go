@@ -10,21 +10,8 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 )
 
-var (
-	keyValidatorMock   *mocks.MockKeyValidator
-	quotaValidatorMock *mocks.MockQuotaValidator
-	audioLenGetterMock *mocks.MockAudioLenGetter
-	dbSaverMock        *mocks.MockDBSaver
-	ipManagerMock      *mocks.MockIPManager
-)
-
 func initTest(t *testing.T) {
 	mocks.AttachMockToTest(t)
-	keyValidatorMock = mocks.NewMockKeyValidator()
-	quotaValidatorMock = mocks.NewMockQuotaValidator()
-	audioLenGetterMock = mocks.NewMockAudioLenGetter()
-	dbSaverMock = mocks.NewMockDBSaver()
-	ipManagerMock = mocks.NewMockIPManager()
 }
 
 type testHandler struct {
