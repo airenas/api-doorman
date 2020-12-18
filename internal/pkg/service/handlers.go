@@ -96,7 +96,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider)
 
 	h := handler.QuotaValidate(handler.Proxy(url), keysValidator)
 	qt := cfg.GetString(name + ".quota.type")
-	qf := cfg.GetString(name + ".quota.field")
+	qf := strings.TrimSpace(cfg.GetString(name + ".quota.field"))
 	if qt == "json" {
 		if qf == "" {
 			return nil, errors.New("No field")
@@ -116,7 +116,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider)
 		goapp.Log.Infof("Quota extract: %s(%s) using duration service", qt, qf)
 		h = handler.AudioLenQuota(h, qf, ds)
 	} else {
-		return nil, errors.Errorf("Unknown proxy quota type '%s'", qf)
+		return nil, errors.Errorf("Unknown proxy quota type '%s'", qt)
 	}
 	ls, err := mongodb.NewLogSaver(dbProvider)
 	if err != nil {

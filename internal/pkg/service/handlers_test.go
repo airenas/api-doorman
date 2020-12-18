@@ -2,8 +2,14 @@ package service
 
 import (
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+
+	"github.com/airenas/go-app/pkg/goapp"
+
+	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -47,75 +53,114 @@ func TestNewHandler_Fail(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-// func TestMainHandlerCreate_FailPrefixURL(t *testing.T) {
-// 	data := newTestData()
-// 	data.Proxy.PrefixURL = ""
-// 	_, err := newMainHandler(data)
-// 	assert.NotNil(t, err)
-// }
+const quotaYaml =  `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: json
+    field: field
+    default: 100
+  prefixURL: /start
+  method: POST
+`
 
-// func TestMainHandlerCreate_FailMethod(t *testing.T) {
-// 	data := newTestData()
-// 	data.Proxy.Method = ""
-// 	_, err := newMainHandler(data)
-// 	assert.NotNil(t, err)
-// }
+func TestQuotaHandle(t *testing.T) {
+	h, err := NewHandler("tts", newTestC(t, quotaYaml), newTestProvider(t))
+	assert.NotNil(t, h)
+	assert.Nil(t, err)
+	hq := h.(*quotaHandler)
+	assert.Equal(t, "tts", hq.Name())
+	assert.Equal(t, "tts handler POST to 'http://olia.lt', prefix: /start", hq.Info())
+	assert.NotNil(t, hq.Handler())
+	assert.Equal(t, "tts", hq.Name())
+	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
+}
 
-// func TestMainHandlerCreate_FailQuotaType(t *testing.T) {
-// 	data := newTestData()
-// 	data.Proxy.QuotaType = ""
-// 	_, err := newMainHandler(data)
-// 	assert.NotNil(t, err)
-// }
+func TestQuotaHandleAudio(t *testing.T) {
+	h, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: audioDuration
+    service: http://olia/ser
+    field: field
+    default: 100
+  prefixURL: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, h)
+	assert.Nil(t, err)
+	hq := h.(*quotaHandler)
+	assert.Equal(t, "tts", hq.Name())
+	assert.Equal(t, "tts handler POST to 'http://olia.lt', prefix: /start", hq.Info())
+	assert.NotNil(t, hq.Handler())
+	assert.Equal(t, "tts", hq.Name())
+	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
+}
 
-// func TestMainHandlerCreate_FailAudio(t *testing.T) {
-// 	data := newTestData()
-// 	data.Proxy.QuotaType = "audioDuration"
-// 	data.DurationService = nil
-// 	_, err := newMainHandler(data)
-// 	assert.NotNil(t, err)
-// }
+func TestQuotaHandle_FailType(t *testing.T) {
+	os.Setenv("TTS_TYPE", "test")
+	defer os.Setenv("TTS_TYPE", "")
+	h, err := NewHandler("tts", newTestC(t, quotaYaml), newTestProvider(t))
+	assert.Nil(t, h)
+	assert.NotNil(t, err)
+}
 
-// func TestMainHandlerCreate_FailQuotaType1(t *testing.T) {
-// 	data := newTestData()
-// 	data.Proxy.QuotaType = "olia"
-// 	_, err := newMainHandler(data)
-// 	assert.NotNil(t, err)
-// }
+func TestQuotaHandle_FailBacked(t *testing.T) {
+	os.Setenv("TTS_BACKEND", " ")
+	defer os.Setenv("TTS_BACKEND", "")
+	h, err := NewHandler("tts", newTestC(t, quotaYaml), newTestProvider(t))
+	assert.Nil(t, h)
+	assert.NotNil(t, err)
+}
 
-// func TestMainHandlerCreate_FailJson(t *testing.T) {
-// 	data := newTestData()
-// 	data.Proxy.QuotaType = "json"
-// 	data.Proxy.QuotaField = ""
-// 	_, err := newMainHandler(data)
-// 	assert.NotNil(t, err)
-// }
+func TestQuotaHandle_FailQuotaType(t *testing.T) {
+	os.Setenv("TTS_QUOTA_TYPE", "json1")
+	defer os.Setenv("TTS_QUOTA_TYPE", "")
+	h, err := NewHandler("tts", newTestC(t, quotaYaml), newTestProvider(t))
+	assert.Nil(t, h)
+	assert.NotNil(t, err)
+}
 
-// func TestMainHandlerCreate_AudioJson(t *testing.T) {
-// 	data := newTestData()
-// 	data.Proxy.QuotaType = "audioDuration"
-// 	data.Proxy.QuotaField = ""
-// 	_, err := newMainHandler(data)
-// 	assert.NotNil(t, err)
-// }
+func TestQuotaHandle_FailQuotaField(t *testing.T) {
+	os.Setenv("TTS_QUOTA_FIELD", " ")
+	defer os.Setenv("TTS_QUOTA_FIELD", "")
+	h, err := NewHandler("tts", newTestC(t, quotaYaml), newTestProvider(t))
+	assert.Nil(t, h)
+	assert.NotNil(t, err)
+}
 
-// func TestMainHandlerCreate_Audio(t *testing.T) {
-// 	data := newTestData()
-// 	data.Proxy.QuotaType = "audioDuration"
-// 	_, err := newMainHandler(data)
-// 	assert.Nil(t, err)
-// }
+func TestQuotaHandle_FailDB(t *testing.T) {
+	os.Setenv("TTS_DB", " ")
+	defer os.Setenv("TTS_DB", "")
+	h, err := NewHandler("tts", newTestC(t, quotaYaml), newTestProvider(t))
+	assert.Nil(t, h)
+	assert.NotNil(t, err)
+}
 
-// func TestMainHandlerCreate_Json(t *testing.T) {
-// 	data := newTestData()
-// 	data.Proxy.QuotaType = "json"
-// 	_, err := newMainHandler(data)
-// 	assert.Nil(t, err)
-// }
+func TestQuotaHandle_FailDurationService(t *testing.T) {
+	os.Setenv("TTS_QUOTA_TYPE", "audioDuration")
+	os.Setenv("TTS_QUOTA_SERVICE", "http://audioDuration")
+	defer os.Setenv("TTS_QUOTA_TYPE", "")
+	h, err := NewHandler("tts", newTestC(t, quotaYaml), newTestProvider(t))
+	assert.Nil(t, h)
+	assert.NotNil(t, err)
+}
+
+func newTestProvider(t *testing.T) *mongodb.SessionProvider {
+	res, err := mongodb.NewSessionProvider("mongo://olia")
+	assert.Nil(t, err)
+	return res
+}
 
 func newTestC(t *testing.T, configStr string) *viper.Viper {
 	v := viper.New()
 	v.SetConfigType("yaml")
+	goapp.InitEnv(v)
 	err := v.ReadConfig(strings.NewReader(configStr))
 	assert.Nil(t, err)
 	return v

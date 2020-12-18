@@ -1,6 +1,8 @@
 package mongodb
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -16,6 +18,7 @@ func NewDBProvider(sessionP *SessionProvider, db string) (*DBProvider, error) {
 	if sessionP == nil {
 		return nil, errors.New("No SessionProvider provided")
 	}
+	db = strings.TrimSpace(db)
 	if db == "" {
 		return nil, errors.New("No DB provided")
 	}
