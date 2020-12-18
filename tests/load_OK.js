@@ -1,6 +1,7 @@
 import http from "k6/http";
-import { check, sleep } from "k6"; 
+import { check, sleep } from "k6";
 
+const prj = "test"
 const admURL = 'http://host.docker.internal:8001';
 const testURL = 'http://host.docker.internal:8000';
 const expectedQuota = __ENV.EXPECTED_REQ * 10
@@ -24,7 +25,7 @@ export default function (data) {
 }
 
 export function setup() {
-    var url = admURL + '/key';
+    var url = admURL + '/' + prj + '/key';
     var payload = JSON.stringify({
         limit: expectedQuota * 2,
         validTo: '2030-11-24T11:07:00Z'
@@ -40,7 +41,7 @@ export function setup() {
 }
 
 export function teardown(data) {
-    var url = admURL + '/key/' + data.key;
+    var url = admURL + '/' + prj + '/key/' + data.key;
     console.log("Url: " + url);
     let res = http.get(url);
     let jRes = res.json().key
