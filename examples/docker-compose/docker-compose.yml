@@ -7,11 +7,15 @@ services:
       - "${DOORMAN_PORT}:8000"
     environment:
       MONGO_URL: "${MONGO_URL}"  
-      PROXY_BACKEND: "http://test-api:8000/"
-      PROXY_PREFIXURL: "/private"
-      PROXY_QUOTA_TYPE: "json"
-      PROXY_QUOTA_FIELD: "text"
-      PROXY_QUOTA_DEFAULT: 100
+      PROXY_HANDLERS: "test,default"
+      PROXY_DEFAULT_BACKEND: "http://test-api:8000/"
+      PROXY_TEST_TYPE: quota
+      PROXY_TEST_DB: test
+      PROXY_TEST_BACKEND: "http://test-api:8000/"
+      PROXY_TEST_PREFIXURL: "/private"
+      PROXY_TEST_QUOTA_TYPE: "json"
+      PROXY_TEST_QUOTA_FIELD: "text"
+      PROXY_TEST_QUOTA_DEFAULT: 100
     # restart: unless-stopped
 
   doorman-admin:
@@ -20,6 +24,7 @@ services:
       - "${ADMIN_PORT}:8000"
     environment:
       MONGO_URL: "${MONGO_URL}"  
+      PROJECTS: test,test1
     # restart: unless-stopped
   
   test-api:

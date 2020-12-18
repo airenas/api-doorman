@@ -13,14 +13,15 @@ clean: stop
 	rm -rf .mongo
 #####################################################################################
 key?=u2OA9U4yLB
+prj?=test
 adm-key-list:
-	curl -X GET http://localhost:$(ADMIN_PORT)/key-list | jq
+	curl -X GET http://localhost:$(ADMIN_PORT)/$(prj)/key-list | jq
 adm-add:
-	curl -i -X POST http://localhost:$(ADMIN_PORT)/key -d '{"limit":500, "validTo":"2030-11-24T11:07:00Z"}'
+	curl -i -X POST http://localhost:$(ADMIN_PORT)/$(prj)/key -d '{"key":"$(key)", "limit":500, "validTo":"2030-11-24T11:07:00Z"}'
 adm-get:
-	curl -X GET http://localhost:$(ADMIN_PORT)/key/$(key)?full=1 | jq
+	curl -X GET http://localhost:$(ADMIN_PORT)/$(prj)/key/$(key)?full=1 | jq
 adm-update:
-	curl -X PATCH http://localhost:$(ADMIN_PORT)/key/$(key) -d '{"limit":1110, "disabled":false}'
+	curl -X PATCH http://localhost:$(ADMIN_PORT)/$(prj)/key/$(key) -d '{"limit":1110, "disabled":false}'
 
 #####################################################################################
 test-public:
