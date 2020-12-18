@@ -77,6 +77,7 @@ func (sp *SessionProvider) NewSession(database string) (mongo.Session, error) {
 	if database != "" {
 		err := sp.checkIndexes(sp.client, database)
 		if err != nil {
+			sp.client = nil
 			return nil, errors.Wrap(err, "Can't create indexes")
 		}
 	}
@@ -85,16 +86,16 @@ func (sp *SessionProvider) NewSession(database string) (mongo.Session, error) {
 }
 
 func (sp *SessionProvider) checkIndexes(c *mongo.Client, database string) error {
-	if database != "" {
-		_, f := sp.dbIndexes[database]
-		if f {
-			return nil
-		}
-		err := checkIndexes(c, sp.indexes, database)
-		if err != nil {
-			return errors.Wrap(err, "Can't create indexes")
-		}
+	_, f := sp.dbIndexes[database]
+	if f {
+		return nil
 	}
+	goapp.Log.Infof("Check indexes in %s", database)
+	err := checkIndexes(c, sp.indexes, database)
+	if err != nil {
+		return errors.Wrap(err, "Can't create indexes")
+	}
+	sp.dbIndexes[database] = struct{}{}
 	return nil
 }
 
