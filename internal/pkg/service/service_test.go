@@ -65,6 +65,31 @@ func TestMainHandler_Prefix(t *testing.T) {
 	testCode(t, &mh, httptest.NewRequest("DELETE", "/invalid/olia", nil), 404)
 }
 
+func TestMainHandler_PrefixAnyMethod(t *testing.T) {
+	initTest(t)
+	mh := mainHandler{}
+	mh.data = newTestData()
+	mh.data.Handlers = []HandlerWrap{newTestQuotaH(&testHandler{f: codeFunc(222)}, "/pref", "")}
+
+	testCode(t, &mh, httptest.NewRequest("POST", "/pref", nil), 222)
+	testCode(t, &mh, httptest.NewRequest("POST", "/Pref", nil), 222)
+	testCode(t, &mh, httptest.NewRequest("GET", "/pref", nil), 222)
+	testCode(t, &mh, httptest.NewRequest("POST", "/invalid/olia", nil), 404)
+}
+
+func TestMainHandler_PrefixSeveralMethods(t *testing.T) {
+	initTest(t)
+	mh := mainHandler{}
+	mh.data = newTestData()
+	mh.data.Handlers = []HandlerWrap{newTestQuotaH(&testHandler{f: codeFunc(222)}, "/pref", "GET,POST")}
+
+	testCode(t, &mh, httptest.NewRequest("POST", "/pref", nil), 222)
+	testCode(t, &mh, httptest.NewRequest("DELETE", "/pref", nil), 404)
+	testCode(t, &mh, httptest.NewRequest("GET", "/pref", nil), 222)
+	testCode(t, &mh, httptest.NewRequest("POST", "/invalid/olia", nil), 404)
+}
+
+
 func TestMainHandlerCreate(t *testing.T) {
 	data := newTestData()
 	data.Handlers = []HandlerWrap{newTestQuotaH(&testHandler{f: codeFunc(222)}, "/pref", "GET")}
@@ -86,7 +111,7 @@ func TestGetInfo(t *testing.T) {
 	th.proxyURL = "proxy"
 
 	hnds := []HandlerWrap{th, th}
-	assert.Equal(t, "than handler GET to 'proxy', prefix: /pref\nthan handler GET to 'proxy', prefix: /pref\n", getInfo(hnds))
+	assert.Equal(t, "than handler (GET) to 'proxy', prefix: /pref\nthan handler (GET) to 'proxy', prefix: /pref\n", getInfo(hnds))
 }
 
 func newTestData() *Data {

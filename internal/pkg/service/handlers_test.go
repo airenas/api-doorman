@@ -20,8 +20,8 @@ func newTestDefH(h http.Handler) *defaultHandler {
 	return &res
 }
 
-func newTestQuotaH(h http.Handler, prefix, method string) *quotaHandler {
-	res := quotaHandler{h: h, method: method, prefix: prefix}
+func newTestQuotaH(h http.Handler, prefix, method string) *prefixHandler {
+	res := prefixHandler{h: h, methods: initMethods(method), prefix: prefix}
 	return &res
 }
 
@@ -70,9 +70,9 @@ func TestQuotaHandle(t *testing.T) {
 	h, err := NewHandler("tts", newTestC(t, quotaYaml), newTestProvider(t))
 	assert.NotNil(t, h)
 	assert.Nil(t, err)
-	hq := h.(*quotaHandler)
+	hq := h.(*prefixHandler)
 	assert.Equal(t, "tts", hq.Name())
-	assert.Equal(t, "tts handler POST to 'http://olia.lt', prefix: /start", hq.Info())
+	assert.Equal(t, "tts handler (POST) to 'http://olia.lt', prefix: /start", hq.Info())
 	assert.NotNil(t, hq.Handler())
 	assert.Equal(t, "tts", hq.Name())
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
@@ -94,9 +94,9 @@ tts:
 `), newTestProvider(t))
 	assert.NotNil(t, h)
 	assert.Nil(t, err)
-	hq := h.(*quotaHandler)
+	hq := h.(*prefixHandler)
 	assert.Equal(t, "tts", hq.Name())
-	assert.Equal(t, "tts handler POST to 'http://olia.lt', prefix: /start", hq.Info())
+	assert.Equal(t, "tts handler (POST) to 'http://olia.lt', prefix: /start", hq.Info())
 	assert.NotNil(t, hq.Handler())
 	assert.Equal(t, "tts", hq.Name())
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
@@ -144,7 +144,6 @@ func TestQuotaHandle_FailDB(t *testing.T) {
 
 func TestQuotaHandle_FailDurationService(t *testing.T) {
 	os.Setenv("TTS_QUOTA_TYPE", "audioDuration")
-	os.Setenv("TTS_QUOTA_SERVICE", "http://audioDuration")
 	defer os.Setenv("TTS_QUOTA_TYPE", "")
 	h, err := NewHandler("tts", newTestC(t, quotaYaml), newTestProvider(t))
 	assert.Nil(t, h)

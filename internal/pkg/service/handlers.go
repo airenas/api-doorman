@@ -21,7 +21,10 @@ func NewHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (Han
 	}
 	sType := cfg.GetString(name + ".type")
 	if sType == "quota" {
-		return newQuotaHandler(name, cfg, ms)
+		return newPrQuotaHandler(name, cfg, ms)
+	}
+	if sType == "key" {
+		return newPrKeyHandler(name, cfg, ms)
 	}
 	return nil, errors.Errorf("Unknown handler type '%s'", sType)
 }
@@ -61,29 +64,49 @@ func (h *defaultHandler) Name() string {
 	return h.name
 }
 
-type quotaHandler struct {
+type prefixHandler struct {
 	prefix   string
-	method   string
+	methods  map[string]bool
 	proxyURL string
 	name     string
 	h        http.Handler
 }
 
-func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (HandlerWrap, error) {
-	res := &quotaHandler{}
+func newPrQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (HandlerWrap, error) {
+	res := &prefixHandler{}
+	err := initPrefixes(name, cfg, res)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Can't init prefix for %s", name)
+	}
+	res.h, err = newQuotaHandler(name, cfg, ms)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't init handler")
+	}
+	return res, nil
+}
+
+func initPrefixes(name string, cfg *viper.Viper, res *prefixHandler) error {
 	res.name = name
+	res.prefix = strings.TrimSpace(strings.ToLower(cfg.GetString(name + ".prefixURL")))
+	if res.prefix == "" {
+		return errors.New("No prefix")
+	}
+	res.proxyURL = cfg.GetString(name + ".backend")
+	res.methods = initMethods(cfg.GetString(name + ".method"))
+	goapp.Log.Infof("PrefixURL: %s", res.prefix)
+	return nil
+}
+
+func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (http.Handler, error) {
 	if cfg.GetString(name+".backend") == "" {
 		return nil, errors.New("No backend")
 	}
 	goapp.Log.Infof("Backend: %s", cfg.GetString(name+".backend"))
-	res.proxyURL = cfg.GetString(name + ".backend")
-	url, err := utils.ParseURL(res.proxyURL)
+	proxyURL := cfg.GetString(name + ".backend")
+	url, err := utils.ParseURL(proxyURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "Wrong backend")
 	}
-	res.prefix = strings.ToLower(cfg.GetString(name + ".prefixURL"))
-	res.method = cfg.GetString(name + ".method")
-	goapp.Log.Infof("PrefixURL: %s", res.prefix)
 
 	dbProvider, err := mongodb.NewDBProvider(ms, cfg.GetString(name+".db"))
 	if err != nil {
@@ -134,25 +157,100 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider)
 		hIP := handler.IPAsKey(hKey, newIPSaver(is, dl))
 		hKey = handler.KeyValidOrIP(hKey, hIP)
 	}
-	res.h = handler.KeyExtract(hKey)
+	h = handler.KeyExtract(hKey)
 
-	return res, nil
+	return h, nil
 }
 
-func (h *quotaHandler) Handler() http.Handler {
+func (h *prefixHandler) Handler() http.Handler {
 	return h.h
 }
 
-func (h *quotaHandler) Info() string {
-	return fmt.Sprintf("%s handler %s to '%s', prefix: %s", h.name, h.method, h.proxyURL, h.prefix)
+func (h *prefixHandler) Info() string {
+	return fmt.Sprintf("%s handler (%s) to '%s', prefix: %s", h.name, keys(h.methods), h.proxyURL, h.prefix)
 }
 
-func (h *quotaHandler) Valid(r *http.Request) bool {
+func keys(data map[string]bool) string {
+	res := strings.Builder{}
+	sep := ""
+	for k := range data {
+		res.WriteString(sep)
+		sep = ", "
+		res.WriteString(k)
+	}
+	return res.String()
+}
+
+func (h *prefixHandler) Valid(r *http.Request) bool {
 	path := r.URL.Path
 	path = strings.ToLower(path)
-	return strings.HasPrefix(path, h.prefix) && h.method == r.Method
+	return strings.HasPrefix(path, h.prefix) && h.methodOK(r.Method)
 }
 
-func (h *quotaHandler) Name() string {
+func (h *prefixHandler) methodOK(m string) bool {
+	if len(h.methods) == 0 {
+		return true
+	}
+	_, f := h.methods[m]
+	return f
+}
+
+func (h *prefixHandler) Name() string {
 	return h.name
+}
+
+func newPrKeyHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (HandlerWrap, error) {
+	res := &prefixHandler{}
+	err := initPrefixes(name, cfg, res)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Can't init prefix for %s", name)
+	}
+	res.h, err = newKeyHandler(name, cfg, ms)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't init handler")
+	}
+	return res, nil
+}
+
+func newKeyHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (http.Handler, error) {
+	if cfg.GetString(name+".backend") == "" {
+		return nil, errors.New("No backend")
+	}
+	goapp.Log.Infof("Backend: %s", cfg.GetString(name+".backend"))
+	proxyURL := cfg.GetString(name + ".backend")
+	url, err := utils.ParseURL(proxyURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "Wrong backend")
+	}
+
+	dbProvider, err := mongodb.NewDBProvider(ms, cfg.GetString(name+".db"))
+	if err != nil {
+		return nil, errors.Wrap(err, "No db")
+	}
+	keysValidator, err := mongodb.NewKeyValidator(dbProvider)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't init validator")
+	}
+
+	h := handler.Proxy(url)
+	ls, err := mongodb.NewLogSaver(dbProvider)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't init log saver")
+	}
+	h = handler.LogDB(h, ls)
+	hKey := handler.KeyValid(h, keysValidator)
+	h = handler.KeyExtract(hKey)
+
+	return h, nil
+}
+
+func initMethods(str string) map[string]bool {
+	res := make(map[string]bool)
+	for _, s := range strings.Split(str, ",") {
+		s = strings.TrimSpace(s)
+		if s != "" {
+			res[s] = true
+		}
+	}
+	return res
 }
