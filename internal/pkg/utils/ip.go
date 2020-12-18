@@ -37,6 +37,11 @@ func NewIPExtractor(ipType string) (IPExtractor, error) {
 	return nil, errors.Errorf("Unknown ip extractor type '%s'", ipType)
 }
 
+//GetIPHeader returns ip header
+func GetIPHeader(r *http.Request) string {
+	return r.Header.Get(ipHeader)
+}
+
 type lastForwardFor struct {
 }
 

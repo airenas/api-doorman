@@ -75,3 +75,9 @@ func TestNoPort(t *testing.T) {
 	assert.Equal(t, "92.1.1.1", ExtractIP(req))
 }
 
+func TestGetIPHeader(t *testing.T) {
+	req := httptest.NewRequest("GET", "/olia", nil)
+	req.RemoteAddr = "192.1.1.1:8000"
+	req.Header.Add("X-FORWARDED-FOR", "92.1.1.1:8000")
+	assert.Equal(t, "92.1.1.1:8000", GetIPHeader(req))
+}

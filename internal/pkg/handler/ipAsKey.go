@@ -28,6 +28,7 @@ func IPAsKey(next http.Handler, ipSaver IPSaver) http.Handler {
 func (h *ipAsKey) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
 	key := utils.ExtractIP(r)
+	goapp.Log.Debugf("IP: %s, IP header: '%s'", key, utils.GetIPHeader(r))
 	ctx.Key = key
 	err := h.ipSaver.Save(key)
 	if err != nil {
