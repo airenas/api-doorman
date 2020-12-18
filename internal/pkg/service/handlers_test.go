@@ -102,6 +102,22 @@ tts:
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
 }
 
+func TestQuotaHandler_Env(t *testing.T) {
+	os.Setenv("PROXY_TTS_QUOTA_TYPE", "json")
+	os.Setenv("PROXY_TTS_QUOTA_FIELD", "field")
+	h, err := NewHandler("tts", goapp.Sub(newTestC(t, `
+proxy:
+  tts:
+    backend: http://olia.lt
+    type: quota
+    db: test
+    prefixURL: /start
+    method: POST
+`), "proxy"), newTestProvider(t))
+	assert.NotNil(t, h)
+	assert.Nil(t, err)
+}
+
 func TestQuotaHandle_FailType(t *testing.T) {
 	os.Setenv("TTS_TYPE", "test")
 	defer os.Setenv("TTS_TYPE", "")
@@ -216,6 +232,6 @@ func newTestC(t *testing.T, configStr string) *viper.Viper {
 	v.SetConfigType("yaml")
 	goapp.InitEnv(v)
 	err := v.ReadConfig(strings.NewReader(configStr))
-	assert.Nil(t, err)
+	assert.Nil(t, err, err)
 	return v
 }

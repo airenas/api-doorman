@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"go.mongodb.org/mongo-driver/mongo"
+
 	"github.com/gorilla/mux"
 	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"
@@ -140,6 +142,14 @@ func TestAddKey(t *testing.T) {
 	assert.Contains(t, string(bytes), `"key":"kkk"`)
 	cVal := prValidarorMock.VerifyWasCalled(pegomock.Once()).Check(pegomock.AnyString()).GetCapturedArguments()
 	assert.Equal(t, "pr", cVal)
+}
+
+func TestAddKey_FailDuplicate(t *testing.T) {
+	initTest(t)
+	pegomock.When(keyCreatorMock.Create(pegomock.AnyString(), matchers.AnyPtrToApiKey())).ThenReturn(nil,
+		mongo.WriteException{WriteErrors: []mongo.WriteError{{Code: 11000}}})
+	req := httptest.NewRequest("POST", "/pr/key", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	testCode(t, req, 400)
 }
 
 func TestAddKey_Fail(t *testing.T) {

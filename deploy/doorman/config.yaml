@@ -1,10 +1,14 @@
 port: 8000
 ipExtractType: lastForwardFor   
 proxy:
-    backend: 
-    prefixURL: 
-    method: POST
-    quota:
-        type: json
-        field: 
-        default: 
+    handlers: default
+    # test: 
+    #     backend: 
+    #     prefixURL: /olia
+    #     method: POST
+    #     quota:
+    #         type: json
+    #         field: 
+    #         default:
+    # default:
+    #     backend: 

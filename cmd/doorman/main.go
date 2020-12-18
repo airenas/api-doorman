@@ -41,6 +41,9 @@ func main() {
 
 func initFromConfig(cfg *viper.Viper, ms *mongodb.SessionProvider) ([]service.HandlerWrap, error) {
 	res := make([]service.HandlerWrap, 0)
+	if cfg == nil {
+		return nil, errors.New("Can't init handlers - names are not provided")
+	}
 	strHand := cfg.GetString("handlers")
 	for _, sh := range strings.Split(strHand, ",") {
 		sh = strings.TrimSpace(sh)

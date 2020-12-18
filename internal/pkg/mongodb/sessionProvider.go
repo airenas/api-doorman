@@ -33,10 +33,11 @@ type SessionProviderWithDB struct {
 
 //SessionProvider connects and provides session for mongo DB
 type SessionProvider struct {
-	client  *mongo.Client
-	URL     string
-	indexes []IndexData
-	m       sync.Mutex // struct field mutex
+	client    *mongo.Client
+	URL       string
+	indexes   []IndexData
+	dbIndexes map[string]struct{} // keeps db names with schecked indexes
+	m         sync.Mutex          // struct field mutex
 }
 
 //NewSessionProvider creates Mongo session provider
@@ -44,7 +45,9 @@ func NewSessionProvider(url string) (*SessionProvider, error) {
 	if url == "" {
 		return nil, errors.New("No Mongo url provided")
 	}
-	return &SessionProvider{URL: url, indexes: indexData}, nil
+	res := &SessionProvider{URL: url, indexes: indexData}
+	res.dbIndexes = make(map[string]struct{})
+	return res, nil
 }
 
 //Close closes mongo session
@@ -69,15 +72,30 @@ func (sp *SessionProvider) NewSession(database string) (mongo.Session, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "Can't dial to mongo")
 		}
-		if database != "" {
-			err = checkIndexes(client, sp.indexes, database)
-			if err != nil {
-				return nil, errors.Wrap(err, "Can't create indexes")
-			}
-		}
 		sp.client = client
 	}
+	if database != "" {
+		err := sp.checkIndexes(sp.client, database)
+		if err != nil {
+			return nil, errors.Wrap(err, "Can't create indexes")
+		}
+	}
+
 	return sp.client.StartSession()
+}
+
+func (sp *SessionProvider) checkIndexes(c *mongo.Client, database string) error {
+	if database != "" {
+		_, f := sp.dbIndexes[database]
+		if f {
+			return nil
+		}
+		err := checkIndexes(c, sp.indexes, database)
+		if err != nil {
+			return errors.Wrap(err, "Can't create indexes")
+		}
+	}
+	return nil
 }
 
 func checkIndexes(s *mongo.Client, indexes []IndexData, database string) error {

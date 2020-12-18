@@ -13,7 +13,7 @@ type ProjectConfigValidator struct {
 //NewProjectConfigValidator creates project validator, reads available projects from config
 func NewProjectConfigValidator(projects string) (*ProjectConfigValidator, error) {
 	if projects == "" {
-		return nil, errors.New("No Available Projects provided")
+		return nil, errors.New("No projects provided")
 	}
 	res := ProjectConfigValidator{}
 	res.projects = make(map[string]bool)
@@ -24,7 +24,7 @@ func NewProjectConfigValidator(projects string) (*ProjectConfigValidator, error)
 		}
 	}
 	if len(res.projects) == 0 {
-		return nil, errors.New("No Available Projects provided")
+		return nil, errors.New("No projects provided")
 	}
 	return &res, nil
 }

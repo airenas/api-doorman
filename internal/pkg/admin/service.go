@@ -7,6 +7,7 @@ import (
 	"time"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
+	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -114,7 +115,11 @@ func (h *keyAddHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	keyResp, err := h.data.KeySaver.Create(project, &input)
 
 	if err != nil {
-		http.Error(w, "Service error", http.StatusInternalServerError)
+		if mongodb.IsDuplicate(err) {
+			http.Error(w, "Duplicate key", http.StatusBadRequest)
+		} else {
+			http.Error(w, "Service error", http.StatusInternalServerError)
+		}
 		goapp.Log.Error("Can't create key. ", err)
 		return
 	}

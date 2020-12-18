@@ -3,7 +3,7 @@ module github.com/airenas/api-doorman
 go 1.15
 
 require (
-	github.com/airenas/go-app v0.1.0
+	github.com/airenas/go-app v0.1.1
 	github.com/gogap/env_json v0.0.0-20150503135429-86150085ddbe // indirect
 	github.com/gogap/env_strings v0.0.1 // indirect
 	github.com/gorilla/mux v1.8.0
