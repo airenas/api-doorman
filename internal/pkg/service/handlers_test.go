@@ -150,6 +150,61 @@ func TestQuotaHandle_FailDurationService(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestKeyHandler(t *testing.T) {
+	h, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: key
+  db: test
+  prefixURL: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, h)
+	assert.Nil(t, err)
+	hq := h.(*prefixHandler)
+	assert.Equal(t, "tts", hq.Name())
+	assert.Equal(t, "tts handler (POST) to 'http://olia.lt', prefix: /start", hq.Info())
+	assert.NotNil(t, hq.Handler())
+	assert.Equal(t, "tts", hq.Name())
+	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
+}
+
+func TestKeyHandler_FailNoDB(t *testing.T) {
+	h, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: key
+  prefixURL: /start
+  method: POST
+`), newTestProvider(t))
+	assert.Nil(t, h)
+	assert.NotNil(t, err)
+}
+
+func TestKeyHandler_FailNoBackend(t *testing.T) {
+	h, err := NewHandler("tts", newTestC(t, `
+tts:
+  type: key
+  db: db
+  prefixURL: /start
+  method: POST
+`), newTestProvider(t))
+	assert.Nil(t, h)
+	assert.NotNil(t, err)
+}
+
+func TestKeyHandler_FailNoPrefix(t *testing.T) {
+	h, err := NewHandler("tts", newTestC(t, `
+tts:
+  type: key
+  backend: http://olia.lt
+  db: db
+  method: POST
+`), newTestProvider(t))
+	assert.Nil(t, h)
+	assert.NotNil(t, err)
+}
+
 func newTestProvider(t *testing.T) *mongodb.SessionProvider {
 	res, err := mongodb.NewSessionProvider("mongo://olia")
 	assert.Nil(t, err)
