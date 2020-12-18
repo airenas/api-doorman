@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 
 	"github.com/airenas/go-app/pkg/goapp"
@@ -37,7 +38,13 @@ func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// create new request for parsing the body
 	req2, _ := http.NewRequest(rn.Method, rn.URL.String(), bytes.NewReader(bodyBytes))
 	req2.Header = rn.Header
-	req2.ParseMultipartForm(32 << 20)
+	err := req2.ParseMultipartForm(32 << 20)
+	if err != nil {
+		http.Error(w, "Can't parse form data", http.StatusBadRequest)
+		goapp.Log.Error(err)
+		return
+	}
+	defer cleanFiles(req2.MultipartForm)
 	file, handler, err := req2.FormFile(h.field)
 	if err != nil {
 		http.Error(w, "No file", http.StatusBadRequest)
@@ -59,4 +66,10 @@ func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	h.next.ServeHTTP(w, rn)
+}
+
+func cleanFiles(f *multipart.Form) {
+	if f != nil {
+		f.RemoveAll()
+	}
 }
