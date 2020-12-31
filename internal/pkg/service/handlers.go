@@ -175,7 +175,7 @@ func (h *prefixHandler) Handler() http.Handler {
 
 func (h *prefixHandler) Info() string {
 	res := fmt.Sprintf("%s handler (%s) to '%s', prefix: %s\n", h.name, keys(h.methods), h.proxyURL, h.prefix)
-	return res + handler.GetInfo("", h.h)
+	return res + handler.GetInfo(handler.LogShitf(""), h.h)
 }
 
 func keys(data map[string]bool) string {

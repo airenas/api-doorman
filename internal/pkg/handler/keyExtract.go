@@ -32,5 +32,5 @@ func (h *keyExtract) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *keyExtract) Info(pr string) string {
-	return "KeyExtract\n" + GetInfo(pr, h.next)
+	return pr + "KeyExtract\n" + GetInfo(LogShitf(pr), h.next)
 }

@@ -40,5 +40,5 @@ func (h *ipAsKey) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ipAsKey) Info(pr string) string {
-	return "IPAsKey\n" + GetInfo(pr, h.next)
+	return pr + "IPAsKey\n" + GetInfo(LogShitf(pr), h.next)
 }

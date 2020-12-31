@@ -32,5 +32,5 @@ func (h *stripPrefix) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *stripPrefix) Info(pr string) string {
-	return fmt.Sprintf("StripPrefix(%s)\n", h.prefix) + GetInfo(pr, h.next)
+	return pr + fmt.Sprintf("StripPrefix(%s)\n", h.prefix) + GetInfo(LogShitf(pr), h.next)
 }

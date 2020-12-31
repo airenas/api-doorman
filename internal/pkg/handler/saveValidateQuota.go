@@ -53,5 +53,5 @@ func (h *quotaSaveValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *quotaSaveValidate) Info(pr string) string {
-	return "QuotaSaveValidate\n" + GetInfo(pr, h.next)
+	return pr + "QuotaSaveValidate\n" + GetInfo(LogShitf(pr), h.next)
 }

@@ -8,14 +8,18 @@ type infoProvider interface {
 
 //GetInfo return info if handler has one
 func GetInfo(pr string, h interface{}) string {
-	pr = pr + "  "
 	if ip, ok := h.(infoProvider); ok {
-		return addNewLine(pr + ip.Info(pr))
+		return checkNewLine(ip.Info(pr))
 	}
-	return addNewLine(pr + "Handler does not provide info")
+	return checkNewLine(pr + "Handler does not provide info")
 }
 
-func addNewLine(pr string) string {
+//LogShitf appends spaces to strin
+func LogShitf(str string) string {
+	return str + "  "
+}
+
+func checkNewLine(pr string) string {
 	if !strings.HasSuffix(pr, "\n") {
 		pr = pr + "\n"
 	}

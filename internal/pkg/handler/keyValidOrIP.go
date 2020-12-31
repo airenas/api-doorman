@@ -27,7 +27,7 @@ func (h *keyValidOrIP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *keyValidOrIP) Info(pr string) string {
-	return "KeyValidOrIP\n" +
-		pr + "Key:\n" + GetInfo(pr, h.withKeyHandler) +
-		pr + "IP:\n" + GetInfo(pr, h.withIPHandler)
+	return pr + "KeyValidOrIP\n" +
+		LogShitf(pr) + "Key:\n" + GetInfo(LogShitf(LogShitf(pr)), h.withKeyHandler) +
+		LogShitf(pr) + "IP:\n" + GetInfo(LogShitf(LogShitf(pr)), h.withIPHandler)
 }

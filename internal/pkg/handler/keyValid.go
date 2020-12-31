@@ -41,5 +41,5 @@ func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *keyValid) Info(pr string) string {
-	return "KeyValid\n" + GetInfo(pr, h.next)
+	return pr + "KeyValid\n" + GetInfo(LogShitf(pr), h.next)
 }

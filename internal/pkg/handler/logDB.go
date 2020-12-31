@@ -60,5 +60,5 @@ func responseCodeIsFail(code int) bool {
 }
 
 func (h *logDB) Info(pr string) string {
-	return GetInfo(pr, h.next) + pr + "LogDB\n"
+	return GetInfo(LogShitf(pr), h.next) + pr + "LogDB\n"
 }

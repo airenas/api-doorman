@@ -30,5 +30,5 @@ func (h *logStdout) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *logStdout) Info(pr string) string {
-	return "LogStdout\n" + GetInfo(pr, h.next)
+	return pr + "LogStdout\n" + GetInfo(LogShitf(pr), h.next)
 }

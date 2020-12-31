@@ -22,5 +22,5 @@ func (h *requestAsQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *requestAsQuota) Info(pr string) string {
-	return "RequestAsQuota\n" + GetInfo(pr, h.next)
+	return pr + "RequestAsQuota\n" + GetInfo(LogShitf(pr), h.next)
 }

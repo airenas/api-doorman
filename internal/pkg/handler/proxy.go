@@ -33,5 +33,5 @@ func (h *proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *proxy) Info(pr string) string {
-	return fmt.Sprintf("Proxy (%s)\n", h.url.String())
+	return pr + fmt.Sprintf("Proxy (%s)\n", h.url.String())
 }

@@ -43,5 +43,5 @@ func (h *jsonField) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *jsonField) Info(pr string) string {
-	return fmt.Sprintf("JSONField(%s)\n", h.field) + GetInfo(pr, h.next)
+	return pr + fmt.Sprintf("JSONField(%s)\n", h.field) + GetInfo(LogShitf(pr), h.next)
 }
