@@ -39,3 +39,7 @@ func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	h.next.ServeHTTP(w, rn)
 }
+
+func (h *keyValid) Info(pr string) string {
+	return "KeyValid\n" + GetInfo(pr, h.next)
+}

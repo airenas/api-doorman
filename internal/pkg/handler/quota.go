@@ -20,3 +20,7 @@ func (h *requestAsQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx.QuotaValue = 1
 	h.next.ServeHTTP(w, rn)
 }
+
+func (h *requestAsQuota) Info(pr string) string {
+	return "RequestAsQuota\n" + GetInfo(pr, h.next)
+}

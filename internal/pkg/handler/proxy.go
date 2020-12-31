@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -29,4 +30,8 @@ func (h *proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return nil
 	}
 	proxy.ServeHTTP(w, rn)
+}
+
+func (h *proxy) Info(pr string) string {
+	return fmt.Sprintf("Proxy (%s)\n", h.url.String())
 }

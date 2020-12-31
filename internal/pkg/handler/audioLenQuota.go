@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -72,4 +73,8 @@ func cleanFiles(f *multipart.Form) {
 	if f != nil {
 		f.RemoveAll()
 	}
+}
+
+func (h *audioLen) Info(pr string) string {
+	return fmt.Sprintf("AudioLenQuota(%s)\n", h.field) + GetInfo(pr, h.next)
 }

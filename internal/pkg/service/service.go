@@ -46,7 +46,7 @@ func StartWebServer(data *Data) error {
 	http.Handle("/", h)
 	portStr := strconv.Itoa(data.Port)
 
-	goapp.Log.Info(getInfo(data.Handlers))
+	log(getInfo(data.Handlers))
 
 	err = http.ListenAndServe(":"+portStr, nil)
 
@@ -54,6 +54,12 @@ func StartWebServer(data *Data) error {
 		return errors.Wrap(err, "Can't start HTTP listener at port "+portStr)
 	}
 	return nil
+}
+
+func log(info string) {
+	for _, s := range strings.Split(info, "\n") {
+		goapp.Log.Info(s)
+	}
 }
 
 func newMainHandler(data *Data) (http.Handler, error) {

@@ -51,3 +51,7 @@ func (h *quotaSaveValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	h.next.ServeHTTP(w, rn)
 }
+
+func (h *quotaSaveValidate) Info(pr string) string {
+	return "QuotaSaveValidate\n" + GetInfo(pr, h.next)
+}

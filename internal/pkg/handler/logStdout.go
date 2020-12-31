@@ -28,3 +28,7 @@ func (h *logStdout) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(h.log, "%s %.2f '%s'", utils.ExtractIP(r), ctx.QuotaValue, ctx.Value)
 	h.next.ServeHTTP(w, rn)
 }
+
+func (h *logStdout) Info(pr string) string {
+	return "LogStdout\n" + GetInfo(pr, h.next)
+}

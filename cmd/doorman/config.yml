@@ -5,7 +5,8 @@ proxy:
         type: quota
         db: tts
         backend: http://localhost:8002
-        prefixURL: /private
+        prefixURL: /private/test
+        stripPrefix: /private
         method: POST
         quota:
             type: json

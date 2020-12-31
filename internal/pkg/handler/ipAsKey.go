@@ -38,3 +38,7 @@ func (h *ipAsKey) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	h.next.ServeHTTP(w, rn)
 }
+
+func (h *ipAsKey) Info(pr string) string {
+	return "IPAsKey\n" + GetInfo(pr, h.next)
+}

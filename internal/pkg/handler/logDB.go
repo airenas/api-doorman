@@ -58,3 +58,7 @@ func (h *logDB) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func responseCodeIsFail(code int) bool {
 	return !(code >= 200 && code < 300)
 }
+
+func (h *logDB) Info(pr string) string {
+	return GetInfo(pr, h.next) + pr + "LogDB\n"
+}

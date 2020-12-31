@@ -20,3 +20,7 @@ func (h *jsonAsQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx.QuotaValue = float64(len([]rune(ctx.Value)))
 	h.next.ServeHTTP(w, rn)
 }
+
+func (h *jsonAsQuota) Info(pr string) string {
+	return "JSONAsQuota\n" + GetInfo(pr, h.next)
+}

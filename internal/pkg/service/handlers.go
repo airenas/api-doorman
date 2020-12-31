@@ -117,7 +117,14 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider)
 		return nil, errors.Wrap(err, "Can't init validator")
 	}
 
-	h := handler.QuotaValidate(handler.Proxy(url), keysValidator)
+	h := handler.Proxy(url)
+	stripURL := cfg.GetString(name + ".stripPrefix")
+	if stripURL != "" {
+		h = handler.StripPrefix(h, stripURL)
+		goapp.Log.Infof("Strip prefix: %s", stripURL)
+	}
+
+	h = handler.QuotaValidate(h, keysValidator)
 	qt := cfg.GetString(name + ".quota.type")
 	qf := strings.TrimSpace(cfg.GetString(name + ".quota.field"))
 	if qt == "json" {
@@ -167,7 +174,8 @@ func (h *prefixHandler) Handler() http.Handler {
 }
 
 func (h *prefixHandler) Info() string {
-	return fmt.Sprintf("%s handler (%s) to '%s', prefix: %s", h.name, keys(h.methods), h.proxyURL, h.prefix)
+	res := fmt.Sprintf("%s handler (%s) to '%s', prefix: %s\n", h.name, keys(h.methods), h.proxyURL, h.prefix)
+	return res + handler.GetInfo("", h.h)
 }
 
 func keys(data map[string]bool) string {
@@ -233,6 +241,11 @@ func newKeyHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (
 	}
 
 	h := handler.Proxy(url)
+	stripURL := cfg.GetString(name + ".stripPrefix")
+	if stripURL != "" {
+		h = handler.StripPrefix(h, stripURL)
+		goapp.Log.Infof("Strip prefix: %s", stripURL)
+	}
 	ls, err := mongodb.NewLogSaver(dbProvider)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't init log saver")

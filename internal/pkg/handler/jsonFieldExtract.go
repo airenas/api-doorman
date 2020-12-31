@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -39,4 +40,8 @@ func (h *jsonField) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	h.next.ServeHTTP(w, rn)
+}
+
+func (h *jsonField) Info(pr string) string {
+	return fmt.Sprintf("JSONField(%s)\n", h.field) + GetInfo(pr, h.next)
 }

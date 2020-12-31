@@ -30,3 +30,7 @@ func (h *keyExtract) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	h.next.ServeHTTP(w, rn)
 }
+
+func (h *keyExtract) Info(pr string) string {
+	return "KeyExtract\n" + GetInfo(pr, h.next)
+}
