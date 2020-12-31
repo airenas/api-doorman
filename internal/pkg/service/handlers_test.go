@@ -134,7 +134,6 @@ tts:
     field: field
     default: 100
   prefixURL: /start
-  stripPrefix: /start
   method: POST
 `), newTestProvider(t))
 	assert.NotNil(t, h)
