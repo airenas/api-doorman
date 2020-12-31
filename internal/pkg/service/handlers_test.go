@@ -53,7 +53,7 @@ func TestNewHandler_Fail(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-const quotaYaml =  `
+const quotaYaml = `
 tts:
   backend: http://olia.lt
   type: quota
@@ -72,7 +72,7 @@ func TestQuotaHandle(t *testing.T) {
 	assert.Nil(t, err)
 	hq := h.(*prefixHandler)
 	assert.Equal(t, "tts", hq.Name())
-	assert.Equal(t, "tts handler (POST) to 'http://olia.lt', prefix: /start", hq.Info())
+	assert.Contains(t, hq.Info(), "tts handler (POST) to 'http://olia.lt', prefix: /start")
 	assert.NotNil(t, hq.Handler())
 	assert.Equal(t, "tts", hq.Name())
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
@@ -96,10 +96,50 @@ tts:
 	assert.Nil(t, err)
 	hq := h.(*prefixHandler)
 	assert.Equal(t, "tts", hq.Name())
-	assert.Equal(t, "tts handler (POST) to 'http://olia.lt', prefix: /start", hq.Info())
+	assert.Contains(t, hq.Info(), "tts handler (POST) to 'http://olia.lt', prefix: /start")
 	assert.NotNil(t, hq.Handler())
 	assert.Equal(t, "tts", hq.Name())
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
+}
+
+func TestQuotaHandler_InitStrip(t *testing.T) {
+	h, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: audioDuration
+    service: http://olia/ser
+    field: field
+    default: 100
+  prefixURL: /start
+  stripPrefix: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, h)
+	assert.Nil(t, err)
+	assert.Contains(t, h.Info(), "StripPrefix(/start)")
+}
+
+func TestQuotaHandler_NoInitStrip(t *testing.T) {
+	h, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: audioDuration
+    service: http://olia/ser
+    field: field
+    default: 100
+  prefixURL: /start
+  stripPrefix: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, h)
+	assert.Nil(t, err)
+	assert.NotContains(t, h.Info(), "StripPrefix(/start)")
 }
 
 func TestQuotaHandler_Env(t *testing.T) {
@@ -179,7 +219,7 @@ tts:
 	assert.Nil(t, err)
 	hq := h.(*prefixHandler)
 	assert.Equal(t, "tts", hq.Name())
-	assert.Equal(t, "tts handler (POST) to 'http://olia.lt', prefix: /start", hq.Info())
+	assert.Contains(t, hq.Info(), "tts handler (POST) to 'http://olia.lt', prefix: /start")
 	assert.NotNil(t, hq.Handler())
 	assert.Equal(t, "tts", hq.Name())
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))

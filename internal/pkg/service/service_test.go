@@ -89,7 +89,6 @@ func TestMainHandler_PrefixSeveralMethods(t *testing.T) {
 	testCode(t, &mh, httptest.NewRequest("POST", "/invalid/olia", nil), 404)
 }
 
-
 func TestMainHandlerCreate(t *testing.T) {
 	data := newTestData()
 	data.Handlers = []HandlerWrap{newTestQuotaH(&testHandler{f: codeFunc(222)}, "/pref", "GET")}
@@ -111,7 +110,7 @@ func TestGetInfo(t *testing.T) {
 	th.proxyURL = "proxy"
 
 	hnds := []HandlerWrap{th, th}
-	assert.Equal(t, "than handler (GET) to 'proxy', prefix: /pref\nthan handler (GET) to 'proxy', prefix: /pref\n", getInfo(hnds))
+	assert.Contains(t, getInfo(hnds), "than handler (GET) to 'proxy', prefix: /pref", getInfo(hnds))
 }
 
 func newTestData() *Data {
