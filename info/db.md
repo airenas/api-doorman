@@ -33,6 +33,5 @@ Table keeps all requests. System logs users IP, time, quota value.
 | quotaValue | float64 | Quota used by the request |
 | date | time | Time of the request |
 | ip | string | IP of the user |
-| value | string | |
 | fail | bool | *true* if the requests has failed |
 | response | int | Code of the response provided to user |
