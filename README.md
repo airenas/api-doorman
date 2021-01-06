@@ -14,7 +14,7 @@ Lets say we have API with a path *http://localhost:8002/private*. The API accept
 1. Start a demo: `make start`
 
 1. Test fake api by investigating *Makefile* and *docker-compose.yml*:
- 
+
    ```bash
    make test-public
    make test-private
@@ -23,6 +23,7 @@ Lets say we have API with a path *http://localhost:8002/private*. The API accept
 
 1. Add new key to DB: `make adm-add`
 Expected result: 
+
     ```json
     {"key":"XK3JoSyC48cxgvvkpUF4", "manual":true,
     "validTo":"2030-11-24T11:07:00Z", "limit":500 ...}
@@ -38,7 +39,7 @@ Expected result:
 
 ## License
 
-Copyright © 2020, [Airenas Vaičiūnas](https://github.com/airenas).
+Copyright © 2021, [Airenas Vaičiūnas](https://github.com/airenas).
 
 Released under the [The 3-Clause BSD License](LICENSE).
 
