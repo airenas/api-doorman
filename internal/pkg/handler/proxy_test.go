@@ -22,3 +22,13 @@ func TestProxy_Response(t *testing.T) {
 	assert.Equal(t, 442, resp.Code)
 	assert.Equal(t, 442, ctx.ResponseCode)
 }
+
+func TestProxy_ErrorHandler(t *testing.T) {
+	req, ctx := customContext(httptest.NewRequest("POST", "/duration", nil))
+	resp := httptest.NewRecorder()
+
+	surl, _ := url.Parse("http://a")
+	Proxy(surl).ServeHTTP(resp, req)
+	assert.Equal(t, http.StatusBadGateway, resp.Code)
+	assert.Equal(t, http.StatusBadGateway, ctx.ResponseCode)
+}

@@ -3,7 +3,7 @@ dist_dir=$(CURDIR)/data
 executable_name=doorman
 main_dir=../../cmd/$(executable_name)
 service=airenas/api-doorman
-version=0.2
+version=0.3
 go_build_cmd=CGO_ENABLED=0 go build -installsuffix -cgo
 commit_count=$(shell git rev-list --count HEAD)
 #####################################################################################

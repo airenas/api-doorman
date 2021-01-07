@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+
+	"github.com/airenas/go-app/pkg/goapp"
 )
 
 type proxy struct {
@@ -28,6 +30,11 @@ func (h *proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	proxy.ModifyResponse = func(resp *http.Response) (err error) {
 		ctx.ResponseCode = resp.StatusCode
 		return nil
+	}
+	proxy.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, err error) {
+		goapp.Log.Errorf("http: proxy error: %v", err)
+		rw.WriteHeader(http.StatusBadGateway)
+		ctx.ResponseCode = http.StatusBadGateway
 	}
 	proxy.ServeHTTP(w, rn)
 }
