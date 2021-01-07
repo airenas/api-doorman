@@ -34,7 +34,7 @@ func (h *logDB) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.next.ServeHTTP(w, rn)
 	}
 	data := &api.Log{}
-	data.Value = ctx.Value
+	// data.Value = ctx.Value
 	data.Date = time.Now()
 	data.QuotaValue = ctx.QuotaValue
 	data.Key = ctx.Key
