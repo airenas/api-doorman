@@ -111,8 +111,7 @@ func (ss *KeyValidator) Restore(key string, manual bool, qv float64) (float64, f
 	defer session.EndSession(context.Background())
 	c := db.Collection(keyTable)
 
-	update := bson.M{"$set": bson.M{"lastUsed": time.Now()},
-		"$dec": bson.M{"quotaValue": qv}, "$inc": bson.M{"quotaValueFailed": qv}}
+	update := bson.M{"$set": bson.M{"lastUsed": time.Now()}, "$inc": bson.M{"quotaValueFailed": qv, "quotaValue": -qv}}
 	var resNew keyRecord
 	err = c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key), "manual": manual},
 		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&resNew)
