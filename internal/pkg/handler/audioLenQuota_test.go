@@ -100,4 +100,6 @@ const testCode = 555
 
 func (h *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(h.code)
+	_, ctx := customContext(r)
+	ctx.ResponseCode = h.code
 }

@@ -23,7 +23,6 @@ func TestLogDB(t *testing.T) {
 	req, ctx := customContext(httptest.NewRequest("POST", "/duration", nil))
 	ctx.Key = "kkk"
 	ctx.Manual = true
-	ctx.ResponseCode = 200
 	ctx.Value = "value"
 	resp := httptest.NewRecorder()
 	h := LogDB(newTestHandler(), dbSaverMock).(*logDB)
@@ -34,9 +33,8 @@ func TestLogDB(t *testing.T) {
 	assert.Equal(t, testCode, resp.Code)
 	cLog := dbSaverMock.VerifyWasCalledOnce().Save(matchers.AnyPtrToApiLog()).GetCapturedArguments()
 	assert.Equal(t, "kkk", cLog.Key)
-	assert.Equal(t, 200, cLog.ResponseCode)
-	assert.Equal(t, false, cLog.Fail)
-	assert.Equal(t, "value", cLog.Value)
+	assert.Equal(t, 555, cLog.ResponseCode)
+	assert.Equal(t, true, cLog.Fail)
 	assert.Equal(t, "192.0.2.1", cLog.IP)
 	assert.Equal(t, "/duration", cLog.URL)
 }
