@@ -1,0 +1,15 @@
+name: Integration Tests
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Init services
+        run: cd examples/docker-compose && make start
+      - name: Run integration tests
+        run: cd tests && make all

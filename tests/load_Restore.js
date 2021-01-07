@@ -1,21 +1,12 @@
 import http from "k6/http";
 import { check, sleep } from "k6";
-import { Counter } from 'k6/metrics';
 
 const prj = "test"
 const admURL = 'http://host.docker.internal:8001';
 const testURL = 'http://host.docker.internal:8000';
-const expectedQuota = __ENV.EXPECTED_REQ * 10;
-export let CounterErrors = new Counter('Errors');
-
-export let options = {
-    thresholds: {
-      Errors: ['count==0'],
-    },
-};
 
 export default function (data) {
-    var url = testURL + '/private?key=' + data.key;
+    var url = testURL + '/private/aa?key=' + data.key;
     var payload = JSON.stringify({
         text: '0123456789',
     });
@@ -26,17 +17,16 @@ export default function (data) {
     };
     let res = http.post(url, payload, params);
     check(res, {
-        "status was 200": (r) => r.status == 200,
+        "status was 404": (r) => r.status == 404,
         "transaction time OK": (r) => r.timings.duration < 200
     });
-    CounterErrors.add(!(res.status == 200));
     sleep(0.1);
 }
 
 export function setup() {
     var url = admURL + '/' + prj + '/key';
     var payload = JSON.stringify({
-        limit: expectedQuota * 2,
+        limit: 1000,
         validTo: '2030-11-24T11:07:00Z'
     });
     var params = {
@@ -51,14 +41,15 @@ export function setup() {
 
 export function teardown(data) {
     var url = admURL + '/' + prj + '/key/' + data.key;
-    
+    console.log("Url: " + url);
     let res = http.get(url);
-    
     let jRes = res.json().key;
     let qv = jRes.quotaValue;
-    console.log("Final quota: " + qv + " expected: " + expectedQuota);
+    if (!qv) {
+        qv = 0;
+    }
+    console.log("Final quota: " + qv + " expected: 0");
     check(res, {
-        "quota": (r) => qv == expectedQuota,
+        "quota": (r) => qv == 0,
     });
-    CounterErrors.add(!(qv == expectedQuota));
 }

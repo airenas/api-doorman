@@ -15,3 +15,12 @@ load-fail: info
 	docker run --add-host=host.docker.internal:$(DOCKER_IP) \
 	   --env EXPECTED_REQ=$(req) \
 	   -i loadimpact/k6 run --vus $(vu) --iterations $(req) - <load_Fail.js		
+
+load-restore: info
+	docker run --add-host=host.docker.internal:$(DOCKER_IP) \
+	   -i loadimpact/k6 run --vus $(vu) --iterations $(req) - <load_Restore.js	
+
+all: load load-fail load-restore
+
+.PHONY:
+	load load-restore load-fail
