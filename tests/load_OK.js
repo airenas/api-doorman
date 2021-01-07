@@ -1,16 +1,14 @@
 import http from "k6/http";
 import { check, sleep } from "k6";
-import { Counter } from 'k6/metrics';
 
 const prj = "test"
 const admURL = 'http://host.docker.internal:8001';
 const testURL = 'http://host.docker.internal:8000';
 const expectedQuota = __ENV.EXPECTED_REQ * 10;
-export let CounterErrors = new Counter('Errors');
 
 export let options = {
     thresholds: {
-      Errors: ['count==0'],
+      checks: ['rate==1'],
     },
 };
 
@@ -29,7 +27,6 @@ export default function (data) {
         "status was 200": (r) => r.status == 200,
         "transaction time OK": (r) => r.timings.duration < 200
     });
-    CounterErrors.add(!(res.status == 200));
     sleep(0.1);
 }
 
@@ -60,5 +57,4 @@ export function teardown(data) {
     check(res, {
         "quota": (r) => qv == expectedQuota,
     });
-    CounterErrors.add(!(qv == expectedQuota));
 }

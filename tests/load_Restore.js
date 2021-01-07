@@ -5,6 +5,12 @@ const prj = "test"
 const admURL = 'http://host.docker.internal:8001';
 const testURL = 'http://host.docker.internal:8000';
 
+export let options = {
+    thresholds: {
+      checks: ['rate==1'],
+    },
+};
+
 export default function (data) {
     var url = testURL + '/private/aa?key=' + data.key;
     var payload = JSON.stringify({

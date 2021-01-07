@@ -6,6 +6,12 @@ const admURL = 'http://host.docker.internal:8001';
 const testURL = 'http://host.docker.internal:8000';
 const expectedQuotaFailed = __ENV.EXPECTED_REQ * 10
 
+export let options = {
+    thresholds: {
+      checks: ['rate==1'],
+    },
+};
+
 export default function (data) {
     var url = testURL + '/private?key=' + data.key;
     var payload = JSON.stringify({
@@ -45,8 +51,9 @@ export function teardown(data) {
     console.log("Url: " + url);
     let res = http.get(url);
     let jRes = res.json().key
-    console.log("Final quota failed: " + jRes.quotaFailed + " expected: " + expectedQuotaFailed);
+    let qv = jRes.quotaFailed;
+    console.log("Final quota failed: " + qv+ " expected: " + expectedQuotaFailed);
     check(res, {
-        "quota": (r) => r.json().key.quotaFailed == expectedQuotaFailed,
+        "quota": (r) => qv == expectedQuotaFailed,
     });
 }

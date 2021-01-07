@@ -1,6 +1,6 @@
 # api-doorman
 
-![](https://github.com/airenas/api-doorman/workflows/Go/badge.svg) [![Coverage Status](https://coveralls.io/repos/github/airenas/api-doorman/badge.svg?branch=main)](https://coveralls.io/github/airenas/api-doorman?branch=main) [![Go Report Card](https://goreportcard.com/badge/github.com/airenas/api-doorman)](https://goreportcard.com/report/github.com/airenas/api-doorman) 
+![](https://github.com/airenas/api-doorman/workflows/Go/badge.svg) [![Coverage Status](https://coveralls.io/repos/github/airenas/api-doorman/badge.svg?branch=main)](https://coveralls.io/github/airenas/api-doorman?branch=main) [![Go Report Card](https://goreportcard.com/badge/github.com/airenas/api-doorman)](https://goreportcard.com/report/github.com/airenas/api-doorman) ![Integration Tests](https://github.com/airenas/api-doorman/workflows/Integration%20Tests/badge.svg)
 
 Simple proxy for traking API usage in Mongo DB and authenticating requests by keys.
 
