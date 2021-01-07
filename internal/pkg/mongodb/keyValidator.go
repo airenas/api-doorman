@@ -58,7 +58,7 @@ func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
 }
 
 //SaveValidate add qv to quota and validates with quota limit
-func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, float64, float64, error) {
+func (ss *KeyValidator) SaveValidate(key string, ip string, manual bool, qv float64) (bool, float64, float64, error) {
 	goapp.Log.Debugf("Validating key")
 	ctx, cancel := mongoContext()
 	defer cancel()
@@ -72,24 +72,24 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, f
 	c := db.Collection(keyTable)
 
 	var res keyRecord
-	err = c.FindOne(ctx, bson.M{"key": sanitize(key)}).Decode(&res)
+	err = c.FindOne(ctx, bson.M{"key": sanitize(key), "manual": manual}).Decode(&res)
 	if err != nil {
 		return false, 0, 0, err
 	}
 
 	remRequired := res.Limit - qv
 	if remRequired <= 0 {
-		return ss.updateFailed(c, key, ip, qv)
+		return ss.updateFailed(c, key, ip, manual, qv)
 	}
 	update := bson.M{"$set": bson.M{"lastUsed": time.Now(), "lastIP": ip},
 		"$inc": bson.M{"quotaValue": qv}}
 	var resNew keyRecord
-	err = c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key),
+	err = c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key), "manual": manual,
 		"quotaValue": bson.M{"$not": bson.M{"$gt": remRequired}}},
 		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&resNew)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return ss.updateFailed(c, key, ip, qv)
+			return ss.updateFailed(c, key, ip, manual, qv)
 		}
 		return false, 0, 0, err
 	}
@@ -97,13 +97,39 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, qv float64) (bool, f
 	return true, resNew.Limit - resNew.QuotaValue, resNew.Limit, nil
 }
 
-func (ss *KeyValidator) updateFailed(c *mongo.Collection, key string, ip string, qv float64) (bool, float64, float64, error) {
+//Restore restores quota value after failed service call
+func (ss *KeyValidator) Restore(key string, manual bool, qv float64) (float64, float64, error) {
+	goapp.Log.Debugf("Restoring quota for key")
+	ctx, cancel := mongoContext()
+	defer cancel()
+
+	session, db, err := ss.SessionProvider.NewSesionDatabase()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	defer session.EndSession(context.Background())
+	c := db.Collection(keyTable)
+
+	update := bson.M{"$set": bson.M{"lastUsed": time.Now()},
+		"$dec": bson.M{"quotaValue": qv}, "$inc": bson.M{"quotaValueFailed": qv}}
+	var resNew keyRecord
+	err = c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key), "manual": manual},
+		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&resNew)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return resNew.Limit - resNew.QuotaValue, resNew.Limit, nil
+}
+
+func (ss *KeyValidator) updateFailed(c *mongo.Collection, key string, ip string, manual bool, qv float64) (bool, float64, float64, error) {
 	ctx, cancel := mongoContext()
 	defer cancel()
 	update := bson.M{"$set": bson.M{"lastUsed": time.Now(), "lastIP": ip},
 		"$inc": bson.M{"quotaValueFailed": qv}}
 	var res keyRecord
-	err := c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key)},
+	err := c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key), "manual": manual},
 		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&res)
 	if err != nil {
 		return false, 0, 0, err
