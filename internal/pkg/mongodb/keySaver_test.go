@@ -36,12 +36,15 @@ func TestPrepareUpdates(t *testing.T) {
 	data["disabled"] = true
 	tn := time.Now()
 	data["validTo"] = tn
+	data["description"] = "olia"
+	data["IPWhiteList"] = "1.1.1.1/32"
 	pr, err := prepareUpdates(data)
 	assert.Nil(t, err)
 	assert.NotNil(t, pr)
 	assert.Equal(t, 10.0, pr["limit"])
 	assert.Equal(t, true, pr["disabled"])
 	assert.Equal(t, tn, pr["validTo"])
+	assert.Equal(t, "1.1.1.1/32", pr["IPWhiteList"])
 }
 
 func TestPrepareUpdates_ParseTime(t *testing.T) {
@@ -72,6 +75,13 @@ func TestPrepareUpdates_Fail(t *testing.T) {
 func TestPrepareUpdates_FailConvert(t *testing.T) {
 	data := make(map[string]interface{})
 	data["limit"] = "aa10.0"
+	_, err := prepareUpdates(data)
+	assert.True(t, errors.Is(err, api.ErrWrongField))
+}
+
+func TestPrepareUpdates_FailIPWhiteList(t *testing.T) {
+	data := make(map[string]interface{})
+	data["IPWhiteList"] = "1.1.1"
 	_, err := prepareUpdates(data)
 	assert.True(t, errors.Is(err, api.ErrWrongField))
 }
