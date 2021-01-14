@@ -8,15 +8,18 @@ Table keeps keys
 | ---|-|-|
 | key[*pk*] | string | Key or IP if created automatically |
 | manual[pk*] | bool | *false* - indicates IP as a key, *true* - manually created key |
-| validTo | time | disables key after this time |
-| limit   | float64 | Quata limit value |
-| quotaValue | float64 | Current quota usage value |
-| quotaValueFailed | float64 | Quota value requested, but failed because of the limit (in total) |
+||
+| limit   | float64 | Quota limit value - total value granted to the key |
+| quotaValue | float64 | Value of current quota usage (in total) |
+| quotaValueFailed | float64 | Value of quota requested, but failed because of the limit or other errors (in total) |
+||
+| validTo | time | Disables key after this time |
+| disabled | bool | Indicates if the key is disabled |
+||
 | created | time | Key creation time |
 | updated | time | Key update time |
-| lastUsed | time | Time of last access |
-| lastIP | string | IP of last access |
-| disabled | bool | Disables key |
+| lastUsed | time | Time of the last access |
+| lastIP | string | IP of the last access |
 
 *pk* - primary key
 
@@ -24,14 +27,14 @@ Table keeps keys
 
 ## Log table
 
-Table keeps all requests. System logs users IP, time, quota value.
+Table keeps all requests. System logs user`s IP, time, quota value of the request.
 
 | Laukas| Tipas | Paskirtis |
 | ---|-|-|
 | key | string | |
-| utl | string | request URL, path |
+| url | string | request URL, path |
 | quotaValue | float64 | Quota used by the request |
 | date | time | Time of the request |
 | ip | string | IP of the user |
 | fail | bool | *true* if the requests has failed |
-| response | int | Code of the response provided to user |
+| response | int | Code of the response returned to the user |
