@@ -16,6 +16,8 @@ type keyRecord struct {
 	LastUsed         time.Time `json:"lastUsed,omitempty"`
 	LastIP           string    `json:"lastIP,omitempty"`
 	Disabled         bool      `json:"disabled,omitempty"`
+	IPWhiteList      string    `json:"IPWhiteList,omitempty"`
+	Description      string    `json:"description,omitempty"`
 }
 
 type logRecord struct {

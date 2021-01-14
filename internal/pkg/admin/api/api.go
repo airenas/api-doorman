@@ -17,7 +17,9 @@ type Key struct {
 	Updated     time.Time `json:"updated,omitempty"`
 	LastUsed    time.Time `json:"lastUsed,omitempty"`
 	LastIP      string    `json:"lastIP,omitempty"`
+	IPWhiteList string    `json:"IPWhiteList,omitempty"`
 	Disabled    bool      `json:"disabled,omitempty"`
+	Description string    `json:"description,omitempty"`
 }
 
 // Log structure for log data

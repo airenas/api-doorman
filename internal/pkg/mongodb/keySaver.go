@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/airenas/api-doorman/internal/pkg/utils"
+
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
@@ -33,6 +35,12 @@ func NewKeySaver(sessionProvider *SessionProvider, keySize int) (*KeySaver, erro
 // Create key to DB
 func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, error) {
 	goapp.Log.Infof("Saving key - valid to: %v, limit: %f", key.ValidTo, key.Limit)
+
+	err := utils.ValidateIPsCIDR(key.IPWhiteList)
+	if err != nil {
+		return nil, errors.Wrapf(adminapi.ErrWrongField, "Wrong IP CIDR format: "+key.IPWhiteList)
+	}
+
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -51,6 +59,8 @@ func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, er
 	res.ValidTo = key.ValidTo
 	res.Created = time.Now()
 	res.Manual = true
+	res.Description = key.Description
+	res.IPWhiteList = key.IPWhiteList
 	_, err = c.InsertOne(ctx, res)
 	return mapTo(res), err
 }
@@ -163,8 +173,19 @@ func prepareUpdates(data map[string]interface{}) (bson.M, error) {
 				ok = err == nil
 			}
 
+		} else if k == "description" {
+			res["description"] = v
 		} else if k == "disabled" {
 			res["disabled"], ok = v.(bool)
+		} else if k == "IPWhiteList" {
+			s, ok := v.(string)
+			if ok {
+				err := utils.ValidateIPsCIDR(s)
+				if err != nil {
+					return nil, errors.Wrapf(adminapi.ErrWrongField, "Wrong IP CIDR format: "+s)
+				}
+				res["IPWhiteList"] = v
+			}
 		} else {
 			err = errors.Wrapf(adminapi.ErrWrongField, "Unknown field '%s'", k)
 		}
@@ -195,5 +216,7 @@ func mapTo(v *keyRecord) *adminapi.Key {
 	res.LastIP = v.LastIP
 	res.Updated = v.Updated
 	res.Disabled = v.Disabled
+	res.IPWhiteList = v.IPWhiteList
+	res.Description = v.Description
 	return res
 }

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"net"
 	"net/http"
 	"strings"
 
@@ -77,4 +78,15 @@ func getFirst(s string) string {
 func getLast(s string) string {
 	strs := strings.Split(s, ",")
 	return strs[len(strs)-1]
+}
+
+//ValidateIPsCIDR check if IPs are valid comma separated CIDR format
+func ValidateIPsCIDR(ip string) error {
+	for _, s := range strings.Split(ip, ",") {
+		_, _, err := net.ParseCIDR(s)
+		if err != nil {
+			return errors.Wrapf(err, "Wrong IP: %s", s)
+		}
+	}
+	return nil
 }

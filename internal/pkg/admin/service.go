@@ -117,6 +117,10 @@ func (h *keyAddHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if mongodb.IsDuplicate(err) {
 			http.Error(w, "Duplicate key", http.StatusBadRequest)
+		} else if errors.Is(err, adminapi.ErrWrongField) {
+			http.Error(w, "Wrong field. "+err.Error(), http.StatusBadRequest)
+			goapp.Log.Error("Wrong field. ", err)
+			return
 		} else {
 			http.Error(w, "Service error", http.StatusInternalServerError)
 		}
@@ -253,11 +257,11 @@ func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if errors.Is(err, adminapi.ErrWrongField) {
 		http.Error(w, "Wrong field. "+err.Error(), http.StatusBadRequest)
-		goapp.Log.Error("Key not found. ", err)
+		goapp.Log.Error("Wrong field. ", err)
 		return
 	} else if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		goapp.Log.Error("Can't create key. ", err)
+		goapp.Log.Error("Can't update key. ", err)
 		return
 	}
 
