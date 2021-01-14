@@ -46,26 +46,26 @@ func (ss *KeyValidator) IsValid(key string, IP string, manual bool) (bool, error
 		}
 		return false, errors.Wrap(err, "Can't get key")
 	}
-	ok := res.ValidTo.After(time.Now())
-	if !ok {
-		goapp.Log.Infof("Key expired")
-		return ok, nil
-	}
-	ok = !res.Disabled
-	if !ok {
-		goapp.Log.Infof("Key disabled")
-		return ok, nil
-	}
+	return validateKey(&res, IP)
+}
 
-	ok, err = utils.ValidateIPInWhiteList(res.IPWhiteList, IP)
-	if !ok {
+func validateKey(key *keyRecord, IP string) (bool, error) {
+	if key.Disabled {
+		goapp.Log.Infof("Key disabled")
+		return false, nil
+	}
+	if !key.ValidTo.After(time.Now()) {
+		goapp.Log.Infof("Key expired")
+		return false, nil
+	}
+	res, err := utils.ValidateIPInWhiteList(key.IPWhiteList, IP)
+	if !res {
 		goapp.Log.Infof("IP white list does not allow IP")
 		if err != nil {
 			goapp.Log.Error("Error: ", err)
 		}
 	}
-
-	return ok, err
+	return res, err
 }
 
 //SaveValidate add qv to quota and validates with quota limit
