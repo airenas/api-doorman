@@ -83,9 +83,12 @@ func getLast(s string) string {
 //ValidateIPsCIDR check if IPs are valid comma separated CIDR format
 func ValidateIPsCIDR(ip string) error {
 	for _, s := range strings.Split(ip, ",") {
-		_, _, err := net.ParseCIDR(s)
-		if err != nil {
-			return errors.Wrapf(err, "Wrong IP: %s", s)
+		s = strings.TrimSpace(s)
+		if s != "" {
+			_, _, err := net.ParseCIDR(s)
+			if err != nil {
+				return errors.Wrapf(err, "Wrong IP: %s", s)
+			}
 		}
 	}
 	return nil

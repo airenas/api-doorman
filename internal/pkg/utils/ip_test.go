@@ -81,3 +81,13 @@ func TestGetIPHeader(t *testing.T) {
 	req.Header.Add("X-FORWARDED-FOR", "92.1.1.1:8000")
 	assert.Equal(t, "92.1.1.1:8000", GetIPHeader(req))
 }
+
+func TestValidateIPsCIDR(t *testing.T) {
+	assert.Nil(t, ValidateIPsCIDR(""))
+	assert.Nil(t, ValidateIPsCIDR("1.1.1.1/32"))
+	assert.Nil(t, ValidateIPsCIDR("1.1.1.1/32,2.2.2.2/24"))
+	assert.NotNil(t, ValidateIPsCIDR("aaaa"))
+	assert.NotNil(t, ValidateIPsCIDR("10.10/11/11"))
+	assert.NotNil(t, ValidateIPsCIDR("1.1.1.1/32,2.2.2.2/24/"))
+	assert.NotNil(t, ValidateIPsCIDR("1.1.1.1"))
+}

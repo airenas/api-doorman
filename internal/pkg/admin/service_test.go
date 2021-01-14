@@ -159,6 +159,14 @@ func TestAddKey_Fail(t *testing.T) {
 	testCode(t, req, 500)
 }
 
+func TestAddKey_FailWrongField(t *testing.T) {
+	initTest(t)
+	pegomock.When(keyCreatorMock.Create(pegomock.AnyString(), matchers.AnyPtrToApiKey())).
+		ThenReturn(nil, errors.Wrap(adminapi.ErrWrongField, "olia"))
+	req := httptest.NewRequest("POST", "/pr/key", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	testCode(t, req, 400)
+}
+
 func TestAddKey_FailLimit(t *testing.T) {
 	initTest(t)
 	pegomock.When(keyCreatorMock.Create(pegomock.AnyString(), matchers.AnyPtrToApiKey())).ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
