@@ -8,6 +8,8 @@ Table keeps keys
 | ---|-|-|
 | key[*pk*] | string | Key or IP if created automatically |
 | manual[pk*] | bool | *false* - indicates IP as a key, *true* - manually created key |
+| IPWhiteList | string | Comma separated IP ranges in CIDR format. Eg.: *192.168.1.1/32,21.21.21.0/24* |
+| description | string | Key description |
 ||
 | limit   | float64 | Quota limit value - total value granted to the key |
 | quotaValue | float64 | Value of current quota usage (in total) |
