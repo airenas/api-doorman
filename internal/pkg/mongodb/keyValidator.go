@@ -60,7 +60,7 @@ func validateKey(key *keyRecord, IP string) (bool, error) {
 	}
 	res, err := utils.ValidateIPInWhiteList(key.IPWhiteList, IP)
 	if !res {
-		goapp.Log.Infof("IP white list does not allow IP")
+		goapp.Log.Infof("IP white list '%s' does not allow IP '%s'", key.IPWhiteList, IP)
 		if err != nil {
 			goapp.Log.Error("Error: ", err)
 		}
