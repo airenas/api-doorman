@@ -93,3 +93,27 @@ func ValidateIPsCIDR(ip string) error {
 	}
 	return nil
 }
+
+//ValidateIPInWhiteList check if IPs is in valid range of white lists
+func ValidateIPInWhiteList(ips, ip string) (bool, error) {
+	if strings.TrimSpace(ips) == "" {
+		return true, nil
+	}
+	ipParsed := net.ParseIP(ip)
+	if ipParsed == nil {
+		return false, errors.Errorf("Wrong IP: %s", ip)
+	}
+	for _, s := range strings.Split(ips, ",") {
+		s = strings.TrimSpace(s)
+		if s != "" {
+			_, net, err := net.ParseCIDR(s)
+			if err != nil {
+				return false, errors.Wrapf(err, "Wrong IP CIDR: %s", s)
+			}
+			if net.Contains(ipParsed) {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}

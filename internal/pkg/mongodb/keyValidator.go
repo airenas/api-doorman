@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -24,7 +25,7 @@ func NewKeyValidator(sessionProvider *DBProvider) (*KeyValidator, error) {
 }
 
 // IsValid validates key
-func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
+func (ss *KeyValidator) IsValid(key string, IP string, manual bool) (bool, error) {
 	goapp.Log.Debugf("Validating key")
 	ctx, cancel := mongoContext()
 	defer cancel()
@@ -53,8 +54,18 @@ func (ss *KeyValidator) IsValid(key string, manual bool) (bool, error) {
 	ok = !res.Disabled
 	if !ok {
 		goapp.Log.Infof("Key disabled")
+		return ok, nil
 	}
-	return ok, nil
+
+	ok, err = utils.ValidateIPInWhiteList(res.IPWhiteList, IP)
+	if !ok {
+		goapp.Log.Infof("IP white list does not allow IP")
+		if err != nil {
+			goapp.Log.Error("Error: ", err)
+		}
+	}
+
+	return ok, err
 }
 
 //SaveValidate add qv to quota and validates with quota limit

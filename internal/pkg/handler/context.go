@@ -3,6 +3,8 @@ package handler
 import (
 	"context"
 	"net/http"
+
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 )
 
 type key int
@@ -15,6 +17,7 @@ const (
 type customData struct {
 	ResponseCode int
 	Key          string
+	IP           string
 	Manual       bool
 	QuotaValue   float64
 	Value        string
@@ -26,6 +29,7 @@ func customContext(r *http.Request) (*http.Request, *customData) {
 		return r, res
 	}
 	res = &customData{}
+	res.IP = utils.ExtractIP(r)
 	ctx := context.WithValue(r.Context(), CtxContext, res)
 	return r.WithContext(ctx), res
 }

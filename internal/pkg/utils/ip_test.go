@@ -91,3 +91,37 @@ func TestValidateIPsCIDR(t *testing.T) {
 	assert.NotNil(t, ValidateIPsCIDR("1.1.1.1/32,2.2.2.2/24/"))
 	assert.NotNil(t, ValidateIPsCIDR("1.1.1.1"))
 }
+
+func TestValidateIPInWhiteList_Empty(t *testing.T) {
+	v, err := ValidateIPInWhiteList("", "")
+	assert.Nil(t, err)
+	assert.True(t, v)
+}
+
+func TestValidateIPInWhiteList_Valid(t *testing.T) {
+	v, err := ValidateIPInWhiteList("1.1.1.1/32", "1.1.1.1")
+	assert.Nil(t, err)
+	assert.True(t, v)
+	v, _ = ValidateIPInWhiteList("1.1.1.1/32", "1.1.1.2")
+	assert.False(t, v)
+	v, _ = ValidateIPInWhiteList("1.1.1.1/24", "1.1.1.2")
+	assert.True(t, v)
+	v, _ = ValidateIPInWhiteList("1.1.1.1/32,1.1.1.1/16", "1.1.2.2")
+	assert.True(t, v)
+	v, _ = ValidateIPInWhiteList("1.1.1.1/32,1.1.1.1/16,255.1.1.1/8", "255.254.55.222")
+	assert.True(t, v)
+}
+
+func TestValidateIPInWhiteList_Errors(t *testing.T) {
+	v, err := ValidateIPInWhiteList("1.1.1.1/32", "1.1.1")
+	assert.NotNil(t, err)
+	assert.False(t, v)
+	_, err = ValidateIPInWhiteList("1.1.1.1/32", "")
+	assert.NotNil(t, err)
+	_, err = ValidateIPInWhiteList("1.1.1./32", "1.1.1.1")
+	assert.NotNil(t, err)
+	_, err = ValidateIPInWhiteList("1.1.1.1", "1.1.1.1")
+	assert.NotNil(t, err)
+	_, err = ValidateIPInWhiteList("1.1.1.1/32,11.1.1.1//", "1.1.1.2")
+	assert.NotNil(t, err)
+}

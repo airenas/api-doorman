@@ -21,13 +21,15 @@ func TestKeyValid(t *testing.T) {
 	initKeyValidatorTest(t)
 	req, ctx := customContext(httptest.NewRequest("POST", "/duration", nil))
 	ctx.Key = "kkk"
+	ctx.IP = "1.2.3.4"
 	ctx.Manual = true
 	resp := httptest.NewRecorder()
-	pegomock.When(keyValidatorMock.IsValid(pegomock.AnyString(), pegomock.AnyBool())).ThenReturn(true, nil)
+	pegomock.When(keyValidatorMock.IsValid(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyBool())).ThenReturn(true, nil)
 	KeyValid(newTestHandler(), keyValidatorMock).ServeHTTP(resp, req)
 	assert.Equal(t, testCode, resp.Code)
-	cKey, cM := keyValidatorMock.VerifyWasCalledOnce().IsValid(pegomock.AnyString(), pegomock.AnyBool()).GetCapturedArguments()
+	cKey, cIP, cM := keyValidatorMock.VerifyWasCalledOnce().IsValid(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyBool()).GetCapturedArguments()
 	assert.Equal(t, "kkk", cKey)
+	assert.Equal(t, "1.2.3.4", cIP)
 	assert.True(t, cM)
 }
 
@@ -37,7 +39,7 @@ func TestKeyValid_Unauthorized(t *testing.T) {
 	ctx.Key = "kkk"
 	ctx.Manual = true
 	resp := httptest.NewRecorder()
-	pegomock.When(keyValidatorMock.IsValid(pegomock.AnyString(), pegomock.AnyBool())).ThenReturn(false, nil)
+	pegomock.When(keyValidatorMock.IsValid(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyBool())).ThenReturn(false, nil)
 	KeyValid(newTestHandler(), keyValidatorMock).ServeHTTP(resp, req)
 	assert.Equal(t, 401, resp.Code)
 }
@@ -48,7 +50,7 @@ func TestKeyValid_Fail(t *testing.T) {
 	ctx.Key = "kkk"
 	ctx.Manual = true
 	resp := httptest.NewRecorder()
-	pegomock.When(keyValidatorMock.IsValid(pegomock.AnyString(), pegomock.AnyBool())).ThenReturn(false, errors.New("olia"))
+	pegomock.When(keyValidatorMock.IsValid(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyBool())).ThenReturn(false, errors.New("olia"))
 	KeyValid(newTestHandler(), keyValidatorMock).ServeHTTP(resp, req)
 	assert.Equal(t, 500, resp.Code)
 }
