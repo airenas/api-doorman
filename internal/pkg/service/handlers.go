@@ -117,7 +117,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider)
 		return nil, errors.Wrap(err, "Can't init validator")
 	}
 
-	h := handler.Proxy(url)
+	h := handler.FillHeader(handler.Proxy(url))
 	stripURL := cfg.GetString(name + ".stripPrefix")
 	if stripURL != "" {
 		h = handler.StripPrefix(h, stripURL)
@@ -240,7 +240,7 @@ func newKeyHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (
 		return nil, errors.Wrap(err, "Can't init validator")
 	}
 
-	h := handler.Proxy(url)
+	h := handler.FillHeader(handler.Proxy(url))
 	stripURL := cfg.GetString(name + ".stripPrefix")
 	if stripURL != "" {
 		h = handler.StripPrefix(h, stripURL)
