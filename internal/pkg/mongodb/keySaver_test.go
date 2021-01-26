@@ -97,6 +97,13 @@ func TestPrepareUpdates_FailIPWhiteList(t *testing.T) {
 	assert.True(t, errors.Is(err, api.ErrWrongField))
 }
 
+func TestPrepareUpdates_FailTags(t *testing.T) {
+	data := make(map[string]interface{})
+	data["tags"] = "aaa"
+	_, err := prepareUpdates(data)
+	assert.True(t, errors.Is(err, api.ErrWrongField))
+}
+
 func TestMapTo(t *testing.T) {
 	data := &keyRecord{}
 	data.Tags = []string{"olia", "aa"}
