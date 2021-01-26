@@ -18,6 +18,7 @@ type keyRecord struct {
 	Disabled         bool      `json:"disabled,omitempty"`
 	IPWhiteList      string    `json:"IPWhiteList,omitempty"`
 	Description      string    `json:"description,omitempty"`
+	Tags             []string  `json:"tags,omitempty"`
 }
 
 type logRecord struct {

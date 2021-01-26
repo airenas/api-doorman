@@ -8,7 +8,7 @@ import (
 
 //KeyValidator validator
 type KeyValidator interface {
-	IsValid(string, string, bool) (bool, error)
+	IsValid(string, string, bool) (bool, []string, error)
 }
 
 type keyValid struct {
@@ -26,7 +26,7 @@ func KeyValid(next http.Handler, kv KeyValidator) http.Handler {
 
 func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
-	ok, err := h.kv.IsValid(ctx.Key, ctx.IP, ctx.Manual)
+	ok, tags, err := h.kv.IsValid(ctx.Key, ctx.IP, ctx.Manual)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
 		goapp.Log.Error("Can't check key. ", err)
@@ -36,6 +36,7 @@ func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Key is not valid", http.StatusUnauthorized)
 		return
 	}
+	ctx.Tags = tags
 
 	h.next.ServeHTTP(w, rn)
 }

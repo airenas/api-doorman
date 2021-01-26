@@ -61,6 +61,7 @@ func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, er
 	res.Manual = true
 	res.Description = key.Description
 	res.IPWhiteList = key.IPWhiteList
+	res.Tags = key.Tags
 	_, err = c.InsertOne(ctx, res)
 	return mapTo(res), err
 }
@@ -186,6 +187,11 @@ func prepareUpdates(data map[string]interface{}) (bson.M, error) {
 				}
 				res["IPWhiteList"] = v
 			}
+		} else if k == "tags" {
+			s, ok := v.([]string)
+			if ok {
+				res["tags"] = s
+			}
 		} else {
 			err = errors.Wrapf(adminapi.ErrWrongField, "Unknown field '%s'", k)
 		}
@@ -218,5 +224,6 @@ func mapTo(v *keyRecord) *adminapi.Key {
 	res.Disabled = v.Disabled
 	res.IPWhiteList = v.IPWhiteList
 	res.Description = v.Description
+	res.Tags = v.Tags
 	return res
 }

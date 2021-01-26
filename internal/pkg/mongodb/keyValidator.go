@@ -25,14 +25,14 @@ func NewKeyValidator(sessionProvider *DBProvider) (*KeyValidator, error) {
 }
 
 // IsValid validates key
-func (ss *KeyValidator) IsValid(key string, IP string, manual bool) (bool, error) {
+func (ss *KeyValidator) IsValid(key string, IP string, manual bool) (bool, []string, error) {
 	goapp.Log.Debugf("Validating key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
 	session, db, err := ss.SessionProvider.NewSesionDatabase()
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 
 	defer session.EndSession(context.Background())
@@ -42,11 +42,15 @@ func (ss *KeyValidator) IsValid(key string, IP string, manual bool) (bool, error
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			goapp.Log.Infof("No key")
-			return false, nil
+			return false, nil, nil
 		}
-		return false, errors.Wrap(err, "Can't get key")
+		return false, nil, errors.Wrap(err, "Can't get key")
 	}
-	return validateKey(&res, IP)
+	ok, err := validateKey(&res, IP)
+	if err != nil {
+		return ok, nil, err
+	}
+	return ok, res.Tags, nil
 }
 
 func validateKey(key *keyRecord, IP string) (bool, error) {

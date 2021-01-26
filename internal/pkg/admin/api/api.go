@@ -20,6 +20,7 @@ type Key struct {
 	IPWhiteList string    `json:"IPWhiteList,omitempty"`
 	Disabled    bool      `json:"disabled,omitempty"`
 	Description string    `json:"description,omitempty"`
+	Tags        []string  `json:"tags,omitempty"`
 }
 
 // Log structure for log data

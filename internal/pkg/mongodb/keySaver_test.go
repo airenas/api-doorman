@@ -58,6 +58,17 @@ func TestPrepareUpdates_ParseTime(t *testing.T) {
 	assert.True(t, time.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC).Before(tp))
 }
 
+func TestPrepareUpdates_Tags(t *testing.T) {
+	data := make(map[string]interface{})
+	data["tags"] = []string{"olia", "aa"}
+	pr, err := prepareUpdates(data)
+	assert.Nil(t, err)
+	if assert.NotNil(t, pr) {
+		ts := pr["tags"]
+		assert.Equal(t, []string{"olia", "aa"}, ts)
+	}
+}
+
 func TestPrepareUpdates_FailParseTime(t *testing.T) {
 	data := make(map[string]interface{})
 	data["validTo"] = "2030-11-24"
@@ -84,4 +95,13 @@ func TestPrepareUpdates_FailIPWhiteList(t *testing.T) {
 	data["IPWhiteList"] = "1.1.1"
 	_, err := prepareUpdates(data)
 	assert.True(t, errors.Is(err, api.ErrWrongField))
+}
+
+func TestMapTo(t *testing.T) {
+	data := &keyRecord{}
+	data.Tags = []string{"olia", "aa"}
+	data.Manual = true
+	res := mapTo(data)
+	assert.Equal(t, []string{"olia", "aa"}, res.Tags)
+	assert.Equal(t, true, res.Manual)
 }
