@@ -18,6 +18,8 @@ Table keeps keys
 | validTo | time | Disables key after this time |
 | disabled | bool | Indicates if the key is disabled |
 ||
+| tags | []string | Array of tag values passed as headers to proxy. Value must contain *':'*. Sample: *"x-header : value"*. |
+||
 | created | time | Key creation time |
 | updated | time | Key update time |
 | lastUsed | time | Time of the last access |
