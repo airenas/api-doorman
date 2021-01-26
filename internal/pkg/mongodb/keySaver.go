@@ -179,7 +179,8 @@ func prepareUpdates(data map[string]interface{}) (bson.M, error) {
 		} else if k == "disabled" {
 			res["disabled"], ok = v.(bool)
 		} else if k == "IPWhiteList" {
-			s, ok := v.(string)
+			var s string
+			s, ok = v.(string)
 			if ok {
 				err := utils.ValidateIPsCIDR(s)
 				if err != nil {
@@ -188,7 +189,8 @@ func prepareUpdates(data map[string]interface{}) (bson.M, error) {
 				res["IPWhiteList"] = v
 			}
 		} else if k == "tags" {
-			s, ok := v.([]string)
+			var s []string
+			s, ok = asStringSlice(v)
 			if ok {
 				res["tags"] = s
 			}
@@ -226,4 +228,19 @@ func mapTo(v *keyRecord) *adminapi.Key {
 	res.Description = v.Description
 	res.Tags = v.Tags
 	return res
+}
+
+func asStringSlice(d interface{}) ([]string, bool) {
+	ds, ok := d.([]interface{})
+	if !ok {
+		return nil, ok
+	}
+	res := make([]string, len(ds))
+	for i, v := range ds {
+		res[i], ok = v.(string)
+		if !ok {
+			return nil, ok
+		}
+	}
+	return res, ok
 }

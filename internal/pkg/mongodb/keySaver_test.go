@@ -60,7 +60,7 @@ func TestPrepareUpdates_ParseTime(t *testing.T) {
 
 func TestPrepareUpdates_Tags(t *testing.T) {
 	data := make(map[string]interface{})
-	data["tags"] = []string{"olia", "aa"}
+	data["tags"] = append(*new([]interface{}), "olia", "aa")
 	pr, err := prepareUpdates(data)
 	assert.Nil(t, err)
 	if assert.NotNil(t, pr) {
@@ -102,6 +102,20 @@ func TestPrepareUpdates_FailTags(t *testing.T) {
 	data["tags"] = "aaa"
 	_, err := prepareUpdates(data)
 	assert.True(t, errors.Is(err, api.ErrWrongField))
+}
+
+func TestAsSlice(t *testing.T) {
+	s, ok := asStringSlice(append(*new([]interface{}), "ok"))
+	assert.True(t, ok)
+	assert.Equal(t, []string{"ok"}, s)
+	s, ok = asStringSlice(append(*new([]interface{}), "ok", "values"))
+	assert.True(t, ok)
+	assert.Equal(t, []string{"ok", "values"}, s)
+	s, ok = asStringSlice(*new([]interface{}))
+	assert.True(t, ok)
+	assert.Equal(t, []string{}, s)
+	s, ok = asStringSlice(append(*new([]interface{}), 1, 2, "ok"))
+	assert.False(t, ok)
 }
 
 func TestMapTo(t *testing.T) {
