@@ -28,7 +28,7 @@ func (h *jsonField) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// read all bytes from content body and create new stream using it.
 	bodyBytes, _ := ioutil.ReadAll(r.Body)
-	var data map[string]string
+	var data map[string]interface{}
 	err := json.Unmarshal(bodyBytes, &data)
 	if err != nil {
 		http.Error(w, "No field "+h.field, http.StatusBadRequest)
@@ -36,7 +36,18 @@ func (h *jsonField) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	f := data[h.field]
-	ctx.Value = f
+	if f == nil {
+		http.Error(w, "No field "+h.field, http.StatusBadRequest)
+		goapp.Log.Error("No json field. ")
+		return
+	}
+	var ok bool
+	ctx.Value, ok = f.(string)
+	if !ok {
+		http.Error(w, "Field is not string type "+h.field, http.StatusBadRequest)
+		goapp.Log.Errorf("Field is not a string %v", f)
+		return
+	}
 	rn.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	h.next.ServeHTTP(w, rn)
