@@ -160,7 +160,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider)
 		}
 	} else {
 		if qt != "" {
-			return nil, errors.Errorf("Quat not expected for type simple")
+			return nil, errors.Errorf("Quota is not expected for type simple")
 		}
 		goapp.Log.Infof("No quota validation")
 	}

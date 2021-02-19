@@ -41,6 +41,8 @@ func main() {
 		log.Fatal(errors.Wrap(err, "Can't init project validator"))
 	}
 
+	printBanner()
+
 	err = admin.StartWebServer(&data)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can't start the service"))
