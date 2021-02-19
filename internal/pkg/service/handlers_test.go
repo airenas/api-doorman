@@ -294,6 +294,12 @@ tts:
 	assert.NotNil(t, err)
 }
 
+func TestPriority(t *testing.T) {
+	assert.Equal(t, -1, (&defaultHandler{}).Priority())
+	assert.Equal(t, 5, (&prefixHandler{prefix: "/olia"}).Priority())
+	assert.Equal(t, 7, (&prefixHandler{prefix: "/olia/3"}).Priority())
+}
+
 func newTestProvider(t *testing.T) *mongodb.SessionProvider {
 	res, err := mongodb.NewSessionProvider("mongo://olia")
 	assert.Nil(t, err)

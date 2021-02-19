@@ -67,6 +67,10 @@ func (h *defaultHandler) Name() string {
 	return h.name
 }
 
+func (h *defaultHandler) Priority() int {
+	return -1
+}
+
 type prefixHandler struct {
 	prefix   string
 	methods  map[string]bool
@@ -189,6 +193,10 @@ func (h *prefixHandler) Handler() http.Handler {
 func (h *prefixHandler) Info() string {
 	res := fmt.Sprintf("%s handler (%s) to '%s', prefix: %s\n", h.name, keys(h.methods), h.proxyURL, h.prefix)
 	return res + handler.GetInfo(handler.LogShitf(""), h.h)
+}
+
+func (h *prefixHandler) Priority() int {
+	return len(h.prefix)
 }
 
 func keys(data map[string]bool) string {

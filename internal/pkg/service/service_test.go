@@ -97,6 +97,18 @@ func TestMainHandlerCreate(t *testing.T) {
 	assert.NotNil(t, mh)
 }
 
+func TestMainHandler_Sort(t *testing.T) {
+	data := newTestData()
+	h1 := newTestQuotaH(&testHandler{f: codeFunc(222)}, "/pref", "GET")
+	h2 := newTestQuotaH(&testHandler{f: codeFunc(222)}, "/pref/1", "GET")
+	data.Handlers = []HandlerWrap{h1, h2}
+	mh, _ := newMainHandler(data)
+	if assert.NotNil(t, mh) {
+		assert.Equal(t, h2, mh.(*mainHandler).data.Handlers[0])
+		assert.Equal(t, h1, mh.(*mainHandler).data.Handlers[1])
+	}
+}
+
 func TestMainHandlerCreate_Fail(t *testing.T) {
 	data := newTestData()
 	mh, err := newMainHandler(data)

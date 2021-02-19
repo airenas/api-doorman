@@ -2,6 +2,7 @@ package service
 
 import (
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -22,6 +23,7 @@ type (
 		Handler() http.Handler
 		Info() string
 		Name() string
+		Priority() int
 	}
 
 	//Data is service operation data
@@ -68,6 +70,7 @@ func newMainHandler(data *Data) (http.Handler, error) {
 		return nil, errors.New("No handlers")
 	}
 	res.data = data
+	sort.Slice(res.data.Handlers, func(i, j int) bool { return res.data.Handlers[i].Priority() > res.data.Handlers[j].Priority() })
 	return res, nil
 }
 
