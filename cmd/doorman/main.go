@@ -8,6 +8,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/api-doorman/internal/pkg/service"
 	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/labstack/gommon/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
@@ -33,6 +34,8 @@ func main() {
 		goapp.Log.Fatal(errors.Wrap(err, "Can't init IP extractor"))
 	}
 
+	printBanner()
+
 	err = service.StartWebServer(&data)
 	if err != nil {
 		goapp.Log.Fatal(errors.Wrap(err, "Can't start the service"))
@@ -56,4 +59,29 @@ func initFromConfig(cfg *viper.Viper, ms *mongodb.SessionProvider) ([]service.Ha
 		}
 	}
 	return res, nil
+}
+
+var (
+	version string
+)
+
+func printBanner() {
+	banner := `
+     ___    ____  ____                             __       
+    /   |  / __ \/  _/                             \ \      
+   / /| | / /_/ // /   _____________________________\ \     
+  / ___ |/ ____// /   /_____/_____/_____/_____/_____/ /     
+ /_/  |_/_/   /___/                                /_/      
+  __               __                                     
+ / /          ____/ /___  ____  _________ ___  ____ _____ 
+/ / ______   / __  / __ \/ __ \/ ___/ __ ` + "`" + `__ \/ __ ` + "`" + `/ __ \
+\ \/_____/  / /_/ / /_/ / /_/ / /  / / / / / / /_/ / / / /
+ \_\        \__,_/\____/\____/_/  /_/ /_/ /_/\__,_/_/ /_/  v: %s
+
+%s
+________________________________________________________                                                 
+
+`
+	cl := color.New()
+	cl.Printf(banner, cl.Red(version), cl.Green("https://github.com/airenas/api-doorman"))
 }

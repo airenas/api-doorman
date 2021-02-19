@@ -6,6 +6,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/admin"
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/labstack/gommon/color"
 	"github.com/pkg/errors"
 )
 
@@ -44,4 +45,29 @@ func main() {
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can't start the service"))
 	}
+}
+
+var (
+	version string
+)
+
+func printBanner() {
+	banner := `
+     ___    ____  ____                   __            __       
+    /   |  / __ \/  _/        ____ _____/ /___ ___     \ \      
+   / /| | / /_/ // /   ______/ __ ` + "`" + `/ __  / __ ` + "`" + `__ \_____\ \     
+  / ___ |/ ____// /   /_____/ /_/ / /_/ / / / / / /_____/ /     
+ /_/  |_/_/   /___/         \__,_/\__,_/_/ /_/ /_/     /_/  
+  __               __                                     
+ / /          ____/ /___  ____  _________ ___  ____ _____ 
+/ / ______   / __  / __ \/ __ \/ ___/ __ ` + "`" + `__ \/ __ ` + "`" + `/ __ \
+\ \/_____/  / /_/ / /_/ / /_/ / /  / / / / / / /_/ / / / /
+ \_\        \__,_/\____/\____/_/  /_/ /_/ /_/\__,_/_/ /_/  v: %s
+
+%s
+________________________________________________________                                                 
+
+`
+	cl := color.New()
+	cl.Printf(banner, cl.Red(version), cl.Green("https://github.com/airenas/api-doorman"))
 }
