@@ -2,6 +2,7 @@ package admin
 
 import (
 	"encoding/json"
+	"html"
 	"log"
 	"net/http"
 	"strconv"
@@ -283,7 +284,7 @@ func validateProject(project string, prV PrValidator, w http.ResponseWriter) boo
 		return false
 	}
 	if !prV.Check(project) {
-		http.Error(w, "Wrong project "+project, http.StatusBadRequest)
+		http.Error(w, "Wrong project "+html.EscapeString(project), http.StatusBadRequest)
 		goapp.Log.Errorf("Wrong project %s", project)
 		return false
 	}
