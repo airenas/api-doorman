@@ -23,6 +23,9 @@ func NewHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (Han
 	if sType == "quota" {
 		return newPrQuotaHandler(name, cfg, ms)
 	}
+	if sType == "simple" {
+		return newPrQuotaHandler(name, cfg, ms)
+	}
 	if sType == "key" {
 		return newPrKeyHandler(name, cfg, ms)
 	}
@@ -124,30 +127,40 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider)
 		goapp.Log.Infof("Strip prefix: %s", stripURL)
 	}
 
-	h = handler.QuotaValidate(h, keysValidator)
+	tp := cfg.GetString(name + ".type")
 	qt := cfg.GetString(name + ".quota.type")
-	qf := strings.TrimSpace(cfg.GetString(name + ".quota.field"))
-	if qt == "json" {
-		if qf == "" {
-			return nil, errors.New("No field")
+
+	if tp == "quota" {
+		h = handler.QuotaValidate(h, keysValidator)
+		qf := strings.TrimSpace(cfg.GetString(name + ".quota.field"))
+		if qt == "json" {
+			if qf == "" {
+				return nil, errors.New("No field")
+			}
+			goapp.Log.Infof("Quota extract: %s(%s)", qt, qf)
+			h = handler.TakeJSON(handler.JSONAsQuota(h), qf)
+		} else if qt == "audioDuration" {
+			if qf == "" {
+				return nil, errors.New("No field")
+			}
+			dsURL := cfg.GetString(name + ".quota.service")
+			ds, err := audio.NewDurationClient(dsURL)
+			if err != nil {
+				return nil, errors.Wrap(err, "Can't init Duration service")
+			}
+			goapp.Log.Infof("Duration service: %s", dsURL)
+			goapp.Log.Infof("Quota extract: %s(%s) using duration service", qt, qf)
+			h = handler.AudioLenQuota(h, qf, ds)
+		} else {
+			return nil, errors.Errorf("Unknown proxy quota type '%s'", qt)
 		}
-		goapp.Log.Infof("Quota extract: %s(%s)", qt, qf)
-		h = handler.TakeJSON(handler.JSONAsQuota(h), qf)
-	} else if qt == "audioDuration" {
-		if qf == "" {
-			return nil, errors.New("No field")
-		}
-		dsURL := cfg.GetString(name + ".quota.service")
-		ds, err := audio.NewDurationClient(dsURL)
-		if err != nil {
-			return nil, errors.Wrap(err, "Can't init Duration service")
-		}
-		goapp.Log.Infof("Duration service: %s", dsURL)
-		goapp.Log.Infof("Quota extract: %s(%s) using duration service", qt, qf)
-		h = handler.AudioLenQuota(h, qf, ds)
 	} else {
-		return nil, errors.Errorf("Unknown proxy quota type '%s'", qt)
+		if qt != "" {
+			return nil, errors.Errorf("Quat not expected for type simple")
+		}
+		goapp.Log.Infof("No quota validation")
 	}
+
 	ls, err := mongodb.NewLogSaver(dbProvider)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't init log saver")

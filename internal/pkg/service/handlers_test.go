@@ -262,6 +262,38 @@ tts:
 	assert.NotNil(t, err)
 }
 
+func TestSimpleHandler(t *testing.T) {
+	h, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: simple
+  db: test
+  prefixURL: /start
+  stripPrefix: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, h)
+	assert.Nil(t, err)
+	assert.Contains(t, h.Info(), "StripPrefix(/start)")
+}
+
+func TestSimpleHandler_FailQuota(t *testing.T) {
+	_, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: simple
+  db: test
+  prefixURL: /start
+  stripPrefix: /start
+  method: POST
+  quota:
+    type: json
+    field: field
+    default: 100
+`), newTestProvider(t))
+	assert.NotNil(t, err)
+}
+
 func newTestProvider(t *testing.T) *mongodb.SessionProvider {
 	res, err := mongodb.NewSessionProvider("mongo://olia")
 	assert.Nil(t, err)
