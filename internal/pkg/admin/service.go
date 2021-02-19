@@ -2,6 +2,7 @@ package admin
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -9,6 +10,7 @@ import (
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/facebookgo/grace/gracehttp"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
@@ -61,14 +63,14 @@ type (
 func StartWebServer(data *Data) error {
 	goapp.Log.Infof("Starting HTTP doorman admin service at %d", data.Port)
 	r := NewRouter(data)
-	http.Handle("/", r)
 	portStr := strconv.Itoa(data.Port)
-	err := http.ListenAndServe(":"+portStr, nil)
 
-	if err != nil {
-		return errors.Wrap(err, "Can't start HTTP listener at port "+portStr)
-	}
-	return nil
+	w := goapp.Log.Writer()
+	defer w.Close()
+	l := log.New(w, "", 0)
+	gracehttp.SetLogger(l)
+
+	return gracehttp.Serve(&http.Server{Addr: ":" + portStr, Handler: r})
 }
 
 //NewRouter creates the router for HTTP service

@@ -1,12 +1,14 @@
 package service
 
 import (
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/facebookgo/grace/gracehttp"
 
 	"github.com/pkg/errors"
 )
@@ -45,20 +47,19 @@ func StartWebServer(data *Data) error {
 		return errors.Wrap(err, "Can't init handlers")
 	}
 
-	http.Handle("/", h)
 	portStr := strconv.Itoa(data.Port)
 
-	log(getInfo(data.Handlers))
+	logHandlers(getInfo(data.Handlers))
 
-	err = http.ListenAndServe(":"+portStr, nil)
+	w := goapp.Log.Writer()
+	defer w.Close()
+	l := log.New(w, "", 0)
+	gracehttp.SetLogger(l)
 
-	if err != nil {
-		return errors.Wrap(err, "Can't start HTTP listener at port "+portStr)
-	}
-	return nil
+	return gracehttp.Serve(&http.Server{Addr: ":" + portStr, Handler: h})
 }
 
-func log(info string) {
+func logHandlers(info string) {
 	for _, s := range strings.Split(info, "\n") {
 		goapp.Log.Info(s)
 	}
