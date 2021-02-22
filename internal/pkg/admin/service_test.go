@@ -61,7 +61,7 @@ func TestKeyList(t *testing.T) {
 
 func TestKeyList_Returns(t *testing.T) {
 	initTest(t)
-	pegomock.When(keyRetrieverMock.List(pegomock.AnyString())).ThenReturn([]*adminapi.Key{&adminapi.Key{Key: "olia"}}, nil)
+	pegomock.When(keyRetrieverMock.List(pegomock.AnyString())).ThenReturn([]*adminapi.Key{{Key: "olia"}}, nil)
 	req := httptest.NewRequest("GET", "/pr/key-list", nil)
 	resp := testCode(t, req, 200)
 	bytes, _ := ioutil.ReadAll(resp.Body)
@@ -96,7 +96,7 @@ func TestKey(t *testing.T) {
 func TestKey_ReturnsFull(t *testing.T) {
 	initTest(t)
 	pegomock.When(oneKeyRetrieverMock.Get(pegomock.AnyString(), pegomock.EqString("kkk"))).ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
-	pegomock.When(logRetrieverMock.Get(pegomock.AnyString(), pegomock.EqString("kkk"))).ThenReturn([]*adminapi.Log{&adminapi.Log{IP: "101010"}}, nil)
+	pegomock.When(logRetrieverMock.Get(pegomock.AnyString(), pegomock.EqString("kkk"))).ThenReturn([]*adminapi.Log{{IP: "101010"}}, nil)
 	req := httptest.NewRequest("GET", "/pr/key/kkk?full=1", nil)
 	resp := testCode(t, req, 200)
 	bytes, _ := ioutil.ReadAll(resp.Body)
