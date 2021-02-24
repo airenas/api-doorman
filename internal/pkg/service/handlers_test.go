@@ -143,6 +143,23 @@ tts:
 	assert.Contains(t, h.Info(), "JSONTTSAsQuota(discount: 0.8500)")
 }
 
+func TestQuotaHandler_JSONTTS_Fail(t *testing.T) {
+	_, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: jsonTTS
+    discount: 1.85
+    default: 100
+  prefixURL: /start
+  stripPrefix: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, err)
+}
+
 
 func TestQuotaHandler_NoInitStrip(t *testing.T) {
 	h, err := NewHandler("tts", newTestC(t, `
