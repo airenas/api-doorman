@@ -18,7 +18,7 @@ export default function (data) {
     var url = testURL + '/quotatts/private?key=' + data.key;
     var payload = JSON.stringify({
         text: '0123456789',
-        allowCollectData: false
+        allowCollectData: true
     });
     var params = {
         headers: {
