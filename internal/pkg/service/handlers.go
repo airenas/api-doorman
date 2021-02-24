@@ -143,6 +143,9 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider)
 			}
 			goapp.Log.Infof("Quota extract: %s(%s)", qt, qf)
 			h = handler.TakeJSON(handler.JSONAsQuota(h), qf)
+		} else if qt == "jsonTTS" {
+			goapp.Log.Infof("Quota extract: %s(text)", qt)
+			h = handler.TakeJSONTTS(handler.JSONTTSAsQuota(h, cfg.GetFloat64(name+".quota.discount")))
 		} else if qt == "audioDuration" {
 			if qf == "" {
 				return nil, errors.New("No field")

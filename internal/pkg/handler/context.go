@@ -21,6 +21,7 @@ type customData struct {
 	Manual       bool
 	QuotaValue   float64
 	Value        string
+	Discount     *bool
 	Tags         []string
 }
 
