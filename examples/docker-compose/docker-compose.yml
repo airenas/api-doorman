@@ -7,7 +7,7 @@ services:
       - "${DOORMAN_PORT}:8000"
     environment:
       MONGO_URL: "${MONGO_URL}"  
-      PROXY_HANDLERS: "test,test2,default"
+      PROXY_HANDLERS: "test,test2,test3,default"
       PROXY_DEFAULT_BACKEND: "http://test-api:8000/"
       PROXY_TEST_TYPE: quota
       PROXY_TEST_DB: test
@@ -22,6 +22,14 @@ services:
       PROXY_TEST2_PREFIXURL: "/simple/public"
       PROXY_TEST2_STRIPPREFIX: "/simple"
       PROXY_TEST2_QUOTA_DEFAULT: 100
+      PROXY_TEST3_TYPE: quota
+      PROXY_TEST3_DB: test
+      PROXY_TEST3_BACKEND: "http://test-api:8000/"
+      PROXY_TEST3_PREFIXURL: "/quotatts/private"
+      PROXY_TEST3_STRIPPREFIX: "/quotatts"
+      PROXY_TEST3_QUOTA_TYPE: "jsonTTS"
+      PROXY_TEST3_QUOTA_DISCOUNT: 0.80
+      PROXY_TEST3_QUOTA_DEFAULT: 100
     # restart: unless-stopped
 
   doorman-admin:
