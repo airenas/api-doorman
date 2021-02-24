@@ -34,7 +34,7 @@ func (h *jsonTTSAsQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *jsonTTSAsQuota) Info(pr string) string {
-	return pr + fmt.Sprintf("jsonTTSAsQuota(discount: %f)\n", h.discount) + GetInfo(LogShitf(pr), h.next)
+	return pr + fmt.Sprintf("JSONTTSAsQuota(discount: %.4f)\n", h.discount) + GetInfo(LogShitf(pr), h.next)
 }
 
 func discount(ctx *customData, def float64) float64 {

@@ -123,6 +123,27 @@ tts:
 	assert.Contains(t, h.Info(), "StripPrefix(/start)")
 }
 
+func TestQuotaHandler_JSONTTS(t *testing.T) {
+	h, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: jsonTTS
+    discount: 0.85
+    default: 100
+  prefixURL: /start
+  stripPrefix: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, h)
+	assert.Nil(t, err)
+	assert.Contains(t, h.Info(), "JSONTTSField(text)")
+	assert.Contains(t, h.Info(), "JSONTTSAsQuota(discount: 0.8500)")
+}
+
+
 func TestQuotaHandler_NoInitStrip(t *testing.T) {
 	h, err := NewHandler("tts", newTestC(t, `
 tts:
