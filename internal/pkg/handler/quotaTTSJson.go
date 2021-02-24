@@ -3,6 +3,8 @@ package handler
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/pkg/errors"
 )
 
 const (
@@ -16,11 +18,14 @@ type jsonTTSAsQuota struct {
 }
 
 //JSONTTSAsQuota creates handler
-func JSONTTSAsQuota(next http.Handler, discount float64) http.Handler {
+func JSONTTSAsQuota(next http.Handler, discount float64) (http.Handler, error) {
 	res := &jsonTTSAsQuota{}
 	res.next = next
 	res.discount = discount
-	return res
+	if discount >= 1 || discount < 0 {
+		return nil, errors.Errorf("Wrong discount %f", discount)
+	}
+	return res, nil
 }
 
 func (h *jsonTTSAsQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {

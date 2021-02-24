@@ -145,7 +145,11 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider)
 			h = handler.TakeJSON(handler.JSONAsQuota(h), qf)
 		} else if qt == "jsonTTS" {
 			goapp.Log.Infof("Quota extract: %s(text)", qt)
-			h = handler.TakeJSONTTS(handler.JSONTTSAsQuota(h, cfg.GetFloat64(name+".quota.discount")))
+			h, err = handler.JSONTTSAsQuota(h, cfg.GetFloat64(name+".quota.discount"))
+			if err != nil {
+				return nil, errors.Wrap(err, "Can't init jsonQuota handler")
+			}
+			h = handler.TakeJSONTTS(h)
 		} else if qt == "audioDuration" {
 			if qf == "" {
 				return nil, errors.New("No field")
