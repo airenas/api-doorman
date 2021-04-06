@@ -77,6 +77,7 @@ func TestQuotaHandle(t *testing.T) {
 	assert.Equal(t, "tts", hq.Name())
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
 	assert.Contains(t, h.Info(), "FillHeader")
+	assert.Contains(t, h.Info(), "FillOutHeader")
 }
 
 func TestQuotaHandleAudio(t *testing.T) {
@@ -159,7 +160,6 @@ tts:
 `), newTestProvider(t))
 	assert.NotNil(t, err)
 }
-
 
 func TestQuotaHandler_NoInitStrip(t *testing.T) {
 	h, err := NewHandler("tts", newTestC(t, `
@@ -262,6 +262,7 @@ tts:
 	assert.Equal(t, "tts", hq.Name())
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
 	assert.Contains(t, h.Info(), "FillHeader")
+	assert.Contains(t, h.Info(), "FillOutHeader")
 }
 
 func TestKeyHandler_FailNoDB(t *testing.T) {
