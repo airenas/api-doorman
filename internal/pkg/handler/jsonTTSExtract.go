@@ -23,7 +23,7 @@ func TakeJSONTTS(next http.Handler) http.Handler {
 
 type ttsData struct {
 	Text             string `json:"text,omitempty"`
-	AllowCollectData *bool  `json:"allowCollectData,omitempty"`
+	AllowCollectData *bool  `json:"saveRequest,omitempty"`
 }
 
 func (h *jsonTTSExtract) ServeHTTP(w http.ResponseWriter, r *http.Request) {

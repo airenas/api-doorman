@@ -20,13 +20,15 @@ func TestTTSJSON(t *testing.T) {
 
 func TestTTSJSON_Discount(t *testing.T) {
 	req, ctx := customContext(httptest.NewRequest("POST", "/duration",
-		strings.NewReader(`{"text":"olia", "allowCollectData":true}`)))
+		strings.NewReader(`{"text":"olia", "saveRequest":true}`)))
 	resp := httptest.NewRecorder()
 
 	TakeJSONTTS(newTestHandler()).ServeHTTP(resp, req)
 	assert.Equal(t, testCode, resp.Code)
 	assert.Equal(t, "olia", ctx.Value)
-	assert.Equal(t, true, *ctx.Discount)
+	if assert.NotNil(t, ctx.Discount) {
+		assert.Equal(t, true, *ctx.Discount)
+	}
 }
 
 func TestTTSJSON_Empty(t *testing.T) {
