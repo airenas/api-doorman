@@ -78,6 +78,7 @@ func TestQuotaHandle(t *testing.T) {
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
 	assert.Contains(t, h.Info(), "FillHeader")
 	assert.Contains(t, h.Info(), "FillOutHeader")
+	assert.Contains(t, h.Info(), "FillKeyHeader")
 }
 
 func TestQuotaHandleAudio(t *testing.T) {
@@ -263,6 +264,7 @@ tts:
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
 	assert.Contains(t, h.Info(), "FillHeader")
 	assert.Contains(t, h.Info(), "FillOutHeader")
+	assert.Contains(t, h.Info(), "FillKeyHeader")
 }
 
 func TestKeyHandler_FailNoDB(t *testing.T) {
