@@ -86,6 +86,7 @@ func newTestAudioRequest(file string) *http.Request {
 
 type testHandler struct {
 	code int
+	r    *http.Request
 }
 
 func newTestHandlerWithCode(code int) *testHandler {
@@ -102,4 +103,5 @@ func (h *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(h.code)
 	_, ctx := customContext(r)
 	ctx.ResponseCode = h.code
+	h.r = r
 }

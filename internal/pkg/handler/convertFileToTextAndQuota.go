@@ -39,13 +39,18 @@ func ToTextAndQuota(next http.Handler, field string, srv TextGetter) http.Handle
 
 func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
-	bodyBytes, _ := ioutil.ReadAll(rn.Body)
+	bodyBytes, err := ioutil.ReadAll(rn.Body)
+	if err != nil {
+		http.Error(w, "Can't read request", http.StatusBadRequest)
+		goapp.Log.Error(err)
+		return
+	}
 	rn.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	// create new request for parsing the body
 	req2, _ := http.NewRequest(rn.Method, rn.URL.String(), bytes.NewReader(bodyBytes))
 	req2.Header = rn.Header
-	err := req2.ParseMultipartForm(32 << 20)
+	err = req2.ParseMultipartForm(32 << 20)
 	if err != nil {
 		http.Error(w, "Can't parse form data", http.StatusBadRequest)
 		goapp.Log.Error(err)
@@ -60,7 +65,7 @@ func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-	// read all bytes from content body and create new stream using it.
+
 	txt, err := h.getTextService.Get(handler.Filename, file)
 	if err != nil {
 		http.Error(w, "Can't extract text", http.StatusInternalServerError)
@@ -71,7 +76,7 @@ func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx.QuotaValue = float64(len([]rune(txt)))
 
-	newBytes, err := copyFormData(h.field, handler.Filename, txt, req2.MultipartForm.Value)
+	newBytes, hv, err := copyFormData(h.field, handler.Filename, txt, req2.MultipartForm.Value)
 	if err != nil {
 		http.Error(w, "Can't prepare new body", http.StatusInternalServerError)
 		ctx.ResponseCode = http.StatusInternalServerError
@@ -79,31 +84,32 @@ func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rn.Body = ioutil.NopCloser(newBytes)
-
+	rn.Header.Set("Content-Type", hv)
+	
 	h.next.ServeHTTP(w, rn)
 }
 
-func copyFormData(field, fileName, str string, formValues map[string][]string) (*bytes.Buffer, error) {
+func copyFormData(field, fileName, str string, formValues map[string][]string) (*bytes.Buffer, string, error) {
 	res := &bytes.Buffer{}
 	writer := multipart.NewWriter(res)
 	defer writer.Close()
 	part, err := writer.CreateFormFile(field, toTxtExt(fileName))
 	if err != nil {
-		return res, errors.Wrapf(err, "can't create form file")
+		return nil, "", errors.Wrapf(err, "can't create form file")
 	}
 	_, err = io.Copy(part, strings.NewReader(str))
 	if err != nil {
-		return res, errors.Wrapf(err, "can't write form file")
+		return nil, "", errors.Wrapf(err, "can't write form file")
 	}
 	for k, vs := range formValues {
 		for _, v := range vs {
 			err = writer.WriteField(k, v)
 			if err != nil {
-				return res, errors.Wrapf(err, "can't write form field %s", k)
+				return nil, "", errors.Wrapf(err, "can't write form field %s", k)
 			}
 		}
 	}
-	return res, nil
+	return res, writer.FormDataContentType(), nil
 }
 
 func toTxtExt(s string) string {

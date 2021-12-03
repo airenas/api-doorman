@@ -16,6 +16,7 @@ import (
 //go:generate pegomock generate --package=mocks --output=keyValidator.go -m github.com/airenas/api-doorman/internal/pkg/handler KeyValidator
 //go:generate pegomock generate --package=mocks --output=quotaValidator.go -m github.com/airenas/api-doorman/internal/pkg/handler QuotaValidator
 //go:generate pegomock generate --package=mocks --output=audioLenGetter.go -m github.com/airenas/api-doorman/internal/pkg/handler AudioLenGetter
+//go:generate pegomock generate --package=mocks --output=textGetter.go -m github.com/airenas/api-doorman/internal/pkg/handler TextGetter
 //go:generate pegomock generate --package=mocks --output=dbSaver.go -m github.com/airenas/api-doorman/internal/pkg/handler DBSaver
 //go:generate pegomock generate --package=mocks --output=ipSaver.go -m github.com/airenas/api-doorman/internal/pkg/handler IPSaver
 
