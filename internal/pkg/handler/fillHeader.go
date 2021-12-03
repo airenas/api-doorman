@@ -57,7 +57,7 @@ type fillKeyHeader struct {
 	next http.Handler
 }
 
-//FillHeader creates handler for filling header values from tags
+//FillKeyHeader creates handler for adding key hash value into "x-tts-save-tags"
 func FillKeyHeader(next http.Handler) http.Handler {
 	res := &fillKeyHeader{}
 	res.next = next
