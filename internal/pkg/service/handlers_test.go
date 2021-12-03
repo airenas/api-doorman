@@ -105,6 +105,57 @@ tts:
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
 }
 
+func TestQuotaHandleToTxtFile(t *testing.T) {
+	h, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: toTxtFile
+    service: http://olia/ser
+    field: fieldText
+    default: 100
+  prefixURL: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, h)
+	assert.Nil(t, err)
+	assert.Contains(t, h.Info(), "ToTextAndQuota(fieldText)")
+}
+
+func TestQuotaHandleToTxtFile_Fail(t *testing.T) {
+	_, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: toTxtFile
+    service: http://olia/ser
+    field: 
+    default: 100
+  prefixURL: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, err)
+	
+	_, err = NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: toTxtFile
+    service: 
+    field: olia
+    default: 100
+  prefixURL: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, err)
+}
+
 func TestQuotaHandler_InitStrip(t *testing.T) {
 	h, err := NewHandler("tts", newTestC(t, `
 tts:
