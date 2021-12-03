@@ -8,6 +8,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/audio"
 	"github.com/airenas/api-doorman/internal/pkg/handler"
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
+	"github.com/airenas/api-doorman/internal/pkg/text"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
@@ -163,6 +164,18 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider)
 			goapp.Log.Infof("Duration service: %s", dsURL)
 			goapp.Log.Infof("Quota extract: %s(%s) using duration service", qt, qf)
 			h = handler.AudioLenQuota(h, qf, ds)
+		} else if qt == "toTxtFile" {
+			if qf == "" {
+				return nil, errors.New("No field")
+			}
+			dsURL := cfg.GetString(name + ".quota.service")
+			ds, err := text.NewExtractor(dsURL)
+			if err != nil {
+				return nil, errors.Wrap(err, "can't init text extraction service")
+			}
+			goapp.Log.Infof("Text extraction service: %s", dsURL)
+			goapp.Log.Infof("Quota extract: %s(%s) using text extraction service", qt, qf)
+			h = handler.ToTextAndQuota(h, qf, ds)
 		} else {
 			return nil, errors.Errorf("Unknown proxy quota type '%s'", qt)
 		}
