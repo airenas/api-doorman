@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"time"
 
 	"github.com/airenas/go-app/pkg/goapp"
@@ -18,6 +19,7 @@ import (
 //Extractor extract txt from file
 type Extractor struct {
 	httpclient *http.Client
+	timeOut    time.Duration
 	url        string
 }
 
@@ -34,11 +36,20 @@ func NewExtractor(urlStr string) (*Extractor, error) {
 	}
 	res.url = urlRes.String()
 	res.httpclient = &http.Client{}
+	res.timeOut = time.Minute
 	return &res, nil
 }
 
 //Get return text by calling the service
 func (dc *Extractor) Get(name string, file io.Reader) (string, error) {
+	if filepath.Ext(name) == ".txt" {
+		res, err := ioutil.ReadAll(file)
+		if err != nil {
+			return "", errors.Wrap(err, "can't read file")
+		}
+		return string(res), nil
+	}
+
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, err := writer.CreateFormFile("file", name)
@@ -56,7 +67,7 @@ func (dc *Extractor) Get(name string, file io.Reader) (string, error) {
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancelF := context.WithTimeout(context.Background(), dc.timeOut)
 	defer cancelF()
 	req = req.WithContext(ctx)
 
