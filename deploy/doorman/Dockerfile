@@ -13,6 +13,6 @@ COPY config.yaml /app/
 
 RUN chown app:app /app/* /app
  
-USER ap
+USER app
 
 ENTRYPOINT ["./doorman"]
