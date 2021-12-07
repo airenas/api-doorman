@@ -88,6 +88,7 @@ func TestToTextAndQuotaTest_ContentLength(t *testing.T) {
 	th := newTestHandler()
 	ToTextAndQuota(th, "file", getTextMock).ServeHTTP(resp, req)
 	assert.Equal(t, "618", th.r.Header.Get("Content-Length"))
+	assert.Equal(t, int64(618), th.r.ContentLength)
 }
 
 func TestToTextAndQuotaTest_passTxtFile(t *testing.T) {
