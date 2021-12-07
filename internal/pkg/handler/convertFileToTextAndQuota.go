@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/airenas/go-app/pkg/goapp"
@@ -85,7 +86,8 @@ func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	rn.Body = ioutil.NopCloser(newBytes)
 	rn.Header.Set("Content-Type", hv)
-	
+	rn.Header.Set("Content-Length", strconv.Itoa(newBytes.Len()))
+
 	h.next.ServeHTTP(w, rn)
 }
 

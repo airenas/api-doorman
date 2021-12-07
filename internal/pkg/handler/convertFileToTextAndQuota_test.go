@@ -78,6 +78,18 @@ func TestToTextAndQuotaTest_PassFormValues(t *testing.T) {
 	assert.Equal(t, []string{"olia1", "olia2"}, th.r.MultipartForm.Value["olia"])
 }
 
+func TestToTextAndQuotaTest_ContentLength(t *testing.T) {
+	initToTextAndQuotaTest(t)
+	req := newToTextAndQuotaTestRequest("test.epub", "text olia")
+	resp := httptest.NewRecorder()
+
+	pegomock.When(getTextMock.Get(pegomock.AnyString(), matchers.AnyIoReader())).ThenReturn("olia olia -- 123", nil)
+
+	th := newTestHandler()
+	ToTextAndQuota(th, "file", getTextMock).ServeHTTP(resp, req)
+	assert.Equal(t, "618", th.r.Header.Get("Content-Length"))
+}
+
 func TestToTextAndQuotaTest_passTxtFile(t *testing.T) {
 	initToTextAndQuotaTest(t)
 	req := newToTextAndQuotaTestRequest("test.epub", "text olia")
