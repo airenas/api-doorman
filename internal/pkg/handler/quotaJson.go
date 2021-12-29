@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"unicode/utf8"
 )
 
 type jsonAsQuota struct {
@@ -17,7 +18,7 @@ func JSONAsQuota(next http.Handler) http.Handler {
 
 func (h *jsonAsQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
-	ctx.QuotaValue = float64(len([]rune(ctx.Value)))
+	ctx.QuotaValue = float64(utf8.RuneCountInString(ctx.Value))
 	h.next.ServeHTTP(w, rn)
 }
 

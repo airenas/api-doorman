@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/pkg/errors"
 )
@@ -30,7 +31,7 @@ func JSONTTSAsQuota(next http.Handler, discount float64) (http.Handler, error) {
 
 func (h *jsonTTSAsQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
-	ctx.QuotaValue = float64(len([]rune(ctx.Value)))
+	ctx.QuotaValue = float64(utf8.RuneCountInString(ctx.Value))
 	d := discount(ctx, h.discount)
 	if d < 1 {
 		ctx.QuotaValue = ctx.QuotaValue * d
