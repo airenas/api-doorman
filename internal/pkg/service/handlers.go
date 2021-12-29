@@ -127,6 +127,10 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider)
 
 	h := handler.FillOutHeader(handler.Proxy(url))
 	h = handler.FillHeader(handler.FillKeyHeader(h))
+	h, err = addCleanHeader(h, cfg.GetString(name+".cleanHeaderPrefix"))
+	if err != nil {
+		return nil, errors.Wrap(err, "can't init clean header")
+	}
 	stripURL := cfg.GetString(name + ".stripPrefix")
 	if stripURL != "" {
 		h = handler.StripPrefix(h, stripURL)
@@ -284,6 +288,11 @@ func newKeyHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (
 
 	h := handler.FillOutHeader(handler.Proxy(url))
 	h = handler.FillHeader(handler.FillKeyHeader(h))
+	h, err = addCleanHeader(h, cfg.GetString(name+".cleanHeaderPrefix"))
+	if err != nil {
+		return nil, errors.Wrap(err, "can't init clean header")
+	}
+
 	stripURL := cfg.GetString(name + ".stripPrefix")
 	if stripURL != "" {
 		h = handler.StripPrefix(h, stripURL)
@@ -298,6 +307,18 @@ func newKeyHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (
 	h = handler.KeyExtract(hKey)
 
 	return h, nil
+}
+
+func addCleanHeader(h http.Handler, headerPrefix string) (http.Handler, error) {
+	res := h
+	if headerPrefix != "" {
+		var err error
+		res, err = handler.CleanHeader(h, headerPrefix)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't init clean header")
+		}
+	}
+	return res, nil
 }
 
 func initMethods(str string) map[string]bool {
