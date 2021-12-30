@@ -127,7 +127,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider)
 
 	h := handler.FillOutHeader(handler.Proxy(url))
 	h = handler.FillHeader(handler.FillKeyHeader(h))
-	h, err = addCleanHeader(h, cfg.GetString(name+".cleanHeaderPrefix"))
+	h, err = addCleanHeader(h, cfg.GetString(name+".cleanHeaders"))
 	if err != nil {
 		return nil, errors.Wrap(err, "can't init clean header")
 	}
@@ -288,7 +288,7 @@ func newKeyHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (
 
 	h := handler.FillOutHeader(handler.Proxy(url))
 	h = handler.FillHeader(handler.FillKeyHeader(h))
-	h, err = addCleanHeader(h, cfg.GetString(name+".cleanHeaderPrefix"))
+	h, err = addCleanHeader(h, cfg.GetString(name+".cleanHeaders"))
 	if err != nil {
 		return nil, errors.Wrap(err, "can't init clean header")
 	}

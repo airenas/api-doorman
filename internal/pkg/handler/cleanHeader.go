@@ -8,32 +8,40 @@ import (
 )
 
 type cleanHeader struct {
-	next     http.Handler
-	starting string
+	next    http.Handler
+	headers []string
 }
 
 //FillHeader creates handler for filling header values from tags
 func CleanHeader(next http.Handler, starting string) (http.Handler, error) {
 	res := &cleanHeader{}
 	res.next = next
-	st := strings.ToUpper(strings.TrimSpace(starting))
-	if st == "" {
-		return nil, errors.New("no clean header prefix")
+	hdrs := getHeaders(starting)
+	if len(hdrs) == 0 {
+		return nil, errors.New("no clean headers")
 	}
-	res.starting = st
+	res.headers = hdrs
 	return res, nil
 }
 
-func (h *cleanHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	hs := r.Header
-	for k := range hs {
-		if strings.HasPrefix(strings.ToUpper(k), h.starting) {
-			r.Header.Del(k)
+func getHeaders(starting string) []string {
+	var res []string
+	for _, s := range strings.Split(starting, ",") {
+		st := strings.TrimSpace(s)
+		if st != "" {
+			res = append(res, strings.ToUpper(st))
 		}
+	}
+	return res
+}
+
+func (h *cleanHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	for _, k := range h.headers {
+		r.Header.Del(k)
 	}
 	h.next.ServeHTTP(w, r)
 }
 
 func (h *cleanHeader) Info(pr string) string {
-	return pr + fmt.Sprintf("CleanHeader (starting:%s)\n", h.starting) + GetInfo(LogShitf(pr), h.next)
+	return pr + fmt.Sprintf("CleanHeader (%v)\n", h.headers) + GetInfo(LogShitf(pr), h.next)
 }

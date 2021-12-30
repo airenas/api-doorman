@@ -14,13 +14,16 @@ func TestCleanHeader(t *testing.T) {
 		starting string
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name     string
+		args     args
+		wantErr  bool
+		wantHead []string
 	}{
 		{name: "OK", args: args{next: nil, starting: "st"}, wantErr: false},
-		{name: "Fail em", args: args{next: nil, starting: ""}, wantErr: true},
+		{name: "Fail empty", args: args{next: nil, starting: ""}, wantErr: true},
 		{name: "Fail", args: args{next: nil, starting: " "}, wantErr: true},
+		{name: "Several", args: args{next: nil, starting: "H1, h2"}, wantErr: false, wantHead: []string{"H1", "H2"}},
+		{name: "Several", args: args{next: nil, starting: ",,, H1, h2,,x-H3"}, wantErr: false, wantHead: []string{"H1", "H2", "X-H3"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -31,6 +34,12 @@ func TestCleanHeader(t *testing.T) {
 			}
 			if !tt.wantErr {
 				assert.NotNil(t, got)
+			}
+			if len(tt.wantHead) > 0 {
+				cgot, _ := got.(*cleanHeader)
+				if assert.Equal(t, len(tt.wantHead), len(cgot.headers)) {
+					assert.Equal(t, tt.wantHead, cgot.headers)
+				}
 			}
 		})
 	}
@@ -50,11 +59,15 @@ func Test_cleanHeader_ServeHTTP(t *testing.T) {
 		{name: "Drops", pr: "x-prefix",
 			in: map[string][]string{"H1": {"olia"}, "x-prefix": {"aaa"},
 				"x-prefix-2": {"aaa", "bbb"}},
-			out: map[string][]string{"H1": {"olia"}}},
-		{name: "Drops", pr: "x-prefix-",
+			out: map[string][]string{"H1": {"olia"}, "X-Prefix-2": {"aaa", "bbb"}}},
+		{name: "Leaves", pr: "x-prefix-",
 			in: map[string][]string{"H1": {"olia", "aaa"}, "x-prefix": {"aaa"},
 				"x-prefix-2": {"aaa", "bbb"}},
-			out: map[string][]string{"H1": {"olia", "aaa"}, "X-Prefix": {"aaa"}}},
+			out: map[string][]string{"H1": {"olia", "aaa"}, "X-Prefix": {"aaa"}, "X-Prefix-2": {"aaa", "bbb"}}},
+		{name: "Drops two", pr: "x-prefix,x-prefix-2",
+			in: map[string][]string{"H1": {"olia", "aaa"}, "x-prefix": {"aaa"},
+				"X-Prefix-2": {"aaa", "bbb"}},
+			out: map[string][]string{"H1": {"olia", "aaa"}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

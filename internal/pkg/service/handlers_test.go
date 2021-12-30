@@ -64,6 +64,7 @@ tts:
     default: 100
   prefixURL: /start
   method: POST
+  cleanHeaders: tts-one,tts-two
 `
 
 func TestQuotaHandle(t *testing.T) {
@@ -79,6 +80,7 @@ func TestQuotaHandle(t *testing.T) {
 	assert.Contains(t, h.Info(), "FillHeader")
 	assert.Contains(t, h.Info(), "FillOutHeader")
 	assert.Contains(t, h.Info(), "FillKeyHeader")
+	assert.Contains(t, h.Info(), "CleanHeader ([TTS-ONE TTS-TWO])")
 }
 
 func TestQuotaHandleAudio(t *testing.T) {
@@ -304,6 +306,7 @@ tts:
   db: test
   prefixURL: /start
   method: POST
+  cleanHeaders: tts-one,
 `), newTestProvider(t))
 	assert.NotNil(t, h)
 	assert.Nil(t, err)
@@ -316,6 +319,7 @@ tts:
 	assert.Contains(t, h.Info(), "FillHeader")
 	assert.Contains(t, h.Info(), "FillOutHeader")
 	assert.Contains(t, h.Info(), "FillKeyHeader")
+	assert.Contains(t, h.Info(), "CleanHeader ([TTS-ONE])")
 }
 
 func TestKeyHandler_FailNoDB(t *testing.T) {
