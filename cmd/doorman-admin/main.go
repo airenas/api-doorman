@@ -15,7 +15,7 @@ func main() {
 
 	mongoSessionProvider, err := mongodb.NewSessionProvider(goapp.Config.GetString("mongo.url"))
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "Can't init mongo provider"))
+		log.Fatal(errors.Wrap(err, "can't init mongo provider"))
 	}
 	defer mongoSessionProvider.Close()
 
@@ -23,14 +23,14 @@ func main() {
 	data.Port = goapp.Config.GetInt("port")
 	keysManager, err := mongodb.NewKeySaver(mongoSessionProvider, goapp.Config.GetInt("keySize"))
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "Can't init saver"))
+		log.Fatal(errors.Wrap(err, "can't init saver"))
 	}
 	data.KeyGetter, data.KeySaver, data.OneKeyUpdater = keysManager, keysManager, keysManager
 	data.OneKeyGetter = keysManager
 
 	logManager, err := mongodb.NewLogGetter(mongoSessionProvider)
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "Can't init log saver"))
+		log.Fatal(errors.Wrap(err, "can't init log saver"))
 	}
 	data.LogGetter = logManager
 
@@ -38,14 +38,14 @@ func main() {
 	goapp.Log.Infof("Projects: %s", prStr)
 	data.ProjectValidator, err = admin.NewProjectConfigValidator(prStr)
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "Can't init project validator"))
+		log.Fatal(errors.Wrap(err, "can't init project validator"))
 	}
 
 	printBanner()
 
 	err = admin.StartWebServer(&data)
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "Can't start the service"))
+		log.Fatal(errors.Wrap(err, "can't start the service"))
 	}
 }
 
