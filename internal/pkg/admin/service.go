@@ -83,7 +83,7 @@ func StartWebServer(data *Data) error {
 var promMdlw *prometheus.Prometheus
 
 func init() {
-	promMdlw = prometheus.NewPrometheus("tts", nil)
+	promMdlw = prometheus.NewPrometheus("doorman_admin", nil)
 }
 
 func initRoutes(data *Data) *echo.Echo {
