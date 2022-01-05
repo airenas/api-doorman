@@ -125,7 +125,7 @@ func keyAdd(data *Data) func(echo.Context) error {
 		}
 		var input adminapi.Key
 		if err := c.Bind(&input); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Cannot decode input")
+			return echo.NewHTTPError(http.StatusBadRequest, "can't decode input")
 		}
 
 		if input.Limit < 0.1 {
@@ -231,8 +231,8 @@ func keyUpdate(data *Data) func(echo.Context) error {
 			return err
 		}
 		input := make(map[string]interface{})
-		if err := c.Bind(&input); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Cannot decode input")
+		if err := c.Echo().JSONSerializer.Deserialize(c, &input); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "can't decode input")
 		}
 
 		keyResp, err := data.OneKeyUpdater.Update(project, key, input)

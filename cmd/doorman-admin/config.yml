@@ -2,7 +2,7 @@ port: 8001
 
 keySize: 20
 
-projects: tts,asr
+projects: tts,asr,test
 
 # overwrite with env variable MONGO_URL
 mongo: 
