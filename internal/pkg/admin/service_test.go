@@ -209,6 +209,7 @@ func TestUpdateKey(t *testing.T) {
 	pegomock.When(keyUpdaterMock.Update(pegomock.AnyString(), pegomock.AnyString(), matchers.AnyMapOfStringToInterface())).
 		ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
 	req := httptest.NewRequest("PATCH", "/pr/key/kkk", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	resp := testCode(t, req, 200)
 	bytes, _ := ioutil.ReadAll(resp.Body)
 	assert.Contains(t, string(bytes), `"key":"kkk"`)
@@ -229,6 +230,7 @@ func TestUpdateKey_FailInput(t *testing.T) {
 	pegomock.When(keyUpdaterMock.Update(pegomock.AnyString(), pegomock.AnyString(), matchers.AnyMapOfStringToInterface())).
 		ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
 	req := httptest.NewRequest("PATCH", "/pr/key/kkk", strings.NewReader("{{{"))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 400)
 }
 
@@ -237,6 +239,7 @@ func TestUpdateKey_Fail(t *testing.T) {
 	pegomock.When(keyUpdaterMock.Update(pegomock.AnyString(), pegomock.AnyString(), matchers.AnyMapOfStringToInterface())).
 		ThenReturn(nil, errors.New("olia"))
 	req := httptest.NewRequest("PATCH", "/pr/key/kkk", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 500)
 }
 
@@ -245,6 +248,7 @@ func TestUpdateKey_FailWrongKey(t *testing.T) {
 	pegomock.When(keyUpdaterMock.Update(pegomock.AnyString(), pegomock.AnyString(), matchers.AnyMapOfStringToInterface())).
 		ThenReturn(nil, errors.Wrap(adminapi.ErrNoRecord, "olia"))
 	req := httptest.NewRequest("PATCH", "/pr/key/kkk", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 400)
 }
 
@@ -253,6 +257,7 @@ func TestUpdateKey_FailWrongField(t *testing.T) {
 	pegomock.When(keyUpdaterMock.Update(pegomock.AnyString(), pegomock.AnyString(), matchers.AnyMapOfStringToInterface())).
 		ThenReturn(nil, errors.Wrap(adminapi.ErrWrongField, "olia"))
 	req := httptest.NewRequest("PATCH", "/pr/key/kkk", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 400)
 }
 
@@ -262,6 +267,7 @@ func TestUpdateKey_FailProject(t *testing.T) {
 	pegomock.When(keyUpdaterMock.Update(pegomock.AnyString(), pegomock.AnyString(), matchers.AnyMapOfStringToInterface())).
 		ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
 	req := httptest.NewRequest("PATCH", "/pr/key/kkk", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 400)
 }
 

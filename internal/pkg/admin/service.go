@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
@@ -12,7 +11,6 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/facebookgo/grace/gracehttp"
-	"github.com/gorilla/mux"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
@@ -96,19 +94,13 @@ func initRoutes(data *Data) *echo.Echo {
 	e.GET("/:project/key-list", keyList(data))
 	e.GET("/:project/key/:key", keyInfo(data))
 	e.POST("/:project/key", keyAdd(data))
+	e.PATCH("/:project/key/:key", keyUpdate(data))
 
 	goapp.Log.Info("Routes:")
 	for _, r := range e.Routes() {
 		goapp.Log.Infof("  %s %s", r.Method, r.Path)
 	}
 	return e
-}
-
-//NewRouter creates the router for HTTP service
-func NewRouter(data *Data) *mux.Router {
-	router := mux.NewRouter()
-	router.Methods("PATCH").Path("/{project}/key/{key}").Handler(&keyUpdateHandler{data: data})
-	return router
 }
 
 func testJSONInput(c echo.Context) error {
@@ -221,54 +213,41 @@ func keyInfo(data *Data) func(echo.Context) error {
 	}
 }
 
-type keyUpdateHandler struct {
-	data *Data
-}
+func keyUpdate(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		key := c.Param("key")
+		if key == "" {
+			goapp.Log.Error("no key")
+			return echo.NewHTTPError(http.StatusBadRequest, "no key")
+		}
+		project := c.Param("project")
+		if err := validateProject(project, data.ProjectValidator); err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+		if err := testJSONInput(c); err != nil {
+			goapp.Log.Error(err)
+			return err
+		}
+		input := make(map[string]interface{})
+		if err := c.Bind(&input); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "Cannot decode input")
+		}
 
-func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	goapp.Log.Infof("Request from %s", r.RemoteAddr)
+		keyResp, err := data.OneKeyUpdater.Update(project, key, input)
 
-	key := mux.Vars(r)["key"]
-	if key == "" {
-		http.Error(w, "No Key", http.StatusBadRequest)
-		goapp.Log.Errorf("No Key")
-		return
-	}
-	project := mux.Vars(r)["project"]
-	// if !validateProject(project, h.data.ProjectValidator, w) {
-	// 	return
-	// }
-	decoder := json.NewDecoder(r.Body)
-	var input map[string]interface{}
-	err := decoder.Decode(&input)
-	if err != nil {
-		http.Error(w, "Cannot decode input", http.StatusBadRequest)
-		goapp.Log.Error("Cannot decode input" + err.Error())
-		return
-	}
-
-	keyResp, err := h.data.OneKeyUpdater.Update(project, key, input)
-
-	if errors.Is(err, adminapi.ErrNoRecord) {
-		http.Error(w, "Key not found", http.StatusBadRequest)
-		goapp.Log.Error("Key not found. ", err)
-		return
-	} else if errors.Is(err, adminapi.ErrWrongField) {
-		http.Error(w, "Wrong field. "+err.Error(), http.StatusBadRequest)
-		goapp.Log.Error("Wrong field. ", err)
-		return
-	} else if err != nil {
-		http.Error(w, "Service error", http.StatusInternalServerError)
-		goapp.Log.Error("Can't update key. ", err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	encoder := json.NewEncoder(w)
-	err = encoder.Encode(&keyResp)
-	if err != nil {
-		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		goapp.Log.Error(err)
+		if errors.Is(err, adminapi.ErrNoRecord) {
+			goapp.Log.Error("key not found. ", err)
+			return echo.NewHTTPError(http.StatusBadRequest, "key not found")
+		} else if errors.Is(err, adminapi.ErrWrongField) {
+			goapp.Log.Error("wrong field. ", err)
+			return echo.NewHTTPError(http.StatusBadRequest, "wrong field. "+err.Error())
+		} else if err != nil {
+			goapp.Log.Error("can't update key. ", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		return c.JSON(http.StatusOK, keyResp)
 	}
 }
 
