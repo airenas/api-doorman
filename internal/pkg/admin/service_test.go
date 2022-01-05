@@ -12,7 +12,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
-	"github.com/gorilla/mux"
+	"github.com/labstack/echo/v4"
 	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -29,6 +29,10 @@ var (
 	logRetrieverMock    *mocks.MockLogRetriever
 	keyUpdaterMock      *mocks.MockKeyUpdater
 	prValidarorMock     *mocks.MockPrValidator
+
+	tData *Data
+	tEcho *echo.Echo
+	tResp *httptest.ResponseRecorder
 )
 
 func initTest(t *testing.T) {
@@ -40,6 +44,10 @@ func initTest(t *testing.T) {
 	keyUpdaterMock = mocks.NewMockKeyUpdater()
 	prValidarorMock = mocks.NewMockPrValidator()
 	pegomock.When(prValidarorMock.Check(pegomock.AnyString())).ThenReturn(true)
+
+	tData = newTestData()
+	tEcho = initRoutes(tData)
+	tResp = httptest.NewRecorder()
 }
 
 func TestWrongPath(t *testing.T) {
@@ -137,6 +145,7 @@ func TestAddKey(t *testing.T) {
 	initTest(t)
 	pegomock.When(keyCreatorMock.Create(pegomock.AnyString(), matchers.AnyPtrToApiKey())).ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
 	req := httptest.NewRequest("POST", "/pr/key", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	resp := testCode(t, req, 200)
 	bytes, _ := ioutil.ReadAll(resp.Body)
 	assert.Contains(t, string(bytes), `"key":"kkk"`)
@@ -149,6 +158,7 @@ func TestAddKey_FailDuplicate(t *testing.T) {
 	pegomock.When(keyCreatorMock.Create(pegomock.AnyString(), matchers.AnyPtrToApiKey())).ThenReturn(nil,
 		mongo.WriteException{WriteErrors: []mongo.WriteError{{Code: 11000}}})
 	req := httptest.NewRequest("POST", "/pr/key", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 400)
 }
 
@@ -156,6 +166,7 @@ func TestAddKey_Fail(t *testing.T) {
 	initTest(t)
 	pegomock.When(keyCreatorMock.Create(pegomock.AnyString(), matchers.AnyPtrToApiKey())).ThenReturn(nil, errors.New("err"))
 	req := httptest.NewRequest("POST", "/pr/key", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 500)
 }
 
@@ -164,6 +175,7 @@ func TestAddKey_FailWrongField(t *testing.T) {
 	pegomock.When(keyCreatorMock.Create(pegomock.AnyString(), matchers.AnyPtrToApiKey())).
 		ThenReturn(nil, errors.Wrap(adminapi.ErrWrongField, "olia"))
 	req := httptest.NewRequest("POST", "/pr/key", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 400)
 }
 
@@ -171,6 +183,7 @@ func TestAddKey_FailLimit(t *testing.T) {
 	initTest(t)
 	pegomock.When(keyCreatorMock.Create(pegomock.AnyString(), matchers.AnyPtrToApiKey())).ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
 	req := httptest.NewRequest("POST", "/pr/key", toReader(adminapi.Key{Limit: 0, ValidTo: time.Now().Add(time.Minute)}))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 400)
 }
 
@@ -178,6 +191,7 @@ func TestAddKey_FailValidTo(t *testing.T) {
 	initTest(t)
 	pegomock.When(keyCreatorMock.Create(pegomock.AnyString(), matchers.AnyPtrToApiKey())).ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
 	req := httptest.NewRequest("POST", "/pr/key", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(-time.Minute)}))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 400)
 }
 
@@ -186,6 +200,7 @@ func TestAddKey_FailProject(t *testing.T) {
 	pegomock.When(prValidarorMock.Check(pegomock.AnyString())).ThenReturn(false)
 	pegomock.When(keyCreatorMock.Create(pegomock.AnyString(), matchers.AnyPtrToApiKey())).ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
 	req := httptest.NewRequest("POST", "/pr/key", toReader(adminapi.Key{Limit: 10, ValidTo: time.Now().Add(time.Minute)}))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 400)
 }
 
@@ -250,10 +265,6 @@ func TestUpdateKey_FailProject(t *testing.T) {
 	testCode(t, req, 400)
 }
 
-func newTestRouter() *mux.Router {
-	return NewRouter(newTestData())
-}
-
 func toReader(key adminapi.Key) io.Reader {
 	bytes, _ := json.Marshal(key)
 	return strings.NewReader(string(bytes))
@@ -272,7 +283,16 @@ func newTestData() *Data {
 
 func testCode(t *testing.T, req *http.Request, code int) *httptest.ResponseRecorder {
 	resp := httptest.NewRecorder()
-	newTestRouter().ServeHTTP(resp, req)
+	tEcho.ServeHTTP(resp, req)
 	assert.Equal(t, code, resp.Code)
 	return resp
+}
+
+func TestLive(t *testing.T) {
+	initTest(t)
+	req := httptest.NewRequest(http.MethodGet, "/live", nil)
+
+	tEcho.ServeHTTP(tResp, req)
+	assert.Equal(t, http.StatusOK, tResp.Code)
+	assert.Equal(t, `{"service":"OK"}`, tResp.Body.String())
 }

@@ -2,10 +2,10 @@ package admin
 
 import (
 	"encoding/json"
-	"html"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
@@ -13,6 +13,8 @@ import (
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/facebookgo/grace/gracehttp"
 	"github.com/gorilla/mux"
+	"github.com/labstack/echo-contrib/prometheus"
+	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
 )
 
@@ -63,112 +65,119 @@ type (
 //StartWebServer starts the HTTP service and listens for the admin requests
 func StartWebServer(data *Data) error {
 	goapp.Log.Infof("Starting HTTP doorman admin service at %d", data.Port)
-	r := NewRouter(data)
+
+	e := initRoutes(data)
+
 	portStr := strconv.Itoa(data.Port)
+	e.Server.Addr = ":" + portStr
+	e.Server.IdleTimeout = 3 * time.Minute
+	e.Server.ReadHeaderTimeout = 10 * time.Second
+	e.Server.ReadTimeout = 20 * time.Second
+	e.Server.WriteTimeout = 30 * time.Second
 
 	w := goapp.Log.Writer()
 	defer w.Close()
-	l := log.New(w, "", 0)
-	gracehttp.SetLogger(l)
+	gracehttp.SetLogger(log.New(w, "", 0))
 
-	return gracehttp.Serve(&http.Server{Addr: ":" + portStr, Handler: r})
+	return gracehttp.Serve(e.Server)
+}
+
+var promMdlw *prometheus.Prometheus
+
+func init() {
+	promMdlw = prometheus.NewPrometheus("tts", nil)
+}
+
+func initRoutes(data *Data) *echo.Echo {
+	e := echo.New()
+	promMdlw.Use(e)
+
+	e.GET("/live", live(data))
+	e.GET("/:project/key-list", keyList(data))
+	e.GET("/:project/key/:key", keyInfo(data))
+	e.POST("/:project/key", keyAdd(data))
+
+	goapp.Log.Info("Routes:")
+	for _, r := range e.Routes() {
+		goapp.Log.Infof("  %s %s", r.Method, r.Path)
+	}
+	return e
 }
 
 //NewRouter creates the router for HTTP service
 func NewRouter(data *Data) *mux.Router {
 	router := mux.NewRouter()
-	router.Methods("POST").Path("/{project}/key").Handler(&keyAddHandler{data: data})
-	router.Methods("GET").Path("/{project}/key-list").Handler(&keyListHandler{data: data})
-	router.Methods("GET").Path("/{project}/key/{key}").Handler(&keyInfoHandler{data: data})
 	router.Methods("PATCH").Path("/{project}/key/{key}").Handler(&keyUpdateHandler{data: data})
 	return router
 }
 
-type keyAddHandler struct {
-	data *Data
+func testJSONInput(c echo.Context) error {
+	ctype := c.Request().Header.Get(echo.HeaderContentType)
+	if !strings.HasPrefix(ctype, echo.MIMEApplicationJSON) {
+		return echo.NewHTTPError(http.StatusBadRequest, "wrong content type, expected '"+echo.MIMEApplicationJSON+"'")
+	}
+	return nil
 }
 
-func (h *keyAddHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	goapp.Log.Infof("Request from %s", r.RemoteAddr)
-	project := mux.Vars(r)["project"]
-	if !validateProject(project, h.data.ProjectValidator, w) {
-		return
-	}
-	decoder := json.NewDecoder(r.Body)
-	var input adminapi.Key
-	err := decoder.Decode(&input)
-	if err != nil {
-		http.Error(w, "Cannot decode input", http.StatusBadRequest)
-		goapp.Log.Error("Cannot decode input" + err.Error())
-		return
-	}
-
-	if input.Limit < 0.1 {
-		http.Error(w, "No limit", http.StatusBadRequest)
-		goapp.Log.Error("No input text")
-		return
-	}
-
-	if input.ValidTo.Before(time.Now()) {
-		http.Error(w, "Wrong valid to", http.StatusBadRequest)
-		goapp.Log.Error("Wrong valid to")
-		return
-	}
-
-	keyResp, err := h.data.KeySaver.Create(project, &input)
-
-	if err != nil {
-		if mongodb.IsDuplicate(err) {
-			http.Error(w, "Duplicate key", http.StatusBadRequest)
-		} else if errors.Is(err, adminapi.ErrWrongField) {
-			http.Error(w, "Wrong field. "+err.Error(), http.StatusBadRequest)
-			goapp.Log.Error("Wrong field. ", err)
-			return
-		} else {
-			http.Error(w, "Service error", http.StatusInternalServerError)
+func keyAdd(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		project := c.Param("project")
+		if err := validateProject(project, data.ProjectValidator); err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
-		goapp.Log.Error("Can't create key. ", err)
-		return
-	}
+		if err := testJSONInput(c); err != nil {
+			goapp.Log.Error(err)
+			return err
+		}
+		var input adminapi.Key
+		if err := c.Bind(&input); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "Cannot decode input")
+		}
 
-	w.Header().Set("Content-Type", "application/json")
-	encoder := json.NewEncoder(w)
-	err = encoder.Encode(&keyResp)
-	if err != nil {
-		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		goapp.Log.Error(err)
-	}
-}
+		if input.Limit < 0.1 {
+			goapp.Log.Error("no limit")
+			return echo.NewHTTPError(http.StatusBadRequest, "no limit")
+		}
 
-type keyListHandler struct {
-	data *Data
-}
+		if input.ValidTo.Before(time.Now()) {
+			goapp.Log.Error("wrong valid to")
+			return echo.NewHTTPError(http.StatusBadRequest, "wrong valid to")
+		}
 
-func (h *keyListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	goapp.Log.Infof("Request list from %s", r.RemoteAddr)
-	project := mux.Vars(r)["project"]
-	if !validateProject(project, h.data.ProjectValidator, w) {
-		return
-	}
-	keyResp, err := h.data.KeyGetter.List(project)
+		keyResp, err := data.KeySaver.Create(project, &input)
 
-	if err != nil {
-		http.Error(w, "Service error", http.StatusInternalServerError)
-		goapp.Log.Error("Can't get keys. ", err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	encoder := json.NewEncoder(w)
-	err = encoder.Encode(&keyResp)
-	if err != nil {
-		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		goapp.Log.Error(err)
+		if err != nil {
+			goapp.Log.Error("can't create key. ", err)
+			if mongodb.IsDuplicate(err) {
+				return echo.NewHTTPError(http.StatusBadRequest, "duplicate key")
+			} else if errors.Is(err, adminapi.ErrWrongField) {
+				return echo.NewHTTPError(http.StatusBadRequest, "wrong field. "+err.Error())
+			} else {
+				return echo.NewHTTPError(http.StatusInternalServerError)
+			}
+		}
+		return c.JSON(http.StatusOK, keyResp)
 	}
 }
 
-type keyInfoHandler struct {
-	data *Data
+func keyList(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		project := c.Param("project")
+		if err := validateProject(project, data.ProjectValidator); err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+		keyResp, err := data.KeyGetter.List(project)
+
+		if err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		return c.JSON(http.StatusOK, keyResp)
+	}
 }
 
 type keyInfoResp struct {
@@ -176,53 +185,39 @@ type keyInfoResp struct {
 	Logs []*adminapi.Log `json:"logs,omitempty"`
 }
 
-func (h *keyInfoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	goapp.Log.Infof("Request key from %s", r.RemoteAddr)
-	key := mux.Vars(r)["key"]
-	if key == "" {
-		http.Error(w, "No Key", http.StatusBadRequest)
-		goapp.Log.Errorf("No Key")
-		return
-	}
-	project := mux.Vars(r)["project"]
-	if !validateProject(project, h.data.ProjectValidator, w) {
-		return
-	}
-	query := r.URL.Query()
-	qf, pf := query["full"]
-	full := false
-	if pf && len(qf) > 0 && qf[0] == "1" {
-		full = true
-	}
-
-	res := &keyInfoResp{}
-	var err error
-	res.Key, err = h.data.OneKeyGetter.Get(project, key)
-	if errors.Is(err, adminapi.ErrNoRecord) {
-		http.Error(w, "Key not found", http.StatusBadRequest)
-		goapp.Log.Error("Key not found.")
-		return
-	}
-	if err != nil {
-		http.Error(w, "Service error", http.StatusInternalServerError)
-		goapp.Log.Error("Can't get key. ", err)
-		return
-	}
-	if full {
-		res.Logs, err = h.data.LogGetter.Get(project, key)
-		if err != nil {
-			http.Error(w, "Service error", http.StatusInternalServerError)
-			goapp.Log.Error("Can't get logs. ", err)
-			return
+func keyInfo(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		key := c.Param("key")
+		if key == "" {
+			goapp.Log.Error("no key")
+			return echo.NewHTTPError(http.StatusBadRequest, "no key")
 		}
-	}
+		project := c.Param("project")
+		if err := validateProject(project, data.ProjectValidator); err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
 
-	w.Header().Set("Content-Type", "application/json")
-	encoder := json.NewEncoder(w)
-	err = encoder.Encode(&res)
-	if err != nil {
-		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		goapp.Log.Error(err)
+		res := &keyInfoResp{}
+		var err error
+		res.Key, err = data.OneKeyGetter.Get(project, key)
+		if errors.Is(err, adminapi.ErrNoRecord) {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, "key not found")
+		}
+		if err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		if c.QueryParam("full") == "1" {
+			res.Logs, err = data.LogGetter.Get(project, key)
+			if err != nil {
+				goapp.Log.Error(err)
+				return echo.NewHTTPError(http.StatusInternalServerError)
+			}
+		}
+		return c.JSON(http.StatusOK, res)
 	}
 }
 
@@ -240,9 +235,9 @@ func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	project := mux.Vars(r)["project"]
-	if !validateProject(project, h.data.ProjectValidator, w) {
-		return
-	}
+	// if !validateProject(project, h.data.ProjectValidator, w) {
+	// 	return
+	// }
 	decoder := json.NewDecoder(r.Body)
 	var input map[string]interface{}
 	err := decoder.Decode(&input)
@@ -277,16 +272,18 @@ func (h *keyUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func validateProject(project string, prV PrValidator, w http.ResponseWriter) bool {
+func validateProject(project string, prV PrValidator) error {
 	if project == "" {
-		http.Error(w, "No Project", http.StatusBadRequest)
-		goapp.Log.Errorf("No Project")
-		return false
+		return errors.New("no project")
 	}
 	if !prV.Check(project) {
-		http.Error(w, "Wrong project "+html.EscapeString(project), http.StatusBadRequest)
-		goapp.Log.Errorf("Wrong project %s", project)
-		return false
+		return errors.Errorf("wrong project %s", project)
 	}
-	return true
+	return nil
+}
+
+func live(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		return c.JSONBlob(http.StatusOK, []byte(`{"service":"OK"}`))
+	}
 }
