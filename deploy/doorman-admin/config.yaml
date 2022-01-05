@@ -2,4 +2,4 @@ port: 8000
 
 #projects: test
 
-keySize: 20
+keySize: 30
