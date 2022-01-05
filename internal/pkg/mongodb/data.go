@@ -31,3 +31,17 @@ type logRecord struct {
 	Fail         bool      `json:"fail,omitempty"`
 	ResponseCode int       `json:"response,omitempty"`
 }
+
+type keyMapRecord struct {
+	Key        string    `json:"key"`
+	ExternalID string    `json:"externalID"`
+	Project    string    `json:"project"`
+	Created    time.Time `json:"created,omitempty"`
+}
+
+type operationRecord struct {
+	Key        string    `json:"key"`
+	OperationID string    `json:"operationID"`
+	Date       time.Time `json:"date,omitempty"`
+	QuotaValue float64   `json:"quotaValue,omitempty"`
+}

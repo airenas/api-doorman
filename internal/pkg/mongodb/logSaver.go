@@ -54,7 +54,7 @@ func (ss *LogGetter) Get(project, key string) ([]*adminapi.Log, error) {
 	ctx, cancel := mongoContext()
 	defer cancel()
 
-	session, err := ss.SessionProvider.NewSession(project)
+	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
 		return nil, err
 	}

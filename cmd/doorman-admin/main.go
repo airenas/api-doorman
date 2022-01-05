@@ -36,9 +36,13 @@ func main() {
 
 	prStr := goapp.Config.GetString("projects")
 	goapp.Log.Infof("Projects: %s", prStr)
-	data.ProjectValidator, err = admin.NewProjectConfigValidator(prStr)
+	pv, err := admin.NewProjectConfigValidator(prStr)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "can't init project validator"))
+	}
+	data.ProjectValidator = pv
+	if err := mongoSessionProvider.CheckIndexes(pv.Projects()); err != nil {
+		log.Fatal(errors.Wrap(err, "can't check indexes"))
 	}
 
 	printBanner()

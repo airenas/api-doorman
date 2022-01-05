@@ -33,3 +33,11 @@ func NewProjectConfigValidator(projects string) (*ProjectConfigValidator, error)
 func (pv *ProjectConfigValidator) Check(pr string) bool {
 	return pv.projects[pr]
 }
+
+func (pv *ProjectConfigValidator) Projects() []string {
+	var res []string
+	for k := range pv.projects {
+		res = append(res, k)
+	}
+	return res
+}

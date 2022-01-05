@@ -16,7 +16,7 @@ import (
 )
 
 //NewHandler creates handler based on config
-func NewHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (HandlerWrap, error) {
+func NewHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (HandlerWrap, error) {
 	if name == "default" {
 		return newDefaultHandler("default", cfg)
 	}
@@ -80,7 +80,7 @@ type prefixHandler struct {
 	h        http.Handler
 }
 
-func newPrQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (HandlerWrap, error) {
+func newPrQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (HandlerWrap, error) {
 	res := &prefixHandler{}
 	err := initPrefixes(name, cfg, res)
 	if err != nil {
@@ -105,7 +105,7 @@ func initPrefixes(name string, cfg *viper.Viper, res *prefixHandler) error {
 	return nil
 }
 
-func newQuotaHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (http.Handler, error) {
+func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.Handler, error) {
 	if cfg.GetString(name+".backend") == "" {
 		return nil, errors.New("No backend")
 	}
@@ -253,7 +253,7 @@ func (h *prefixHandler) Name() string {
 	return h.name
 }
 
-func newPrKeyHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (HandlerWrap, error) {
+func newPrKeyHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (HandlerWrap, error) {
 	res := &prefixHandler{}
 	err := initPrefixes(name, cfg, res)
 	if err != nil {
@@ -266,7 +266,7 @@ func newPrKeyHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider)
 	return res, nil
 }
 
-func newKeyHandler(name string, cfg *viper.Viper, ms *mongodb.SessionProvider) (http.Handler, error) {
+func newKeyHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.Handler, error) {
 	if cfg.GetString(name+".backend") == "" {
 		return nil, errors.New("No backend")
 	}

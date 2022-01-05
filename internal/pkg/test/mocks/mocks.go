@@ -22,6 +22,8 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=ipManager.go -m github.com/airenas/api-doorman/internal/pkg/service IPManager
 
+//go:generate pegomock generate --package=mocks --output=sProvider.go -m github.com/airenas/api-doorman/internal/pkg/mongodb SProvider
+
 //AttachMockToTest register pegomock verification to be passed to testing engine
 func AttachMockToTest(t *testing.T) {
 	pegomock.RegisterMockFailHandler(handleByTest(t))

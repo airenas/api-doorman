@@ -31,4 +31,5 @@ func TestValidator_CheckSeveral(t *testing.T) {
 	assert.True(t, pv.Check("aaaa"))
 	assert.False(t, pv.Check("B"))
 	assert.False(t, pv.Check("aa"))
+	assert.Equal(t, []string{"a", "bbb", "aaaa"}, pv.Projects())
 }

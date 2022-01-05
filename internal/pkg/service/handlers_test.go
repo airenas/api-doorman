@@ -10,6 +10,7 @@ import (
 	"github.com/airenas/go-app/pkg/goapp"
 
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
+	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -396,10 +397,8 @@ func TestPriority(t *testing.T) {
 	assert.Equal(t, 7, (&prefixHandler{prefix: "/olia/3"}).Priority())
 }
 
-func newTestProvider(t *testing.T) *mongodb.SessionProvider {
-	res, err := mongodb.NewSessionProvider("mongo://olia")
-	assert.Nil(t, err)
-	return res
+func newTestProvider(t *testing.T) mongodb.SProvider {
+	return mocks.NewMockSProvider()
 }
 
 func newTestC(t *testing.T, configStr string) *viper.Viper {

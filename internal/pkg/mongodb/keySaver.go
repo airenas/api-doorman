@@ -44,7 +44,7 @@ func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, er
 	ctx, cancel := mongoContext()
 	defer cancel()
 
-	session, err := ss.SessionProvider.NewSession(project)
+	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (ss *KeySaver) List(project string) ([]*adminapi.Key, error) {
 	ctx, cancel := mongoContext()
 	defer cancel()
 
-	session, err := ss.SessionProvider.NewSession(project)
+	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (ss *KeySaver) Get(project string, key string) (*adminapi.Key, error) {
 	ctx, cancel := mongoContext()
 	defer cancel()
 
-	session, err := ss.SessionProvider.NewSession(project)
+	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (ss *KeySaver) Update(project string, key string, data map[string]interface
 	ctx, cancel := mongoContext()
 	defer cancel()
 
-	session, err := ss.SessionProvider.NewSession(project)
+	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
 		return nil, err
 	}
