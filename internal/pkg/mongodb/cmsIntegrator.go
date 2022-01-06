@@ -83,6 +83,9 @@ func (ss *CmsIntegrator) createKeyWithQuota(ctx context.Context, session mongo.S
 	keyMap.Project = input.Service
 	_, err := c.InsertOne(ctx, keyMap)
 	if err != nil {
+		if IsDuplicate(err) {
+			return nil, errors.New("can't insert keymap - duplicate")	
+		}
 		return nil, errors.Wrap(err, "can't insert keymap")
 	}
 
@@ -94,6 +97,9 @@ func (ss *CmsIntegrator) createKeyWithQuota(ctx context.Context, session mongo.S
 	operation.QuotaValue = input.Credits
 	_, err = c.InsertOne(ctx, operation)
 	if err != nil {
+		if IsDuplicate(err) {
+			return nil, &api.ErrField{Field: "operationID", Msg: "duplicate"}
+		}
 		return nil, errors.Wrap(err, "can't insert operation")
 	}
 	c = session.Client().Database(input.Service).Collection(keyTable)
@@ -113,6 +119,9 @@ func (ss *CmsIntegrator) createKeyWithQuota(ctx context.Context, session mongo.S
 	}
 	_, err = c.InsertOne(ctx, res)
 	if err != nil {
+		if IsDuplicate(err) {
+			return nil, errors.New("can't insert key - duplicate")	
+		}
 		return nil, errors.Wrap(err, "can't insert key")
 	}
 	return res, err
