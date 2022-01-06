@@ -17,6 +17,7 @@ type (
 		Create(*api.CreateInput) (*api.Key, bool, error)
 		GetKey(keyID string) (*api.Key, error)
 		AddCredits(string, *api.CreditsInput) (*api.Key, error)
+		GetKeyID(string) (*api.KeyID, error)
 	}
 
 	// PrValidator validates if project is available
@@ -32,6 +33,7 @@ type (
 
 func InitRoutes(e *echo.Echo, data *Data) {
 	e.POST("/key", keyCreate(data))
+	e.POST("/keyID", keyGetID(data))
 	e.GET("/key/:keyID", keyGet(data))
 	e.PATCH("/key/:keyID/credits", keyAddCredits(data))
 }
@@ -113,6 +115,35 @@ func keyAddCredits(data *Data) func(echo.Context) error {
 			var errF *api.ErrField
 			if errors.As(err, &errF) {
 				return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
+			}
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		return c.JSON(http.StatusOK, keyResp)
+	}
+}
+
+type keyByIDInput struct {
+	Key string `json:"key"`
+}
+
+func keyGetID(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		var input keyByIDInput
+		if err := utils.TakeJSONInput(c, &input); err != nil {
+			goapp.Log.Error(err)
+			return err
+		}
+		if input.Key == "" {
+			goapp.Log.Error("no key")
+			return echo.NewHTTPError(http.StatusBadRequest, "no key")
+		}
+		keyResp, err := data.Integrator.GetKeyID(input.Key)
+
+		if err != nil {
+			goapp.Log.Error("can't get key by ID. ", err)
+			if errors.Is(err, api.ErrNoRecord) {
+				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ")
 			}
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}

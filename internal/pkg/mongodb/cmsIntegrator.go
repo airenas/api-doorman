@@ -84,14 +84,36 @@ func (ss *CmsIntegrator) GetKey(keyID string) (*api.Key, error) {
 	}
 	defer cancel()
 	keyMapR, err := loadKeyMapRecord(sessCtx, keyID)
-	if (err != nil) {
+	if err != nil {
 		return nil, err
 	}
 	keyR, err := loadKeyRecord(sessCtx, keyMapR.Project, keyMapR.Key)
-	if (err != nil) {
+	if err != nil {
 		return nil, err
 	}
 	return mapToKey(keyMapR, keyR), nil
+}
+
+func (ss *CmsIntegrator) GetKeyID(key string) (*api.KeyID, error) {
+	if key == "" {
+		return nil, api.ErrNoRecord
+	}
+	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+
+	c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
+	keyMapR := &keyMapRecord{}
+	err = c.FindOne(sessCtx, bson.M{"key": sanitize(key)}).Decode(&keyMapR)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, api.ErrNoRecord
+		}
+		return nil, errors.Wrapf(err, "can't load from %s.%s", keyMapDB, keyMapTable)
+	}
+	return &api.KeyID{ID: keyMapR.ExternalID, Service: keyMapR.Project}, nil
 }
 
 func (ss *CmsIntegrator) AddCredits(keyID string, input *api.CreditsInput) (*api.Key, error) {
@@ -106,7 +128,7 @@ func (ss *CmsIntegrator) AddCredits(keyID string, input *api.CreditsInput) (*api
 	defer cancel()
 
 	keyMapR, err := loadKeyMapRecord(sessCtx, keyID)
-	if (err != nil) {
+	if err != nil {
 		return nil, err
 	}
 
@@ -130,14 +152,14 @@ func (ss *CmsIntegrator) AddCredits(keyID string, input *api.CreditsInput) (*api
 func newSessionWithContext(sessionProvider *SessionProvider) (mongo.SessionContext, func(), error) {
 	session, err := sessionProvider.NewSession()
 	if err != nil {
-		return nil, func () {}, err
+		return nil, func() {}, err
 	}
 	ctx, cancel := mongoContext()
 	cf := func() {
 		defer cancel()
 		defer session.EndSession(context.Background())
 	}
-	return mongo.NewSessionContext(ctx, session), cf, nil 
+	return mongo.NewSessionContext(ctx, session), cf, nil
 }
 
 func addQuota(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.CreditsInput) (*keyRecord, error) {
@@ -165,7 +187,7 @@ func addQuota(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.Cr
 	update := bson.M{"$inc": bson.M{"limit": input.Credits}}
 	keyR := &keyRecord{}
 	c = sessCtx.Client().Database(keyMapR.Project).Collection(keyTable)
-	err = c.FindOneAndUpdate(sessCtx, 
+	err = c.FindOneAndUpdate(sessCtx,
 		bson.M{"key": sanitize(keyMapR.Key), "manual": true},
 		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&keyR)
 	if err != nil {
@@ -173,7 +195,7 @@ func addQuota(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.Cr
 			return nil, api.ErrNoRecord
 		}
 		return nil, errors.Wrapf(err, "can't update %s.key", keyTable)
-	}	
+	}
 	return keyR, nil
 }
 

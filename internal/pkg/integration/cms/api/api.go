@@ -7,26 +7,25 @@ import (
 )
 
 type CreateInput struct {
-	ID           string    `json:"id,omitempty"`
-	OperationID  string    `json:"operationID,omitempty"`
-	Service      string    `json:"service,omitempty"`
-	Credits      float64   `json:"credits,omitempty"`
+	ID           string     `json:"id,omitempty"`
+	OperationID  string     `json:"operationID,omitempty"`
+	Service      string     `json:"service,omitempty"`
+	Credits      float64    `json:"credits,omitempty"`
 	ValidTo      *time.Time `json:"validTo,omitempty"`
-	SaveRequests bool      `json:"saveRequests,omitempty"`
+	SaveRequests bool       `json:"saveRequests,omitempty"`
 }
 
 type CreditsInput struct {
-	OperationID  string    `json:"operationID,omitempty"`
-	Credits      float64   `json:"credits,omitempty"`
+	OperationID string  `json:"operationID,omitempty"`
+	Credits     float64 `json:"credits,omitempty"`
 }
-
 
 // Key structure for key data
 type Key struct {
-	Key      string    `json:"key,omitempty"`
-	Service  string    `json:"service,omitempty"`
+	Key      string     `json:"key,omitempty"`
+	Service  string     `json:"service,omitempty"`
 	ValidTo  *time.Time `json:"validTo,omitempty"`
-	Disabled bool      `json:"disabled,omitempty"`
+	Disabled bool       `json:"disabled,omitempty"`
 
 	TotalCredits  float64 `json:"totalCredits,omitempty"`
 	UsedCredits   float64 `json:"usedCredits,omitempty"`
@@ -35,7 +34,12 @@ type Key struct {
 	Created  *time.Time `json:"created,omitempty"`
 	Updated  *time.Time `json:"updated,omitempty"`
 	LastUsed *time.Time `json:"lastUsed,omitempty"`
-	LastIP   string    `json:"lastIP,omitempty"`
+	LastIP   string     `json:"lastIP,omitempty"`
+}
+
+type KeyID struct {
+	ID      string `json:"id,omitempty"`
+	Service string `json:"service,omitempty"`
 }
 
 //ErrNoRecord indicates no record found error
