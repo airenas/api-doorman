@@ -7,16 +7,16 @@ import (
 type keyRecord struct {
 	Key              string    `bson:"key,omitempty"`
 	Manual           bool      `bson:"manual,omitempty"`
-	ValidTo          time.Time `bson:"validto,omitempty"`
+	ValidTo          time.Time `bson:"validTo,omitempty"`
 	Limit            float64   `bson:"limit,omitempty"`
-	QuotaValue       float64   `bson:"quotavalue"`
-	QuotaValueFailed float64   `bson:"quotavaluefailed,omitempty"`
+	QuotaValue       float64   `bson:"quotaValue"`
+	QuotaValueFailed float64   `bson:"quotaValueFailed,omitempty"`
 	Created          time.Time `bson:"created,omitempty"`
 	Updated          time.Time `bson:"updated,omitempty"`
-	LastUsed         time.Time `bson:"lastused,omitempty"`
-	LastIP           string    `bson:"lastip,omitempty"`
+	LastUsed         time.Time `bson:"lastUsed,omitempty"`
+	LastIP           string    `bson:"lastIP,omitempty"`
 	Disabled         bool      `bson:"disabled,omitempty"`
-	IPWhiteList      string    `bson:"ipwhitelist,omitempty"`
+	IPWhiteList      string    `bson:"IPWhiteList,omitempty"`
 	Description      string    `bson:"description,omitempty"`
 	Tags             []string  `bson:"tags,omitempty"`
 }
@@ -24,7 +24,7 @@ type keyRecord struct {
 type logRecord struct {
 	Key          string    `bson:"key,omitempty"`
 	URL          string    `bson:"url,omitempty"`
-	QuotaValue   float64   `bson:"quotavalue,omitempty"`
+	QuotaValue   float64   `bson:"quotaValue,omitempty"`
 	Date         time.Time `bson:"date,omitempty"`
 	IP           string    `bson:"ip,omitempty"`
 	Value        string    `bson:"value,omitempty"`
