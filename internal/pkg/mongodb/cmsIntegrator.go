@@ -35,24 +35,21 @@ func (ss *CmsIntegrator) Create(input *api.CreateInput) (*api.Key, bool, error) 
 		return nil, false, err
 	}
 
-	ctx, cancel := mongoContext()
-	defer cancel()
-
-	session, err := ss.sessionProvider.NewSession()
+	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
 	if err != nil {
 		return nil, false, err
 	}
-	defer session.EndSession(context.Background())
+	defer cancel()
 
 	inserted := false
 
-	resInt, err := session.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (interface{}, error) {
-		c := session.Client().Database(keyMapDB).Collection(keyMapTable)
+	resInt, err := sessCtx.WithTransaction(sessCtx, func(sessCtx mongo.SessionContext) (interface{}, error) {
+		c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
 		var keyMap keyMapRecord
 		err = c.FindOne(sessCtx, bson.M{"externalID": sanitize(input.ID)}).Decode(&keyMap)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				key, err := ss.createKeyWithQuota(sessCtx, session, input)
+				key, err := ss.createKeyWithQuota(sessCtx, input)
 				if err == nil {
 					inserted = true
 					return &api.Key{Key: key.Key}, nil
@@ -240,15 +237,15 @@ func toTime(time *time.Time) *time.Time {
 	return time
 }
 
-func (ss *CmsIntegrator) createKeyWithQuota(ctx context.Context, session mongo.Session, input *api.CreateInput) (*keyRecord, error) {
+func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input *api.CreateInput) (*keyRecord, error) {
 	// create map
-	c := session.Client().Database(keyMapDB).Collection(keyMapTable)
+	c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
 	var keyMap keyMapRecord
 	keyMap.Created = time.Now()
 	keyMap.ExternalID = input.ID
 	keyMap.Key = randkey.Generate(ss.newKeySize)
 	keyMap.Project = input.Service
-	_, err := c.InsertOne(ctx, keyMap)
+	_, err := c.InsertOne(sessCtx, keyMap)
 	if err != nil {
 		if IsDuplicate(err) {
 			return nil, errors.New("can't insert keymap - duplicate")
@@ -256,20 +253,20 @@ func (ss *CmsIntegrator) createKeyWithQuota(ctx context.Context, session mongo.S
 		return nil, errors.Wrap(err, "can't insert keymap")
 	}
 
-	c = session.Client().Database(input.Service).Collection(operationTable)
+	c = sessCtx.Client().Database(input.Service).Collection(operationTable)
 	var operation operationRecord
 	operation.Date = time.Now()
 	operation.Key = keyMap.Key
 	operation.OperationID = input.OperationID
 	operation.QuotaValue = input.Credits
-	_, err = c.InsertOne(ctx, operation)
+	_, err = c.InsertOne(sessCtx, operation)
 	if err != nil {
 		if IsDuplicate(err) {
 			return nil, &api.ErrField{Field: "operationID", Msg: "duplicate"}
 		}
 		return nil, errors.Wrap(err, "can't insert operation")
 	}
-	c = session.Client().Database(input.Service).Collection(keyTable)
+	c = sessCtx.Client().Database(input.Service).Collection(keyTable)
 	res := &keyRecord{}
 	res.Key = keyMap.Key
 	res.Limit = input.Credits
@@ -284,7 +281,7 @@ func (ss *CmsIntegrator) createKeyWithQuota(ctx context.Context, session mongo.S
 	if input.SaveRequests {
 		res.Tags = []string{"x-tts-collect-data:always"}
 	}
-	_, err = c.InsertOne(ctx, res)
+	_, err = c.InsertOne(sessCtx, res)
 	if err != nil {
 		if IsDuplicate(err) {
 			return nil, errors.New("can't insert key - duplicate")

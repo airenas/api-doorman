@@ -22,14 +22,14 @@ type keyRecord struct {
 }
 
 type logRecord struct {
-	Key          string    `json:"key,omitempty"`
-	URL          string    `json:"url,omitempty"`
-	QuotaValue   float64   `json:"quotaValue,omitempty"`
-	Date         time.Time `json:"date,omitempty"`
-	IP           string    `json:"ip,omitempty"`
-	Value        string    `json:"value,omitempty"`
-	Fail         bool      `json:"fail,omitempty"`
-	ResponseCode int       `json:"response,omitempty"`
+	Key          string    `bson:"key,omitempty"`
+	URL          string    `bson:"url,omitempty"`
+	QuotaValue   float64   `bson:"quotavalue,omitempty"`
+	Date         time.Time `bson:"date,omitempty"`
+	IP           string    `bson:"ip,omitempty"`
+	Value        string    `bson:"value,omitempty"`
+	Fail         bool      `bson:"fail,omitempty"`
+	ResponseCode int       `bson:"response,omitempty"`
 }
 
 type keyMapRecord struct {
