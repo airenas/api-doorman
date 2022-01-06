@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin"
+	"github.com/airenas/api-doorman/internal/pkg/integration/cms"
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/labstack/gommon/color"
@@ -44,6 +45,13 @@ func main() {
 	if err := mongoSessionProvider.CheckIndexes(pv.Projects()); err != nil {
 		log.Fatal(errors.Wrap(err, "can't check indexes"))
 	}
+
+	data.CmsData = &cms.Data{}
+	data.CmsData.ProjectValidator = pv
+	data.CmsData.Integrator, err = mongodb.NewCmsIntegrator(mongoSessionProvider, goapp.Config.GetInt("keySize"))
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "can't init integrator"))
+	} 
 
 	printBanner()
 

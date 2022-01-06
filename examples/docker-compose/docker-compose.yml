@@ -48,6 +48,7 @@ services:
 
   mongo:
     image: mongo:4.4.1
+    hostname: mongo
     environment:
       MONGO_DATA_DIR: "/data/db"
       MONGO_LOG_DIR: "/dev/null"
@@ -58,4 +59,4 @@ services:
     volumes:
       - ./.mongo:/data/db
     # restart: unless-stopped     
-    command: mongod --logpath=/dev/null # --quiet
+    command: mongod --replSet rs0 --logpath=/dev/null --bind_ip mongo,localhost 

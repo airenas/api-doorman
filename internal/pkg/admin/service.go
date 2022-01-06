@@ -4,11 +4,12 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
+	"github.com/airenas/api-doorman/internal/pkg/integration/cms"
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/facebookgo/grace/gracehttp"
 	"github.com/labstack/echo-contrib/prometheus"
@@ -57,6 +58,8 @@ type (
 		LogGetter        LogRetriever
 		OneKeyUpdater    KeyUpdater
 		ProjectValidator PrValidator
+
+		CmsData *cms.Data
 	}
 )
 
@@ -96,19 +99,13 @@ func initRoutes(data *Data) *echo.Echo {
 	e.POST("/:project/key", keyAdd(data))
 	e.PATCH("/:project/key/:key", keyUpdate(data))
 
+	cms.InitRoutes(e, data.CmsData)
+
 	goapp.Log.Info("Routes:")
 	for _, r := range e.Routes() {
 		goapp.Log.Infof("  %s %s", r.Method, r.Path)
 	}
 	return e
-}
-
-func testJSONInput(c echo.Context) error {
-	ctype := c.Request().Header.Get(echo.HeaderContentType)
-	if !strings.HasPrefix(ctype, echo.MIMEApplicationJSON) {
-		return echo.NewHTTPError(http.StatusBadRequest, "wrong content type, expected '"+echo.MIMEApplicationJSON+"'")
-	}
-	return nil
 }
 
 func keyAdd(data *Data) func(echo.Context) error {
@@ -119,13 +116,10 @@ func keyAdd(data *Data) func(echo.Context) error {
 			goapp.Log.Error(err)
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
-		if err := testJSONInput(c); err != nil {
+		var input adminapi.Key
+		if err := utils.TakeJSONInput(c, &input); err != nil {
 			goapp.Log.Error(err)
 			return err
-		}
-		var input adminapi.Key
-		if err := c.Bind(&input); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "can't decode input")
 		}
 
 		if input.Limit < 0.1 {
@@ -226,13 +220,10 @@ func keyUpdate(data *Data) func(echo.Context) error {
 			goapp.Log.Error(err)
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
-		if err := testJSONInput(c); err != nil {
+		input := make(map[string]interface{})
+		if err := utils.TakeJSONInput(c, &input); err != nil {
 			goapp.Log.Error(err)
 			return err
-		}
-		input := make(map[string]interface{})
-		if err := c.Echo().JSONSerializer.Deserialize(c, &input); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "can't decode input")
 		}
 
 		keyResp, err := data.OneKeyUpdater.Update(project, key, input)

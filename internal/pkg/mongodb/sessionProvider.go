@@ -99,8 +99,8 @@ func (sp *SessionProvider) CheckIndexes(dbs []string) error {
 		return err
 	}
 	defer session.EndSession(context.Background())
-	if err := checkIndexes(session, keyMapIndexData, keyMapCollection); err != nil {
-		return errors.Wrapf(err, "index fail for collection %s", keyMapCollection)
+	if err := checkIndexes(session, keyMapIndexData, keyMapDB); err != nil {
+		return errors.Wrapf(err, "index fail for collection %s", keyMapDB)
 	}
 	for _, db := range dbs {
 		if err := checkIndexes(session, indexData, db); err != nil {
@@ -121,5 +121,5 @@ func (sp *SessionProvider) Healthy() error {
 }
 
 func mongoContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), 5*time.Second)
+	return context.WithTimeout(context.Background(), 50*time.Second)
 }

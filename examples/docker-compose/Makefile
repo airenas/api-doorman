@@ -4,6 +4,8 @@
 	mkdir -p $@
 
 start: | .mongo
+	docker-compose up -d mongo
+	$(MAKE) mongo-prepare 
 	docker-compose up -d
 
 stop:
@@ -37,4 +39,10 @@ test-private:
 test-private-key:
 	curl -i -X POST http://localhost:$(DOORMAN_PORT)/private?key=$(key) -d '{"text": "private text data with key"}'	
 
+########################################################################################################
+mongosh:
+	docker-compose exec mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS)
 
+mongo-prepare:
+	sleep 3
+	docker-compose exec mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS) --eval "rs.initiate()"

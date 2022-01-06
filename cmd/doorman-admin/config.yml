@@ -1,6 +1,6 @@
 port: 8001
 
-keySize: 20
+keySize: 30
 
 projects: tts,asr,test
 

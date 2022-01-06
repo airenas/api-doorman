@@ -1,11 +1,11 @@
 package mongodb
 
 const (
-	keyTable         = "key"
-	logTable         = "log"
-	operationTable   = "operation"
-	keyMapTable      = "map"
-	keyMapCollection = "keyMap"
+	keyTable       = "key"
+	logTable       = "log"
+	operationTable = "operation"
+	keyMapTable    = "map"
+	keyMapDB       = "keyMap"
 )
 
 var indexData = []IndexData{

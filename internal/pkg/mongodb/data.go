@@ -33,15 +33,15 @@ type logRecord struct {
 }
 
 type keyMapRecord struct {
-	Key        string    `json:"key"`
-	ExternalID string    `json:"externalID"`
-	Project    string    `json:"project"`
-	Created    time.Time `json:"created,omitempty"`
+	Key        string    `bson:"key"`
+	ExternalID string    `bson:"externalID"`
+	Project    string    `bson:"project"`
+	Created    time.Time `bson:"created,omitempty"`
 }
 
 type operationRecord struct {
-	Key        string    `json:"key"`
-	OperationID string    `json:"operationID"`
-	Date       time.Time `json:"date,omitempty"`
-	QuotaValue float64   `json:"quotaValue,omitempty"`
+	Key         string    `bson:"key"`
+	OperationID string    `bson:"operationID"`
+	Date        time.Time `bson:"date,omitempty"`
+	QuotaValue  float64   `bson:"quotaValue,omitempty"`
 }
