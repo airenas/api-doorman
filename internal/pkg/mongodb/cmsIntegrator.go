@@ -43,7 +43,7 @@ func (ss *CmsIntegrator) Create(input *api.CreateInput) (*api.Key, bool, error) 
 	}
 	defer session.EndSession(context.Background())
 
-	inserted := false;
+	inserted := false
 
 	resInt, err := session.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (interface{}, error) {
 		c := session.Client().Database(keyMapDB).Collection(keyMapTable)
@@ -53,7 +53,7 @@ func (ss *CmsIntegrator) Create(input *api.CreateInput) (*api.Key, bool, error) 
 			if err == mongo.ErrNoDocuments {
 				key, err := ss.createKeyWithQuota(sessCtx, session, input)
 				if err == nil {
-					inserted = true	
+					inserted = true
 					return &api.Key{Key: key.Key}, nil
 				}
 				return nil, err
@@ -73,6 +73,56 @@ func (ss *CmsIntegrator) Create(input *api.CreateInput) (*api.Key, bool, error) 
 	return res, inserted, err
 }
 
+func (ss *CmsIntegrator) GetKey(keyID string) (*api.Key, error) {
+	if keyID == "" {
+		return nil, api.ErrNoRecord
+	}
+
+	ctx, cancel := mongoContext()
+	defer cancel()
+
+	session, err := ss.sessionProvider.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	defer session.EndSession(context.Background())
+
+	c := session.Client().Database(keyMapDB).Collection(keyMapTable)
+	var keyMapR keyMapRecord
+	err = c.FindOne(ctx, bson.M{"externalID": sanitize(keyID)}).Decode(&keyMapR)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, api.ErrNoRecord
+		}
+		return nil, errors.Wrapf(err, "can't load from keymap")
+	}
+	c = session.Client().Database(keyMapR.Project).Collection(keyTable)
+	keyR := &keyRecord{}
+	err = c.FindOne(ctx, bson.M{"key": sanitize(keyMapR.Key)}).Decode(&keyR)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, api.ErrNoRecord
+		}
+		return nil, errors.Wrapf(err, "can't load from %s.key", keyMapR.Project)
+	}
+	return mapToKey(keyMapR, keyR), nil
+}
+
+func mapToKey(keyMapR keyMapRecord, keyR *keyRecord) *api.Key {
+	return &api.Key{Key: keyMapR.Key, Service: keyMapR.Project, ValidTo: toTime(&keyR.ValidTo),
+		LastUsed: toTime(&keyR.LastUsed), LastIP: keyR.LastIP,
+		TotalCredits: keyR.Limit, UsedCredits: keyR.QuotaValue, FailedCredits: keyR.QuotaValueFailed,
+		Disabled: keyR.Disabled,
+	}
+}
+
+func toTime(time *time.Time) *time.Time {
+	if (time == nil || time.IsZero()) {
+		return nil
+	}
+	return time
+}
+
 func (ss *CmsIntegrator) createKeyWithQuota(ctx context.Context, session mongo.Session, input *api.CreateInput) (*keyRecord, error) {
 	// create map
 	c := session.Client().Database(keyMapDB).Collection(keyMapTable)
@@ -84,7 +134,7 @@ func (ss *CmsIntegrator) createKeyWithQuota(ctx context.Context, session mongo.S
 	_, err := c.InsertOne(ctx, keyMap)
 	if err != nil {
 		if IsDuplicate(err) {
-			return nil, errors.New("can't insert keymap - duplicate")	
+			return nil, errors.New("can't insert keymap - duplicate")
 		}
 		return nil, errors.Wrap(err, "can't insert keymap")
 	}
@@ -107,7 +157,7 @@ func (ss *CmsIntegrator) createKeyWithQuota(ctx context.Context, session mongo.S
 	res.Key = keyMap.Key
 	res.Limit = input.Credits
 
-	if (input.ValidTo != nil) {
+	if input.ValidTo != nil {
 		res.ValidTo = *input.ValidTo
 	} else {
 		res.ValidTo = time.Now().Add(ss.defaultValidToDuration)
@@ -120,7 +170,7 @@ func (ss *CmsIntegrator) createKeyWithQuota(ctx context.Context, session mongo.S
 	_, err = c.InsertOne(ctx, res)
 	if err != nil {
 		if IsDuplicate(err) {
-			return nil, errors.New("can't insert key - duplicate")	
+			return nil, errors.New("can't insert key - duplicate")
 		}
 		return nil, errors.Wrap(err, "can't insert key")
 	}
