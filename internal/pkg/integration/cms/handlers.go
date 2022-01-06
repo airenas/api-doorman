@@ -16,6 +16,7 @@ type (
 	Integrator interface {
 		Create(*api.CreateInput) (*api.Key, bool, error)
 		GetKey(keyID string) (*api.Key, error)
+		AddCredits(string, *api.CreditsInput) (*api.Key, error)
 	}
 
 	// PrValidator validates if project is available
@@ -32,6 +33,7 @@ type (
 func InitRoutes(e *echo.Echo, data *Data) {
 	e.POST("/key", keyCreate(data))
 	e.GET("/key/:keyID", keyGet(data))
+	e.PATCH("/key/:keyID/credits", keyAddCredits(data))
 }
 
 func keyCreate(data *Data) func(echo.Context) error {
@@ -86,6 +88,33 @@ func keyGet(data *Data) func(echo.Context) error {
 		}
 		if c.QueryParam("returnKey") != "1" {
 			keyResp.Key = ""
+		}
+		return c.JSON(http.StatusOK, keyResp)
+	}
+}
+
+func keyAddCredits(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		keyID := c.Param("keyID")
+		if keyID == "" {
+			goapp.Log.Error("no key ID")
+			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
+		}
+		var input api.CreditsInput
+		if err := utils.TakeJSONInput(c, &input); err != nil {
+			goapp.Log.Error(err)
+			return err
+		}
+		keyResp, err := data.Integrator.AddCredits(keyID, &input)
+
+		if err != nil {
+			goapp.Log.Error("can't add credits. ", err)
+			var errF *api.ErrField
+			if errors.As(err, &errF) {
+				return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
+			}
+			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.JSON(http.StatusOK, keyResp)
 	}

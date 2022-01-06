@@ -6,7 +6,6 @@ import (
 	"time"
 )
 
-// Key structure for key data
 type CreateInput struct {
 	ID           string    `json:"id,omitempty"`
 	OperationID  string    `json:"operationID,omitempty"`
@@ -15,6 +14,12 @@ type CreateInput struct {
 	ValidTo      *time.Time `json:"validTo,omitempty"`
 	SaveRequests bool      `json:"saveRequests,omitempty"`
 }
+
+type CreditsInput struct {
+	OperationID  string    `json:"operationID,omitempty"`
+	Credits      float64   `json:"credits,omitempty"`
+}
+
 
 // Key structure for key data
 type Key struct {
