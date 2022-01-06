@@ -101,9 +101,10 @@ func (ss *CmsIntegrator) createKeyWithQuota(ctx context.Context, session mongo.S
 	res.Key = keyMap.Key
 	res.Limit = input.Credits
 
-	res.ValidTo = input.ValidTo
-	if input.ValidTo.IsZero() {
-		input.ValidTo = time.Now().Add(ss.defaultValidToDuration)
+	if (input.ValidTo != nil) {
+		res.ValidTo = *input.ValidTo
+	} else {
+		res.ValidTo = time.Now().Add(ss.defaultValidToDuration)
 	}
 	res.Created = time.Now()
 	res.Manual = true
@@ -130,7 +131,7 @@ func validateInput(input *api.CreateInput) error {
 	if strings.TrimSpace(input.Service) == "" {
 		return &api.ErrField{Field: "service", Msg: "missing"}
 	}
-	if !input.ValidTo.IsZero() && input.ValidTo.Before(time.Now()) {
+	if input.ValidTo != nil && input.ValidTo.Before(time.Now()) {
 		return &api.ErrField{Field: "validTo", Msg: "past date"}
 	}
 	if input.Credits <= 0.1 {

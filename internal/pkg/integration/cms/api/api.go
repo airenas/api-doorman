@@ -12,7 +12,7 @@ type CreateInput struct {
 	OperationID  string    `json:"operationID,omitempty"`
 	Service      string    `json:"service,omitempty"`
 	Credits      float64   `json:"credits,omitempty"`
-	ValidTo      time.Time `json:"validTo,omitempty"`
+	ValidTo      *time.Time `json:"validTo,omitempty"`
 	SaveRequests bool      `json:"saveRequests,omitempty"`
 }
 
