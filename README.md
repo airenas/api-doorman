@@ -33,6 +33,13 @@ Expected result:
 
 1. Access private API: `make test-private-key key=<<created key>>` . Sample: `make test-private-key key=XK3JoSyC48cxgvvkpUF4`
 
+1. Clean demo
+```bash
+make clean
+# or 
+sudo make clean
+```
+
 **Note**: the proxy must be not exposed to the Internet directly! It is expected to work under some real proxy like: *nginx*, *traefik* or other. It uses *X-FORWARDED-FOR* header value to detect IP.
 
 ---
