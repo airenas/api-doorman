@@ -5,3 +5,4 @@ deploy/local/.env
 Makefile.option
 deploy/**/data/**
 internal/pkg/test/mocks/**
+internal/pkg/test/mocks2/**

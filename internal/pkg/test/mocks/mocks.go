@@ -1,6 +1,9 @@
 package mocks
 
 import (
+	"encoding/json"
+	io "io"
+	"strings"
 	"testing"
 
 	"github.com/petergtz/pegomock"
@@ -35,4 +38,9 @@ func handleByTest(t *testing.T) pegomock.FailHandler {
 			t.Error(message)
 		}
 	}
+}
+
+func ToReader(data interface{}) io.Reader {
+	bytes, _ := json.Marshal(data)
+	return strings.NewReader(string(bytes))
 }
