@@ -158,17 +158,8 @@ func (ss *CmsIntegrator) Usage(keyID string, from, to *time.Time, full bool) (*a
 		return nil, err
 	}
 
-	filter := bson.M{"key": sanitize(keyMapR.Key)}
-	if from != nil || to != nil {
-		df := bson.M{}
-		if from != nil {
-			df["$gte"] = *from
-		}
-		if to != nil {
-			df["$lt"] = *to
-		}
-		filter["date"] = df
-	}
+	filter := makeDateFilter(keyMapR.Key, from, to)
+
 	c := sessCtx.Client().Database(keyMapR.Project).Collection(logTable)
 	cursor, err := c.Find(sessCtx, filter)
 	if err != nil {
@@ -192,6 +183,21 @@ func (ss *CmsIntegrator) Usage(keyID string, from, to *time.Time, full bool) (*a
 		}
 	}
 	return res, err
+}
+
+func makeDateFilter(key string, from, to *time.Time) bson.M {
+	res := bson.M{"key": sanitize(key)}
+	if from != nil || to != nil {
+		df := bson.M{}
+		if from != nil {
+			df["$gte"] = *from
+		}
+		if to != nil {
+			df["$lt"] = *to
+		}
+		res["date"] = df
+	}
+	return res
 }
 
 func mapLogRecord(log *logRecord) *api.Log {
@@ -326,20 +332,8 @@ func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input 
 		return nil, errors.Wrap(err, "can't insert operation")
 	}
 	c = sessCtx.Client().Database(input.Service).Collection(keyTable)
-	res := &keyRecord{}
+	res := initNewKey(input, ss.defaultValidToDuration, time.Now())
 	res.Key = keyMap.Key
-	res.Limit = input.Credits
-
-	if input.ValidTo != nil {
-		res.ValidTo = *input.ValidTo
-	} else {
-		res.ValidTo = time.Now().Add(ss.defaultValidToDuration)
-	}
-	res.Created = time.Now()
-	res.Manual = true
-	if input.SaveRequests {
-		res.Tags = []string{"x-tts-collect-data:always"}
-	}
 	_, err = c.InsertOne(sessCtx, res)
 	if err != nil {
 		if IsDuplicate(err) {
@@ -348,6 +342,22 @@ func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input 
 		return nil, errors.Wrap(err, "can't insert key")
 	}
 	return res, err
+}
+
+func initNewKey(input *api.CreateInput, defDuration time.Duration, now time.Time) *keyRecord {
+	res := &keyRecord{}
+	res.Limit = input.Credits
+	if input.ValidTo != nil {
+		res.ValidTo = *input.ValidTo
+	} else {
+		res.ValidTo = time.Now().Add(defDuration)
+	}
+	res.Created = now
+	res.Manual = true
+	if input.SaveRequests {
+		res.Tags = []string{"x-tts-collect-data:always"}
+	}
+	return res
 }
 
 func validateInput(input *api.CreateInput) error {
