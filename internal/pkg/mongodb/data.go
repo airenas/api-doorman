@@ -5,8 +5,8 @@ import (
 )
 
 type keyRecord struct {
-	Key              string    `bson:"key,omitempty"`
-	Manual           bool      `bson:"manual,omitempty"`
+	Key              string    `bson:"key"`
+	Manual           bool      `bson:"manual"`
 	ValidTo          time.Time `bson:"validTo,omitempty"`
 	Limit            float64   `bson:"limit,omitempty"`
 	QuotaValue       float64   `bson:"quotaValue"`
