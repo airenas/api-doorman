@@ -46,3 +46,7 @@ mongosh:
 mongo-prepare:
 	sleep 3
 	docker-compose exec mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS) --eval "rs.initiate()"
+
+mongo-update-script:
+	docker-compose exec mongo sh -c \
+	'printf "use test\ndb.log.update({}, {\$$rename:{\"quotavalue\":\"quotaValue\", \"responsecode\":\"responseCode\"}}, false, true)" | /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS)'
