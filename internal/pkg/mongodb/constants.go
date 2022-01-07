@@ -11,6 +11,7 @@ const (
 var indexData = []IndexData{
 	newIndexData(keyTable, []string{"key", "manual"}, true),
 	newIndexData(logTable, []string{"key"}, false),
+	newIndexData(logTable, []string{"date"}, false),
 	newIndexData(operationTable, []string{"operationID"}, true),
 }
 

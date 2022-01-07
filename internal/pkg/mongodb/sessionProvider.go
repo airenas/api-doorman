@@ -86,14 +86,22 @@ func checkIndex(s mongo.Session, indexData IndexData, database string) error {
 	}
 	index := mongo.IndexModel{
 		Keys:    keys,
-		Options: options.Index().SetUnique(indexData.Unique).SetBackground(true).SetSparse(true),
+		Options: options.Index().SetUnique(indexData.Unique).SetSparse(true),
 	}
-	_, err := c.Indexes().CreateOne(context.Background(), index)
-	return err
+	name, err := c.Indexes().CreateOne(context.Background(),
+		index, options.CreateIndexes().SetCommitQuorumInt(0).SetMaxTime(time.Second*30))
+	if err != nil {
+		return err
+	}
+	if name != "" {
+		goapp.Log.Debugf("Added index %s.%s", database, name)
+	}
+	return nil
 }
 
 // Healthy checks if mongo DB is up
 func (sp *SessionProvider) CheckIndexes(dbs []string) error {
+	goapp.Log.Infof("Check indexes for %v", dbs)
 	session, err := sp.NewSession()
 	if err != nil {
 		return err
