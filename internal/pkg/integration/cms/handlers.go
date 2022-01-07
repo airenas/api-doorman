@@ -1,7 +1,9 @@
 package cms
 
 import (
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
@@ -18,6 +20,7 @@ type (
 		GetKey(keyID string) (*api.Key, error)
 		AddCredits(string, *api.CreditsInput) (*api.Key, error)
 		GetKeyID(string) (*api.KeyID, error)
+		Usage(string, *time.Time, *time.Time, bool) (*api.Usage, error)
 	}
 
 	// PrValidator validates if project is available
@@ -36,6 +39,7 @@ func InitRoutes(e *echo.Echo, data *Data) {
 	e.POST("/keyID", keyGetID(data))
 	e.GET("/key/:keyID", keyGet(data))
 	e.PATCH("/key/:keyID/credits", keyAddCredits(data))
+	e.GET("/key/:keyID/usage", keyUsage(data))
 }
 
 func keyCreate(data *Data) func(echo.Context) error {
@@ -152,6 +156,47 @@ func keyGetID(data *Data) func(echo.Context) error {
 		}
 		return c.JSON(http.StatusOK, keyResp)
 	}
+}
+
+func keyUsage(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		keyID := c.Param("keyID")
+		if keyID == "" {
+			goapp.Log.Error("no key ID")
+			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
+		}
+		from, err := parseDateParam(c.QueryParam("from"))
+		if err != nil {
+			return err
+		}
+		to, err := parseDateParam(c.QueryParam("to"))
+		if err != nil {
+			return err
+		}
+		usageResp, err := data.Integrator.Usage(keyID, from, to, c.QueryParam("full") == "1")
+
+		if err != nil {
+			goapp.Log.Error("can't get usage. ", err)
+			if errors.Is(err, api.ErrNoRecord) {
+				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ID")
+			}
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		return c.JSON(http.StatusOK, usageResp)
+	}
+}
+
+func parseDateParam(s string) (*time.Time, error) {
+	if s == "" {
+		return nil, nil
+	}
+	res, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		goapp.Log.Error(errors.Wrapf(err, "can't parse as date '%s'", s))
+		return nil, echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("can't parse as date '%s'", s))
+	}
+	return &res, nil
 }
 
 func validateService(project string, prV PrValidator) error {

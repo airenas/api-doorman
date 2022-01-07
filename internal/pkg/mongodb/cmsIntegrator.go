@@ -146,6 +146,64 @@ func (ss *CmsIntegrator) AddCredits(keyID string, input *api.CreditsInput) (*api
 	return res, err
 }
 
+func (ss *CmsIntegrator) Usage(keyID string, from, to *time.Time, full bool) (*api.Usage, error) {
+	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+
+	keyMapR, err := loadKeyMapRecord(sessCtx, keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	filter := bson.M{"key": sanitize(keyMapR.Key)}
+	if from != nil || to != nil {
+		df := bson.M{}
+		if from != nil {
+			df["$gte"] = *from
+		}
+		if to != nil {
+			df["$lt"] = *to
+		}
+		filter["date"] = df
+	}
+	c := sessCtx.Client().Database(keyMapR.Project).Collection(logTable)
+	cursor, err := c.Find(sessCtx, filter)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't get logs")
+	}
+	defer cursor.Close(sessCtx)
+	res := &api.Usage{}
+	for cursor.Next(sessCtx) {
+		var logR logRecord
+		if err := cursor.Decode(&logR); err != nil {
+			return nil, errors.Wrap(err, "can't get log record")
+		}
+		if logR.Fail {
+			res.FailedCredits += logR.QuotaValue
+		} else {
+			res.UsedCredits += logR.QuotaValue
+		}
+		res.RequestCount++
+		if full {
+			res.Logs = append(res.Logs, mapLogRecord(&logR))
+		}
+	}
+	return res, err
+}
+
+func mapLogRecord(log *logRecord) *api.Log {
+	res := &api.Log{}
+	res.Date = toTime(&log.Date)
+	res.Fail = log.Fail
+	res.Response = log.ResponseCode
+	res.IP = log.IP
+	res.UsedCredits = log.QuotaValue
+	return res
+}
+
 func newSessionWithContext(sessionProvider *SessionProvider) (mongo.SessionContext, func(), error) {
 	session, err := sessionProvider.NewSession()
 	if err != nil {

@@ -29,7 +29,7 @@ type logRecord struct {
 	IP           string    `bson:"ip,omitempty"`
 	Value        string    `bson:"value,omitempty"`
 	Fail         bool      `bson:"fail,omitempty"`
-	ResponseCode int       `bson:"response,omitempty"`
+	ResponseCode int       `bson:"responseCode,omitempty"`
 }
 
 type keyMapRecord struct {

@@ -121,5 +121,5 @@ func (sp *SessionProvider) Healthy() error {
 }
 
 func mongoContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), 50*time.Second)
+	return context.WithTimeout(context.Background(), 10*time.Second)
 }

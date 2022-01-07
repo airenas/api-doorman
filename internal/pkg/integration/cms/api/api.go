@@ -42,6 +42,21 @@ type KeyID struct {
 	Service string `json:"service,omitempty"`
 }
 
+type Usage struct {
+	RequestCount  int     `json:"requestCount"`
+	UsedCredits   float64 `json:"usedCredits,omitempty"`
+	FailedCredits float64 `json:"failedCredits,omitempty"`
+	Logs          []*Log  `json:"logs,omitempty"`
+}
+
+type Log struct {
+	UsedCredits float64    `json:"usedCredits,omitempty"`
+	Date        *time.Time `json:"date,omitempty"`
+	IP          string     `json:"ip,omitempty"`
+	Fail        bool       `json:"fail,omitempty"`
+	Response    int        `json:"response,omitempty"`
+}
+
 //ErrNoRecord indicates no record found error
 var ErrNoRecord = errors.New("no record found")
 
