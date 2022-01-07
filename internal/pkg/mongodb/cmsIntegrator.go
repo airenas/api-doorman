@@ -284,7 +284,8 @@ func mapToKey(keyMapR *keyMapRecord, keyR *keyRecord) *api.Key {
 	return &api.Key{Key: keyMapR.Key, Service: keyMapR.Project, ValidTo: toTime(&keyR.ValidTo),
 		LastUsed: toTime(&keyR.LastUsed), LastIP: keyR.LastIP,
 		TotalCredits: keyR.Limit, UsedCredits: keyR.QuotaValue, FailedCredits: keyR.QuotaValueFailed,
-		Disabled: keyR.Disabled,
+		Disabled: keyR.Disabled, Created: toTime(&keyR.Created),
+		IPWhiteList: keyR.IPWhiteList,
 	}
 }
 
