@@ -8,7 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func TestIsDuplicaete(t *testing.T) {
+func TestIsDuplicate(t *testing.T) {
 	assert.False(t, IsDuplicate(nil))
 	assert.False(t, IsDuplicate(errors.New("Olia")))
 	assert.False(t, IsDuplicate(mongo.WriteException{WriteErrors: []mongo.WriteError{{Code: 1100}}}))
