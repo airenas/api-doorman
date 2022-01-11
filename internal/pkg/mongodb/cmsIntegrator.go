@@ -291,6 +291,7 @@ func mapToKey(keyMapR *keyMapRecord, keyR *keyRecord) *api.Key {
 		LastUsed: toTime(&keyR.LastUsed), LastIP: keyR.LastIP,
 		TotalCredits: keyR.Limit, UsedCredits: keyR.QuotaValue, FailedCredits: keyR.QuotaValueFailed,
 		Disabled: keyR.Disabled, Created: toTime(&keyR.Created),
+		Updated:     toTime(&keyR.Updated),
 		IPWhiteList: keyR.IPWhiteList,
 	}
 }
@@ -350,7 +351,7 @@ func initNewKey(input *api.CreateInput, defDuration time.Duration, now time.Time
 	if input.ValidTo != nil {
 		res.ValidTo = *input.ValidTo
 	} else {
-		res.ValidTo = time.Now().Add(defDuration)
+		res.ValidTo = now.Add(defDuration)
 	}
 	res.Created = now
 	res.Manual = true
