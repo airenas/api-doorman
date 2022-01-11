@@ -276,3 +276,81 @@ func Test_validateService(t *testing.T) {
 		})
 	}
 }
+
+func TestAddCredits(t *testing.T) {
+	type ret struct {
+		res api.Key
+		err error
+	}
+	tests := []struct {
+		name string
+		ret  ret
+		inp  io.Reader
+		want int
+	}{
+		{name: "Created", ret: ret{res: api.Key{Key: "kk"}, err: nil},
+			inp:  mocks.ToReader(api.CreditsInput{OperationID: "1", Credits: 100}),
+			want: http.StatusOK},
+		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: errors.New("olia")},
+			inp:  mocks.ToReader(api.CreditsInput{OperationID: "1", Credits: 100}),
+			want: http.StatusInternalServerError},
+		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: &api.ErrField{Field: "aa", Msg: "msg"}},
+			inp:  mocks.ToReader(api.CreditsInput{OperationID: "1", Credits: 100}),
+			want: http.StatusBadRequest},
+		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: api.ErrNoRecord},
+			inp:  mocks.ToReader(api.CreditsInput{OperationID: "1", Credits: 100}),
+			want: http.StatusBadRequest},
+		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: errors.New("olia")},
+			inp:  strings.NewReader("olia"),
+			want: http.StatusBadRequest},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			initTest(t)
+			pegomock.When(intMock.AddCredits(pegomock.AnyString(), matchers.AnyPtrToApiCreditsInput())).
+				ThenReturn(&tt.ret.res, tt.ret.err)
+			req := httptest.NewRequest(http.MethodPatch, "/key/id/credits", tt.inp)
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			testCode(t, req, tt.want)
+		})
+	}
+}
+
+func TestKeyGetID(t *testing.T) {
+	type ret struct {
+		res api.KeyID
+		err error
+	}
+	tests := []struct {
+		name string
+		ret  ret
+		inp  io.Reader
+		want int
+	}{
+		{name: "OK", ret: ret{res: api.KeyID{ID: "kk"}, err: nil},
+			inp:  mocks.ToReader(keyByIDInput{Key: "1"}),
+			want: http.StatusOK},
+		{name: "No key", ret: ret{res: api.KeyID{ID: "kk"}, err: nil},
+			inp:  mocks.ToReader(keyByIDInput{Key: ""}),
+			want: http.StatusBadRequest},
+		{name: "No key", ret: ret{res: api.KeyID{ID: "kk"}, err: nil},
+			inp:  strings.NewReader("olia"),
+			want: http.StatusBadRequest},
+		{name: "No key", ret: ret{res: api.KeyID{ID: "kk"}, err: errors.New("olia")},
+			inp:  mocks.ToReader(keyByIDInput{Key: "1"}),
+			want: http.StatusInternalServerError},
+		{name: "No key", ret: ret{res: api.KeyID{ID: "kk"}, err: api.ErrNoRecord},
+			inp:  mocks.ToReader(keyByIDInput{Key: "1"}),
+			want: http.StatusBadRequest},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			initTest(t)
+			pegomock.When(intMock.GetKeyID(pegomock.AnyString())).
+				ThenReturn(&tt.ret.res, tt.ret.err)
+			req := httptest.NewRequest(http.MethodPost, "/keyID", tt.inp)
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			testCode(t, req, tt.want)
+		})
+	}
+}
