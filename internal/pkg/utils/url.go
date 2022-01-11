@@ -7,14 +7,14 @@ import (
 	"github.com/airenas/go-app/pkg/goapp"
 )
 
-//ParseURL parse url and checks is not empty
+//ParseURL parse url and checks host is not empty
 func ParseURL(str string) (*url.URL, error) {
 	u, err := url.Parse(str)
 	if err != nil {
 		return nil, err
 	}
 	if u.Host == "" {
-		return nil, errors.New("Can't parse url")
+		return nil, errors.New("can't parse url")
 	}
 	return u, nil
 }
@@ -23,7 +23,7 @@ func ParseURL(str string) (*url.URL, error) {
 func HidePass(link string) string {
 	u, err := url.Parse(link)
 	if err != nil {
-		goapp.Log.Warn("Can't parse url.")
+		goapp.Log.Warn("can't parse url.")
 		return ""
 	}
 	if u.User != nil {
