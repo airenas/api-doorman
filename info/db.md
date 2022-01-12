@@ -33,7 +33,7 @@ Table keeps keys
 
 Table keeps all requests. System logs user`s IP, time, quota value of the request.
 
-| Laukas| Tipas | Paskirtis |
+| Field | Type | Usage |
 | ---|-|-|
 | key | string | |
 | url | string | request URL, path |
@@ -41,4 +41,36 @@ Table keeps all requests. System logs user`s IP, time, quota value of the reques
 | date | time | Time of the request |
 | ip | string | IP of the user |
 | fail | bool | *true* if the requests has failed |
-| response | int | Code of the response returned to the user |
+| responseCode | int | Code of the response returned to the user |
+
+## KeyMap table
+
+Table maps keys with external IDs.
+
+| Field | Type | Usage |
+| ---|-|-|
+| externalID[pk] | string | ID of external system |
+| key | string | current key value |
+| project | string | name of a service. For example: *tts*, ... |
+| created | time | Time of record creation |
+| old | [] **oldKey** | Array of old keys for the externalID |
+
+### OldKey structure
+
+Strukture keeps obsolete keys.
+
+| Field | Type | Usage |
+| ---|-|-|
+| key | string | old key value|
+| changedOn | time | Time of the key change |
+
+## Operation table
+
+Table keeps quota increase operations.
+
+| Field | Type | Usage |
+| ---|-|-|
+| operationID[pk] | string | Unique ID of the operation |
+| key | string | key value |
+| date | time | Time of operation |
+| quotaValue | float64 | Quota used by the request |
