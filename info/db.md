@@ -36,7 +36,7 @@ Table keeps all requests. System logs user`s IP, time, quota value of the reques
 | Field | Type | Usage |
 | ---|-|-|
 | key | string | |
-| url | string | request URL, path |
+| url | string | Request URL, path |
 | quotaValue | float64 | Quota used by the request |
 | date | time | Time of the request |
 | ip | string | IP of the user |
@@ -50,8 +50,8 @@ Table maps keys with external IDs.
 | Field | Type | Usage |
 | ---|-|-|
 | externalID[pk] | string | ID of external system |
-| key | string | current key value |
-| project | string | name of a service. For example: *tts*, ... |
+| key | string | Current key |
+| project | string | Name of a service. For example: *tts*, ... |
 | created | time | Time of record creation |
 | old | [] **oldKey** | Array of old keys for the externalID |
 
@@ -61,7 +61,7 @@ Strukture keeps obsolete keys.
 
 | Field | Type | Usage |
 | ---|-|-|
-| key | string | old key value|
+| key | string | Old key value|
 | changedOn | time | Time of the key change |
 
 ## Operation table
@@ -71,6 +71,6 @@ Table keeps quota increase operations.
 | Field | Type | Usage |
 | ---|-|-|
 | operationID[pk] | string | Unique ID of the operation |
-| key | string | key value |
+| key | string | Key value |
 | date | time | Time of operation |
-| quotaValue | float64 | Quota used by the request |
+| quotaValue | float64 | Quota increase value |
