@@ -221,3 +221,61 @@ func Test_initNewKey(t *testing.T) {
 		})
 	}
 }
+
+func Test_prepareKeyUpdates(t *testing.T) {
+	type args struct {
+		input map[string]interface{}
+	}
+	now := time.Now()
+	tests := []struct {
+		name    string
+		args    args
+		want    bson.M
+		wantErr bool
+	}{
+		{name: "Empty", args: args{input: map[string]interface{}{}}, want: nil, wantErr: true},
+		{name: "All",
+			args: args{input: map[string]interface{}{"validTo": "2051-01-02T12:30:30Z", "disabled": true,
+				"IPWhiteList": ""}},
+			want: bson.M{"validTo": time.Date(2051, 1, 2, 12, 30, 30, 0, time.UTC),
+				"disabled": true, "IPWhiteList": "",
+				"updated": now}, wantErr: false},
+		{name: "Disabled",
+			args: args{input: map[string]interface{}{"disabled": true}},
+			want: bson.M{"disabled": true, "updated": now}, wantErr: false},
+		{name: "Disabled",
+			args: args{input: map[string]interface{}{"disabled": false}},
+			want: bson.M{"disabled": false, "updated": now}, wantErr: false},
+		{name: "IPWhiteList",
+			args: args{input: map[string]interface{}{"IPWhiteList": "1.2.3.4/32"}},
+			want: bson.M{"IPWhiteList": "1.2.3.4/32", "updated": now}, wantErr: false},
+		{name: "IPWhiteList fail",
+			args: args{input: map[string]interface{}{"IPWhiteList": "1.2.3.4/32,olia"}},
+			want: nil, wantErr: true},
+		{name: "ValidTo",
+			args: args{input: map[string]interface{}{"validTo": "2051-01-02T12:30:30Z"}},
+			want: bson.M{"validTo": time.Date(2051, 1, 2, 12, 30, 30, 0, time.UTC),
+				"updated": now}, wantErr: false},
+		{name: "ValidTo fail",
+			args: args{input: map[string]interface{}{"validTo": "xxx2031-01-02T12:30:30Z"}},
+			want: nil, wantErr: true},
+		{name: "ValidTo fail past",
+			args: args{input: map[string]interface{}{"validTo": "2021-01-02T12:30:30Z"}},
+			want: nil, wantErr: true},
+		{name: "Unknown",
+			args: args{input: map[string]interface{}{"limit": 100000}},
+			want: nil, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := prepareKeyUpdates(tt.args.input, now)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("prepareKeyUpdates() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("prepareKeyUpdates() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

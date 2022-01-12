@@ -7,6 +7,8 @@ import (
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
+	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -72,7 +74,7 @@ func (ss *CmsIntegrator) Create(input *api.CreateInput) (*api.Key, bool, error) 
 		return nil, false, err
 	}
 	res := resInt.(*api.Key)
-	return res, inserted, err
+	return res, inserted, nil
 }
 
 func (ss *CmsIntegrator) GetKey(keyID string) (*api.Key, error) {
@@ -147,7 +149,85 @@ func (ss *CmsIntegrator) AddCredits(keyID string, input *api.CreditsInput) (*api
 	keyR := resInt.(*keyRecord)
 	res := mapToKey(keyMapR, keyR)
 	res.Key = ""
-	return res, err
+	return res, nil
+}
+
+func (ss *CmsIntegrator) Update(keyID string, input map[string]interface{}) (*api.Key, error) {
+	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+
+	keyMapR, err := loadKeyMapRecord(sessCtx, keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	update, err := prepareKeyUpdates(input, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	keyR := &keyRecord{}
+	c := sessCtx.Client().Database(keyMapR.Project).Collection(keyTable)
+	err = c.FindOneAndUpdate(sessCtx,
+		keyFilter(keyMapR.Key),
+		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&keyR)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, api.ErrNoRecord
+		}
+		return nil, errors.Wrapf(err, "can't update %s.key", keyTable)
+	}
+	res := mapToKey(keyMapR, keyR)
+	res.Key = ""
+	return res, nil
+}
+
+func prepareKeyUpdates(input map[string]interface{}, now time.Time) (bson.M, error) {
+	res := bson.M{}
+	for k, v := range input {
+		var err error
+		ok := true
+		if k == "validTo" {
+			res["validTo"], ok = v.(time.Time)
+			if !ok {
+				res["validTo"], err = time.Parse(time.RFC3339, v.(string))
+				ok = err == nil
+			}
+			if ok {
+				ok = res["validTo"].(time.Time).After(now)
+				if !ok {
+					return nil, &api.ErrField{Field: k, Msg: "past date"}
+				}
+			}
+		} else if k == "disabled" {
+			res["disabled"], ok = v.(bool)
+		} else if k == "IPWhiteList" {
+			var s string
+			s, ok = v.(string)
+			if ok {
+				err := utils.ValidateIPsCIDR(s)
+				if err != nil {
+					return nil, &api.ErrField{Field: k, Msg: "wrong IP CIDR format"}
+				}
+				res["IPWhiteList"] = v
+			}
+		} else {
+			err = &api.ErrField{Field: k, Msg: "unknown or unsuported update"}
+		}
+		if !ok || err != nil {
+			if err != nil {
+				goapp.Log.Error(err)
+			}
+			return nil, &api.ErrField{Field: k, Msg: "can't parse"}
+		}
+	}
+	if len(res) == 0 {
+		return nil, &api.ErrField{Field: "", Msg: "no updates"}
+	}
+	res["updated"] = now
+	return res, nil
 }
 
 func (ss *CmsIntegrator) Usage(keyID string, from, to *time.Time, full bool) (*api.Usage, error) {
@@ -253,7 +333,7 @@ func addQuota(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.Cr
 	keyR := &keyRecord{}
 	c = sessCtx.Client().Database(keyMapR.Project).Collection(keyTable)
 	err = c.FindOneAndUpdate(sessCtx,
-		bson.M{"key": sanitize(keyMapR.Key), "manual": true},
+		keyFilter(keyMapR.Key),
 		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&keyR)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -267,7 +347,7 @@ func addQuota(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.Cr
 func loadKeyRecord(sessCtx mongo.SessionContext, project, key string) (*keyRecord, error) {
 	c := sessCtx.Client().Database(project).Collection(keyTable)
 	keyR := &keyRecord{}
-	err := c.FindOne(sessCtx, bson.M{"key": sanitize(key), "manual": true}).Decode(&keyR)
+	err := c.FindOne(sessCtx, keyFilter(key)).Decode(&keyR)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, api.ErrNoRecord
@@ -275,6 +355,10 @@ func loadKeyRecord(sessCtx mongo.SessionContext, project, key string) (*keyRecor
 		return nil, errors.Wrapf(err, "can't load from %s.key", project)
 	}
 	return keyR, nil
+}
+
+func keyFilter(key string) bson.M {
+	return bson.M{"key": sanitize(key), "manual": true}
 }
 
 func loadKeyMapRecord(sessCtx mongo.SessionContext, keyID string) (*keyMapRecord, error) {

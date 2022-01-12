@@ -21,6 +21,7 @@ type (
 		AddCredits(string, *api.CreditsInput) (*api.Key, error)
 		GetKeyID(string) (*api.KeyID, error)
 		Usage(string, *time.Time, *time.Time, bool) (*api.Usage, error)
+		Update(string, map[string]interface{}) (*api.Key, error)
 	}
 
 	// PrValidator validates if project is available
@@ -38,6 +39,7 @@ func InitRoutes(e *echo.Echo, data *Data) {
 	e.POST("/key", keyCreate(data))
 	e.POST("/keyID", keyGetID(data))
 	e.GET("/key/:keyID", keyGet(data))
+	e.PATCH("/key/:keyID", keyUpdate(data))
 	e.PATCH("/key/:keyID/credits", keyAddCredits(data))
 	e.GET("/key/:keyID/usage", keyUsage(data))
 }
@@ -94,6 +96,36 @@ func keyGet(data *Data) func(echo.Context) error {
 		}
 		if c.QueryParam("returnKey") != "1" {
 			keyResp.Key = ""
+		}
+		return c.JSON(http.StatusOK, keyResp)
+	}
+}
+
+func keyUpdate(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		keyID := c.Param("keyID")
+		if keyID == "" {
+			goapp.Log.Error("no key ID")
+			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
+		}
+		input := make(map[string]interface{})
+		if err := utils.TakeJSONInput(c, &input); err != nil {
+			goapp.Log.Error(err)
+			return err
+		}
+		keyResp, err := data.Integrator.Update(keyID, input)
+
+		if err != nil {
+			goapp.Log.Error("can't update key. ", err)
+			var errF *api.ErrField
+			if errors.As(err, &errF) {
+				return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
+			}
+			if errors.Is(err, api.ErrNoRecord) {
+				return echo.NewHTTPError(http.StatusBadRequest, "no record by ID "+keyID)
+			}
+			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.JSON(http.StatusOK, keyResp)
 	}
