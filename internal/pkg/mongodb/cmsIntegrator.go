@@ -270,7 +270,7 @@ func (ss *CmsIntegrator) Usage(keyID string, from, to *time.Time, full bool) (*a
 		return nil, err
 	}
 
-	filter := makeDateFilter(keyMapR.Key, from, to)
+	filter := makeDateFilter(keyMapR.Key, keyMapR.Old, from, to)
 
 	c := sessCtx.Client().Database(keyMapR.Project).Collection(logTable)
 	cursor, err := c.Find(sessCtx, filter)
@@ -297,8 +297,15 @@ func (ss *CmsIntegrator) Usage(keyID string, from, to *time.Time, full bool) (*a
 	return res, err
 }
 
-func makeDateFilter(key string, from, to *time.Time) bson.M {
+func makeDateFilter(key string, old []oldKey, from, to *time.Time) bson.M {
 	res := bson.M{"key": sanitize(key)}
+	if len(old) > 0 {
+		keys := []string{sanitize(key)}
+		for _, k := range old {
+			keys = append(keys, k.Key)
+		}
+		res["key"] = bson.M{"$in": keys}
+	}
 	if from != nil || to != nil {
 		df := bson.M{}
 		if from != nil {

@@ -37,6 +37,12 @@ type keyMapRecord struct {
 	ExternalID string    `bson:"externalID"`
 	Project    string    `bson:"project"`
 	Created    time.Time `bson:"created,omitempty"`
+	Old        []oldKey  `bson:"old,omitempty"`
+}
+
+type oldKey struct {
+	Key       string    `bson:"key"`
+	ChangedOn time.Time `bson:"changedOn,omitempty"`
 }
 
 type operationRecord struct {

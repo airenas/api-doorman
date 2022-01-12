@@ -98,6 +98,7 @@ func Test_validateInput(t *testing.T) {
 func Test_makeDateFilter(t *testing.T) {
 	type args struct {
 		key  string
+		old  []oldKey
 		from *time.Time
 		to   *time.Time
 	}
@@ -118,7 +119,7 @@ func Test_makeDateFilter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := makeDateFilter(tt.args.key, tt.args.from, tt.args.to); !reflect.DeepEqual(got, tt.want) {
+			if got := makeDateFilter(tt.args.key, tt.args.old, tt.args.from, tt.args.to); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("makeDateFilter() = %v, want %v", got, tt.want)
 			}
 		})
