@@ -199,7 +199,8 @@ func (ss *CmsIntegrator) Update(keyID string, input map[string]interface{}) (*ap
 	c := sessCtx.Client().Database(keyMapR.Project).Collection(keyTable)
 	err = c.FindOneAndUpdate(sessCtx,
 		keyFilter(keyMapR.Key),
-		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&keyR)
+		bson.M{"$set": update},
+		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&keyR)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, api.ErrNoRecord
@@ -478,7 +479,7 @@ func (ss *CmsIntegrator) changeKey(sessCtx mongo.SessionContext, keyMapR *keyMap
 	c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
 	err := c.FindOneAndUpdate(sessCtx,
 		bson.M{"externalID": keyMapR.ExternalID},
-		bson.M{"key": newKey, "updated": time.Now(),
+		bson.M{"$set": bson.M{"key": newKey, "updated": time.Now()},
 			"$push": bson.M{"old": bson.M{"changedOn": time.Now(), "key": oldKey}}}).Err()
 
 	if err != nil {
@@ -489,16 +490,14 @@ func (ss *CmsIntegrator) changeKey(sessCtx mongo.SessionContext, keyMapR *keyMap
 	}
 
 	//update key
+	c = sessCtx.Client().Database(keyMapR.Project).Collection(keyTable)
 	res := &keyRecord{}
 	err = c.FindOneAndUpdate(sessCtx,
 		keyFilter(oldKey),
-		bson.M{"key": newKey, "updated": time.Now()},
-		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(res)
+		bson.M{"$set": bson.M{"key": newKey, "updated": time.Now()}},
+		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&res)
 
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, api.ErrNoRecord
-		}
 		return nil, errors.Wrap(err, "can't update key")
 	}
 	return res, err
