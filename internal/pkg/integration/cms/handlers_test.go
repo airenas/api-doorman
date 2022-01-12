@@ -316,6 +316,45 @@ func TestAddCredits(t *testing.T) {
 	}
 }
 
+func TestUpdate(t *testing.T) {
+	type ret struct {
+		res api.Key
+		err error
+	}
+	tests := []struct {
+		name string
+		ret  ret
+		inp  io.Reader
+		want int
+	}{
+		{name: "OK", ret: ret{res: api.Key{Key: "kk"}, err: nil},
+			inp:  mocks.ToReader(map[string]interface{}{}),
+			want: http.StatusOK},
+		{name: "No record", ret: ret{res: api.Key{Key: "kk"}, err: api.ErrNoRecord},
+			inp:  mocks.ToReader(map[string]interface{}{}),
+			want: http.StatusBadRequest},
+		{name: "Field error", ret: ret{res: api.Key{Key: "kk"}, err: &api.ErrField{Msg: "empty"}},
+			inp:  mocks.ToReader(map[string]interface{}{}),
+			want: http.StatusBadRequest},
+		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: errors.New("olia")},
+			inp:  mocks.ToReader(map[string]interface{}{}),
+			want: http.StatusInternalServerError},
+		{name: "Fail wrong input", ret: ret{res: api.Key{Key: "kk"}, err: nil},
+			inp:  strings.NewReader("{olia"),
+			want: http.StatusBadRequest},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			initTest(t)
+			pegomock.When(intMock.Update(pegomock.AnyString(), matchers.AnyMapOfStringToInterface())).
+				ThenReturn(&tt.ret.res, tt.ret.err)
+			req := httptest.NewRequest(http.MethodPatch, "/key/id", tt.inp)
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			testCode(t, req, tt.want)
+		})
+	}
+}
+
 func TestKeyGetID(t *testing.T) {
 	type ret struct {
 		res api.KeyID
