@@ -355,6 +355,33 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
+func TestChange(t *testing.T) {
+	type ret struct {
+		res api.Key
+		err error
+	}
+	tests := []struct {
+		name string
+		ret  ret
+		want int
+	}{
+		{name: "OK", ret: ret{res: api.Key{Key: "kk"}, err: nil},
+			want: http.StatusOK},
+		{name: "No record", ret: ret{res: api.Key{Key: "kk"}, err: api.ErrNoRecord},
+			want: http.StatusBadRequest},
+		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: errors.New("olia")},
+			want: http.StatusInternalServerError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			initTest(t)
+			pegomock.When(intMock.Change(pegomock.AnyString())).ThenReturn(&tt.ret.res, tt.ret.err)
+			req := httptest.NewRequest(http.MethodPost, "/key/id/change", nil)
+			testCode(t, req, tt.want)
+		})
+	}
+}
+
 func TestKeyGetID(t *testing.T) {
 	type ret struct {
 		res api.KeyID

@@ -152,6 +152,33 @@ func (ss *CmsIntegrator) AddCredits(keyID string, input *api.CreditsInput) (*api
 	return res, nil
 }
 
+func (ss *CmsIntegrator) Change(keyID string) (*api.Key, error) {
+	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+
+	keyMapR, err := loadKeyMapRecord(sessCtx, keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	resInt, err := sessCtx.WithTransaction(sessCtx, func(sessCtx mongo.SessionContext) (interface{}, error) {
+		key, err := ss.changeKey(sessCtx, keyMapR)
+		if err != nil {
+			return nil, err
+		}
+		return key, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	keyR := resInt.(*keyRecord)
+	return &api.Key{Key: keyR.Key}, nil
+}
+
 func (ss *CmsIntegrator) Update(keyID string, input map[string]interface{}) (*api.Key, error) {
 	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
 	if err != nil {
@@ -439,6 +466,40 @@ func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input 
 			return nil, errors.New("can't insert key - duplicate")
 		}
 		return nil, errors.Wrap(err, "can't insert key")
+	}
+	return res, err
+}
+
+func (ss *CmsIntegrator) changeKey(sessCtx mongo.SessionContext, keyMapR *keyMapRecord) (*keyRecord, error) {
+	oldKey := keyMapR.Key
+	newKey := randkey.Generate(ss.newKeySize)
+
+	// update map
+	c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
+	err := c.FindOneAndUpdate(sessCtx,
+		bson.M{"externalID": keyMapR.ExternalID},
+		bson.M{"key": newKey, "updated": time.Now(),
+			"$push": bson.M{"old": bson.M{"changedOn": time.Now(), "key": oldKey}}}).Err()
+
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, api.ErrNoRecord
+		}
+		return nil, errors.Wrap(err, "can't update keymap")
+	}
+
+	//update key
+	res := &keyRecord{}
+	err = c.FindOneAndUpdate(sessCtx,
+		keyFilter(oldKey),
+		bson.M{"key": newKey, "updated": time.Now()},
+		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(res)
+
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, api.ErrNoRecord
+		}
+		return nil, errors.Wrap(err, "can't update key")
 	}
 	return res, err
 }
