@@ -13,6 +13,10 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+const (
+	saveRequestTag = "x-tts-collect-data:always"
+)
+
 type CmsIntegrator struct {
 	sessionProvider        *SessionProvider
 	newKeySize             int
@@ -291,9 +295,19 @@ func mapToKey(keyMapR *keyMapRecord, keyR *keyRecord) *api.Key {
 		LastUsed: toTime(&keyR.LastUsed), LastIP: keyR.LastIP,
 		TotalCredits: keyR.Limit, UsedCredits: keyR.QuotaValue, FailedCredits: keyR.QuotaValueFailed,
 		Disabled: keyR.Disabled, Created: toTime(&keyR.Created),
-		Updated:     toTime(&keyR.Updated),
-		IPWhiteList: keyR.IPWhiteList,
+		Updated:      toTime(&keyR.Updated),
+		IPWhiteList:  keyR.IPWhiteList,
+		SaveRequests: mapToSaveRequests(keyR.Tags),
 	}
+}
+
+func mapToSaveRequests(tags []string) bool {
+	for _, s := range tags {
+		if s == saveRequestTag {
+			return true
+		}
+	}
+	return false
 }
 
 func toTime(time *time.Time) *time.Time {
@@ -356,7 +370,7 @@ func initNewKey(input *api.CreateInput, defDuration time.Duration, now time.Time
 	res.Created = now
 	res.Manual = true
 	if input.SaveRequests {
-		res.Tags = []string{"x-tts-collect-data:always"}
+		res.Tags = []string{saveRequestTag}
 	}
 	return res
 }

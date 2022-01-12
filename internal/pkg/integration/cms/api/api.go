@@ -22,11 +22,12 @@ type CreditsInput struct {
 
 // Key structure for key data
 type Key struct {
-	Key         string     `json:"key,omitempty"`
-	Service     string     `json:"service,omitempty"`
-	ValidTo     *time.Time `json:"validTo,omitempty"`
-	Disabled    bool       `json:"disabled,omitempty"`
-	IPWhiteList string     `json:"IPWhiteList,omitempty"`
+	Key          string     `json:"key,omitempty"`
+	Service      string     `json:"service,omitempty"`
+	ValidTo      *time.Time `json:"validTo,omitempty"`
+	Disabled     bool       `json:"disabled,omitempty"`
+	IPWhiteList  string     `json:"IPWhiteList,omitempty"`
+	SaveRequests bool       `json:"saveRequests,omitempty"`
 
 	TotalCredits  float64 `json:"totalCredits,omitempty"`
 	UsedCredits   float64 `json:"usedCredits,omitempty"`

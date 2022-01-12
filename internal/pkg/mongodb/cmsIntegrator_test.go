@@ -164,12 +164,22 @@ func Test_mapToKey(t *testing.T) {
 	}{
 		{name: "All", args: args{keyMapR: &keyMapRecord{Key: "key", Project: "pro", ExternalID: "ID"},
 			keyR: &keyRecord{Key: "key", Limit: 100, QuotaValue: 10, QuotaValueFailed: 20,
-				Manual: true, ValidTo: now, Created: now, Updated: now, LastUsed: now, LastIP: "ip", 
+				Manual: true, ValidTo: now, Created: now, Updated: now, LastUsed: now, LastIP: "ip",
 				IPWhiteList: "ipw",
-				Disabled: true}},
+				Disabled:    true}},
 			want: &api.Key{UsedCredits: 10, Key: "key", Service: "pro", TotalCredits: 100,
 				FailedCredits: 20, Disabled: true, IPWhiteList: "ipw", LastIP: "ip",
 				LastUsed: &now, ValidTo: &now, Created: &now, Updated: &now}},
+		{name: "SaveRequests", args: args{keyMapR: &keyMapRecord{Key: "key", Project: "pro", ExternalID: "ID"},
+			keyR: &keyRecord{Key: "key", Manual: true,
+				Tags: []string{"x-tts-collect-data:always"}}},
+			want: &api.Key{Key: "key", Service: "pro",
+				SaveRequests: true}},
+		{name: "SaveRequests false", args: args{keyMapR: &keyMapRecord{Key: "key", Project: "pro", ExternalID: "ID"},
+			keyR: &keyRecord{Key: "key", Manual: true,
+				Tags: []string{"x-tts-collect-data:never"}}},
+			want: &api.Key{Key: "key", Service: "pro",
+				SaveRequests: false}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
