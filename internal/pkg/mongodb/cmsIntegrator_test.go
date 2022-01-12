@@ -116,6 +116,10 @@ func Test_makeDateFilter(t *testing.T) {
 			want: bson.M{"key": "id", "date": bson.M{"$gte": from}}},
 		{name: "To", args: args{key: "id", to: &to},
 			want: bson.M{"key": "id", "date": bson.M{"$lt": to}}},
+		{name: "Several keys", args: args{key: "id", old: []oldKey{{Key: "id1"}}},
+			want: bson.M{"key": bson.M{"$in": []string{"id", "id1"}}}},
+		{name: "Several keys", args: args{key: "id", old: []oldKey{{Key: "id1"}, {Key: "id2"}}},
+			want: bson.M{"key": bson.M{"$in": []string{"id", "id1", "id2"}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
