@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/facebookgo/grace/gracehttp"
@@ -44,7 +45,7 @@ func StartWebServer(data *Data) error {
 	goapp.Log.Infof("Starting HTTP service at %d", data.Port)
 	h, err := newMainHandler(data)
 	if err != nil {
-		return errors.Wrap(err, "Can't init handlers")
+		return errors.Wrap(err, "can't init handlers")
 	}
 
 	portStr := strconv.Itoa(data.Port)
@@ -53,10 +54,14 @@ func StartWebServer(data *Data) error {
 
 	w := goapp.Log.Writer()
 	defer w.Close()
-	l := log.New(w, "", 0)
-	gracehttp.SetLogger(l)
+	gracehttp.SetLogger(log.New(w, "", 0))
 
-	return gracehttp.Serve(&http.Server{Addr: ":" + portStr, Handler: h})
+	return gracehttp.Serve(&http.Server{
+		Addr:        ":" + portStr,
+		IdleTimeout: 10 * time.Minute, ReadHeaderTimeout: 20 * time.Second,
+		ReadTimeout: 8 * time.Minute, WriteTimeout: 15 * time.Minute,
+		Handler: h,
+	})
 }
 
 func logHandlers(info string) {
@@ -83,7 +88,7 @@ func (h *mainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	goapp.Log.Error("No handler for " + r.URL.Path)
+	goapp.Log.Error("no handler for " + r.URL.Path)
 	//serve not found
 	http.NotFound(w, r)
 }
