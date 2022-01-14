@@ -2,11 +2,13 @@ package audio
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
@@ -16,6 +18,7 @@ import (
 type Duration struct {
 	httpclient *http.Client
 	url        string
+	timeout    time.Duration
 }
 
 //NewDurationClient creates a transcriber client
@@ -31,6 +34,7 @@ func NewDurationClient(urlStr string) (*Duration, error) {
 	}
 	res.url = urlRes.String()
 	res.httpclient = &http.Client{}
+	res.timeout = time.Minute * 3
 	return &res, nil
 }
 
@@ -40,18 +44,21 @@ func (dc *Duration) Get(name string, file io.Reader) (float64, error) {
 	writer := multipart.NewWriter(body)
 	part, err := writer.CreateFormFile("file", name)
 	if err != nil {
-		return 0, errors.Wrap(err, "Can't add file to request")
+		return 0, errors.Wrap(err, "can't add file to request")
 	}
 	_, err = io.Copy(part, file)
 	if err != nil {
-		return 0, errors.Wrap(err, "Can't add file to request")
+		return 0, errors.Wrap(err, "can't add file to request")
 	}
 	writer.Close()
-	req, err := http.NewRequest("POST", dc.url, body)
+	req, err := http.NewRequest(http.MethodPost, dc.url, body)
 	if err != nil {
 		return 0, err
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	ctx, cFunc := context.WithTimeout(context.Background(), dc.timeout)
+	defer cFunc()
+	req = req.WithContext(ctx)
 
 	goapp.Log.Debugf("Sending audio to: %s", dc.url)
 	resp, err := dc.httpclient.Do(req)
@@ -59,13 +66,13 @@ func (dc *Duration) Get(name string, file io.Reader) (float64, error) {
 		return 0, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return 0, errors.New("Can't get duration")
+	if err := goapp.ValidateHTTPResp(resp, 100); err != nil {
+		return 0, errors.Wrap(err, "can't get duration")
 	}
 	var respData durationResponse
 	err = json.NewDecoder(resp.Body).Decode(&respData)
 	if err != nil {
-		return 0, errors.Wrap(err, "Can't decode response")
+		return 0, errors.Wrap(err, "can't decode response")
 	}
 	return respData.Duration, nil
 }
