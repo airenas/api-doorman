@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -67,7 +68,7 @@ func TestFillKeyHeader(t *testing.T) {
 	resp := httptest.NewRecorder()
 	FillKeyHeader(newTestHandler()).ServeHTTP(resp, req)
 	assert.Equal(t, testCode, resp.Code)
-	assert.Equal(t, "key_72bee22eaaf36e984ff30033298c5932", req.Header.Get(headerSaveTags))
+	assert.Equal(t, "key_d57329cf35", req.Header.Get(headerSaveTags))
 }
 
 func TestFillKeyHeader_NoKey(t *testing.T) {
@@ -79,8 +80,9 @@ func TestFillKeyHeader_NoKey(t *testing.T) {
 }
 
 func TestHash(t *testing.T) {
-	assert.Equal(t, "0cc175b9c0f1b6a831c399e269772661", hashKey("a"))
-	assert.Equal(t, "d2392c572c25241d3f042ec06d2ed990", hashKey("loooooooooooooooooooooooooooooooooooooooooooooong"))
+	assert.Equal(t, "ca978112ca", hashKey("a"))
+	assert.Equal(t, "168a05449e", hashKey("loooooooooooooooooooooooooooooooooooooooooooooong"))
+	assert.Equal(t, "82396ec919", hashKey(strings.Repeat("aaaa", 1000)))
 }
 
 func TestSetHeader(t *testing.T) {
@@ -91,4 +93,28 @@ func TestSetHeader(t *testing.T) {
 	assert.Equal(t, "olia,olia2", req.Header.Get(headerSaveTags))
 	setHeader(req, headerSaveTags, "")
 	assert.Equal(t, "olia,olia2", req.Header.Get(headerSaveTags))
+}
+
+func Test_trim(t *testing.T) {
+	type args struct {
+		s string
+		i int
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{name: "Empty", args: args{s: "", i: 10}, want: ""},
+		{name: "Full", args: args{s: "aaa", i: 10}, want: "aaa"},
+		{name: "Full exact", args: args{s: "aaaaa", i: 5}, want: "aaaaa"},
+		{name: "Trim", args: args{s: "aaaaaaa", i: 5}, want: "aaaaa"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := trim(tt.args.s, tt.args.i); got != tt.want {
+				t.Errorf("trim() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

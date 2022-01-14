@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
 	"strings"
@@ -67,7 +67,7 @@ func FillKeyHeader(next http.Handler) http.Handler {
 func (h *fillKeyHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
 	if ctx.Key != "" {
-		setHeader(rn, headerSaveTags, "key_" + hashKey(ctx.Key))
+		setHeader(rn, headerSaveTags, "key_"+hashKey(ctx.Key))
 	}
 	h.next.ServeHTTP(w, rn)
 }
@@ -77,9 +77,17 @@ func (h *fillKeyHeader) Info(pr string) string {
 }
 
 func hashKey(k string) string {
-	h := md5.New()
+	h := sha256.New()
 	h.Write([]byte(k))
-	return hex.EncodeToString(h.Sum(nil))
+	// trim as we need just to know the request goes from same key
+	return trim(hex.EncodeToString(h.Sum(nil)), 10)
+}
+
+func trim(s string, i int) string{
+	if len(s) > i {
+		return s[:i]
+	}
+	return s
 }
 
 func setHeader(r *http.Request, k, v string) {
