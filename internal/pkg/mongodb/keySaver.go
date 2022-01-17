@@ -56,7 +56,9 @@ func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, er
 		res.Key = randkey.Generate(ss.NewKeySize)
 	}
 	res.Limit = key.Limit
-	res.ValidTo = key.ValidTo
+	if (key.ValidTo != nil) {
+		res.ValidTo = *key.ValidTo
+	}
 	res.Created = time.Now()
 	res.Manual = true
 	res.Description = key.Description
@@ -215,14 +217,14 @@ func mapTo(v *keyRecord) *adminapi.Key {
 	res := &adminapi.Key{}
 	res.Key = v.Key
 	res.Manual = v.Manual
-	res.ValidTo = v.ValidTo
+	res.ValidTo = toTime(&v.ValidTo)
 	res.Limit = v.Limit
 	res.QuotaValue = v.QuotaValue
 	res.QuotaFailed = v.QuotaValueFailed
-	res.Created = v.Created
-	res.LastUsed = v.LastUsed
+	res.Created = toTime(&v.Created)
+	res.LastUsed = toTime(&v.LastUsed)
 	res.LastIP = v.LastIP
-	res.Updated = v.Updated
+	res.Updated = toTime(&v.Updated)
 	res.Disabled = v.Disabled
 	res.IPWhiteList = v.IPWhiteList
 	res.Description = v.Description

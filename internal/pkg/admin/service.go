@@ -127,7 +127,7 @@ func keyAdd(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, "no limit")
 		}
 
-		if input.ValidTo.Before(time.Now()) {
+		if input.ValidTo == nil || input.ValidTo.Before(time.Now()) {
 			goapp.Log.Error("wrong valid to")
 			return echo.NewHTTPError(http.StatusBadRequest, "wrong valid to")
 		}
