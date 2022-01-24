@@ -37,7 +37,7 @@ test-private:
 	curl -i -X POST http://localhost:$(DOORMAN_PORT)/private -d '{"text": "private text data"}'
 
 test-private-key:
-	curl -i -X POST http://localhost:$(DOORMAN_PORT)/private?key=$(key) -d '{"text": "private text data with key"}'	
+	curl -i -X POST http://localhost:$(DOORMAN_PORT)/private -H "Authorization: Key $(key)" -d '{"text": "private text data with key"}'	
 
 ########################################################################################################
 mongosh:

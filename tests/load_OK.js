@@ -13,13 +13,14 @@ export let options = {
 };
 
 export default function (data) {
-    var url = testURL + '/private?key=' + data.key;
+    var url = testURL + '/private';
     var payload = JSON.stringify({
         text: '0123456789',
     });
     var params = {
         headers: {
             'Content-Type': 'application/json',
+            'Authorization': 'Key ' + data.key
         },
     };
     let res = http.post(url, payload, params);

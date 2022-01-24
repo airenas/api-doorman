@@ -15,7 +15,7 @@ export let options = {
 };
 
 export default function (data) {
-    var url = testURL + '/quotatts/private?key=' + data.key;
+    var url = testURL + '/quotatts/private';
     var payload = JSON.stringify({
         text: '0123456789',
         saveRequest: true
@@ -23,6 +23,7 @@ export default function (data) {
     var params = {
         headers: {
             'Content-Type': 'application/json',
+            'Authorization': 'Key ' + data.key
         },
     };
     let res = http.post(url, payload, params);
