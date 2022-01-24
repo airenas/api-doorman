@@ -53,7 +53,10 @@ func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, er
 	res := &keyRecord{}
 	res.Key = key.Key
 	if res.Key == "" {
-		res.Key = randkey.Generate(ss.NewKeySize)
+		res.Key, err = randkey.Generate(ss.NewKeySize)
+		if (err != nil) {
+			return nil, errors.Wrap(err, "can't generate key")
+		}
 	}
 	res.Limit = key.Limit
 	if (key.ValidTo != nil) {

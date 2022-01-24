@@ -1,21 +1,22 @@
 package randkey
 
 import (
-	"math/rand"
-	"time"
+	"crypto/rand"
+	"math/big"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
-var syms = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
 // Generate genetares new random key
-func Generate(n int) string {
-	b := make([]rune, n)
+func Generate(n int) (string, error) {
+	var syms = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	l := big.NewInt(int64(len(syms)))
+
+	b := make([]byte, n)
 	for i := range b {
-		b[i] = syms[rand.Intn(len(syms))]
+		num, err := rand.Int(rand.Reader, l)
+		if err != nil {
+			return "", err
+		}
+		b[i] = syms[num.Int64()]
 	}
-	return string(b)
+	return string(b), nil
 }

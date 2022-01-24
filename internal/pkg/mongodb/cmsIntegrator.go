@@ -442,9 +442,13 @@ func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input 
 	var keyMap keyMapRecord
 	keyMap.Created = time.Now()
 	keyMap.ExternalID = input.ID
-	keyMap.Key = randkey.Generate(ss.newKeySize)
+	var err error
+	keyMap.Key, err = randkey.Generate(ss.newKeySize)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't generate key")
+	}
 	keyMap.Project = input.Service
-	_, err := c.InsertOne(sessCtx, keyMap)
+	_, err = c.InsertOne(sessCtx, keyMap)
 	if err != nil {
 		if IsDuplicate(err) {
 			return nil, errors.New("can't insert keymap - duplicate")
@@ -480,11 +484,14 @@ func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input 
 
 func (ss *CmsIntegrator) changeKey(sessCtx mongo.SessionContext, keyMapR *keyMapRecord) (*keyRecord, error) {
 	oldKey := keyMapR.Key
-	newKey := randkey.Generate(ss.newKeySize)
+	newKey, err := randkey.Generate(ss.newKeySize)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't generate key")
+	}
 
 	// update map
 	c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
-	err := c.FindOneAndUpdate(sessCtx,
+	err = c.FindOneAndUpdate(sessCtx,
 		bson.M{"externalID": keyMapR.ExternalID},
 		bson.M{"$set": bson.M{"key": newKey, "updated": time.Now()},
 			"$push": bson.M{"old": bson.M{"changedOn": time.Now(), "key": oldKey}}}).Err()
