@@ -72,7 +72,7 @@ func TestAddKey_Fail(t *testing.T) {
 		{name: "Created", ret: ret{key: api.Key{Key: "kk"}, ins: true, err: nil}, inp: mocks.ToReader(api.CreateInput{ID: "1", Service: "pr"}),
 			want: http.StatusCreated},
 		{name: "OK", ret: ret{key: api.Key{Key: "kk"}, ins: false, err: nil}, inp: mocks.ToReader(api.CreateInput{ID: "1", Service: "pr"}),
-			want: http.StatusOK},
+			want: http.StatusConflict},
 		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, ins: false, err: errors.New("olia")},
 			inp:  mocks.ToReader(api.CreateInput{ID: "1", Service: "pr"}),
 			want: http.StatusInternalServerError},

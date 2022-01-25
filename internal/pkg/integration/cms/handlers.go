@@ -75,7 +75,7 @@ func keyCreate(data *Data) func(echo.Context) error {
 		if created {
 			return c.JSON(http.StatusCreated, keyResp)
 		}
-		return c.JSON(http.StatusOK, keyResp)
+		return c.JSON(http.StatusConflict, keyResp)
 	}
 }
 
