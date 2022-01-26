@@ -16,12 +16,12 @@ Lets say we have API with a path *http://localhost:8002/private*. The API accept
 1. Test fake api by investigating *Makefile* and *docker-compose.yml*:
 
    ```bash
-   make test-public
-   make test-private
-   make test-private-key
+   make test/api/public
+   make test/api/private
+   make test/api/key
    ```
 
-1. Add new key to DB: `make adm-add`
+1. Add new key to DB: `make test/adm/add`
 Expected result: 
 
     ```json
@@ -29,9 +29,9 @@ Expected result:
     "validTo":"2030-11-24T11:07:00Z", "limit":500 ...}
     ```
 
-1. Retrieve available keys from DB: `make adm-key-list`
+1. Retrieve available keys from DB: `make test/adm/key-list`
 
-1. Access private API: `make test-private-key key=<<created key>>` . Sample: `make test-private-key key=XK3JoSyC48cxgvvkpUF4`
+1. Access private API: `make test/api/key key=<<created key>>` . Sample: `make test/api/key key=XK3JoSyC48cxgvvkpUF4`
 
 1. Clean demo
 ```bash
@@ -46,7 +46,7 @@ sudo make clean
 
 ## License
 
-Copyright © 2021, [Airenas Vaičiūnas](https://github.com/airenas).
+Copyright © 2022, [Airenas Vaičiūnas](https://github.com/airenas).
 
 Released under the [The 3-Clause BSD License](LICENSE).
 
