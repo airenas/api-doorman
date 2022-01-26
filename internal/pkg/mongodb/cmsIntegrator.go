@@ -350,7 +350,11 @@ func addQuota(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.Cr
 		if operation.Key != keyMapR.Key {
 			return nil, &api.ErrField{Field: "operationID", Msg: "exists for other key"}
 		}
-		return loadKeyRecord(sessCtx, keyMapR.Project, keyMapR.Key)
+		res, err := loadKeyRecord(sessCtx, keyMapR.Project, keyMapR.Key)
+		if err != nil {
+			return nil, err
+		}
+		return res, api.ErrOperationExists
 	}
 	if err != mongo.ErrNoDocuments {
 		return nil, err

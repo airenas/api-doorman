@@ -157,6 +157,9 @@ func keyAddCredits(data *Data) func(echo.Context) error {
 			if errors.Is(err, api.ErrNoRecord) {
 				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ID")
 			}
+			if errors.Is(err, api.ErrOperationExists) {
+				return echo.NewHTTPError(http.StatusConflict, keyResp)
+			}
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.JSON(http.StatusOK, keyResp)
@@ -171,7 +174,7 @@ func keyChange(data *Data) func(echo.Context) error {
 			goapp.Log.Error("no key ID")
 			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
 		}
-		
+
 		keyResp, err := data.Integrator.Change(keyID)
 
 		if err != nil {

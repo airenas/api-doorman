@@ -303,6 +303,9 @@ func TestAddCredits(t *testing.T) {
 		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: errors.New("olia")},
 			inp:  strings.NewReader("olia"),
 			want: http.StatusBadRequest},
+		{name: "Operation exists", ret: ret{res: api.Key{Key: "kk"}, err: api.ErrOperationExists},
+			inp:  mocks.ToReader(api.CreditsInput{OperationID: "1", Credits: 100}),
+			want: http.StatusConflict},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -61,6 +61,8 @@ type Log struct {
 
 //ErrNoRecord indicates no record found error
 var ErrNoRecord = errors.New("no record found")
+//ErrOperationExists indicates existing operation for the record
+var ErrOperationExists = errors.New("operation exists")
 
 type ErrField struct {
 	Field, Msg string
