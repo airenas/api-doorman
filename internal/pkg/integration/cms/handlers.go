@@ -158,7 +158,7 @@ func keyAddCredits(data *Data) func(echo.Context) error {
 				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ID")
 			}
 			if errors.Is(err, api.ErrOperationExists) {
-				return echo.NewHTTPError(http.StatusConflict, keyResp)
+				return c.JSON(http.StatusConflict, keyResp)
 			}
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}

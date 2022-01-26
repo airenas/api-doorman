@@ -136,20 +136,16 @@ func (ss *CmsIntegrator) AddCredits(keyID string, input *api.CreditsInput) (*api
 	}
 
 	resInt, err := sessCtx.WithTransaction(sessCtx, func(sessCtx mongo.SessionContext) (interface{}, error) {
-		key, err := addQuota(sessCtx, keyMapR, input)
-		if err != nil {
-			return nil, err
-		}
-		return key, nil
+		return addQuota(sessCtx, keyMapR, input)
 	})
 
-	if err != nil {
+	if err != nil && !errors.Is(err, api.ErrOperationExists) {
 		return nil, err
 	}
 	keyR := resInt.(*keyRecord)
 	res := mapToKey(keyMapR, keyR)
 	res.Key = ""
-	return res, nil
+	return res, err
 }
 
 func (ss *CmsIntegrator) Change(keyID string) (*api.Key, error) {
@@ -368,7 +364,7 @@ func addQuota(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.Cr
 	if err != nil {
 		return nil, errors.Wrap(err, "can't insert operation")
 	}
-	update := bson.M{"$inc": bson.M{"limit": input.Credits}}
+	update := bson.M{"$inc": bson.M{"limit": input.Credits}, "$set": bson.M{"updated": time.Now()}}
 	keyR := &keyRecord{}
 	c = sessCtx.Client().Database(keyMapR.Project).Collection(keyTable)
 	err = c.FindOneAndUpdate(sessCtx,
