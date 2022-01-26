@@ -59,7 +59,7 @@ mongosh:
 	docker-compose exec mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS)
 
 mongo-prepare:
-	until docker-compose exec mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS) --eval "rs.initiate()"; \
+	until docker-compose exec -T mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS) --eval "rs.initiate()"; \
 	do sleep 1; done
 
 
