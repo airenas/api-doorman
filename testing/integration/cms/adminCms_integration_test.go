@@ -103,7 +103,7 @@ func TestGet_ReturnKey(t *testing.T) {
 	in := api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100}
 	checkCode(t, invokeRequest(t, newRequest(t, http.MethodPost, "/key", in)), http.StatusCreated)
 
-	resp := invokeRequest(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s?returnKey=1", in.ID), nil))
+	resp := invokeRequest(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s?returnKey=0", in.ID), nil))
 	checkCode(t, resp, http.StatusOK)
 	res := api.Key{}
 	decodeResp(t, resp, &res)

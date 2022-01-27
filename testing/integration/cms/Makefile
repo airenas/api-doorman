@@ -13,7 +13,7 @@ start:
 	docker-compose up -d doorman-admin
 ## invoke integration tests
 test/integration: start 
-	docker-compose up integration-tests
+	docker-compose up --exit-code-from integration-tests integration-tests
 ## clean everything, stops docker containers and removes them
 clean:
 	docker-compose stop && docker-compose rm -f
