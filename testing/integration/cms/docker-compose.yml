@@ -1,0 +1,34 @@
+version: '3.7'
+
+services:
+
+  doorman-admin:
+    image: airenas/api-doorman-admin:${ADMIN_VERSION}
+    ports:
+      - "${ADMIN_PORT}:8000"
+    depends_on:
+      - mongo  
+    environment:
+      MONGO_URL: "${MONGO_URL}"  
+      PROJECTS: test,tts
+    restart: on-failure
+
+  mongo:
+    image: mongo:4.4.1
+    hostname: mongo
+    environment:
+      MONGO_DATA_DIR: "/data/db"
+      MONGO_LOG_DIR: "/dev/null"
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+    restart: on-failure    
+    command: mongod --replSet rs0 --logpath=/dev/null --bind_ip mongo,localhost 
+
+  integration-tests:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.test
+    depends_on:
+      - doorman-admin
+    volumes:
+      - ../../../:/go/src/  
