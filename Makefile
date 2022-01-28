@@ -7,36 +7,40 @@ help:
 		awk '{info=$$0; getline; print "  " $$0 ": " info;}' | column -t -s ':' 
 .PHONY: help
 #####################################################################################
-test: 
-	go test -v ./...
-.PHONY: test
+## invoke unit tests
+test/unit: 
+	go test -v -race ./...
+.PHONY: test/unit
+## code vet and lint
+test/lint: 
+	go vet ./...
+	go get -u golang.org/x/lint/golint
+	golint -set_exit_status ./...
+.PHONY: test/lint
 #####################################################################################
 ## build doorman-admin
 build/doorman-admin: 
 	cd deploy/doorman-admin && $(MAKE) clean dbuild
+.PHONY: build/doorman-admin
 ## build doorman
 build/doorman: 
 	cd deploy/doorman && $(MAKE) clean dbuild	
+.PHONY: build/doorman
 ## run integration tests
 test/integration: 
 	cd testing/integration/cms && $(MAKE) test/integration clean
+.PHONY: test/integration
 ## run load tests - start services, do load tests, clean services
 test/load: 
 	cd testing/load && $(MAKE) start all clean	
-.PHONY: test/integration
+.PHONY: test/load
 #####################################################################################
 generate: 
 	go get github.com/petergtz/pegomock/...
 	go generate ./...
 
-build:
-	cd cmd/doorman/ && go build .
-
 run:
 	cd cmd/doorman/ && go run . -c config.yml	
-
-build-docker:
-	cd deploy/doorman && $(MAKE) dbuild	
 
 push-docker:
 	cd deploy/doorman && $(MAKE) dpush
@@ -44,14 +48,10 @@ push-docker:
 run-admin:
 	cd cmd/doorman-admin/ && go run . -c config.yml	
 
-build-docker-admin:
-	cd deploy/doorman-admin && $(MAKE) dbuild	
-
 push-docker-admin:
 	cd deploy/doorman-admin && $(MAKE) dpush	
 
 clean:
-	rm -f cmd/audio-len/audio-len
 	cd deploy/doorman && $(MAKE) clean
 	cd deploy/doorman-admin && $(MAKE) clean
 
