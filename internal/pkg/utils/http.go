@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+//TakeJSONInput extracts request body to 'input' as json object, checks for correct mime type
 func TakeJSONInput(c echo.Context, input interface{}) error {
 	ctype := c.Request().Header.Get(echo.HeaderContentType)
 	if !strings.HasPrefix(ctype, echo.MIMEApplicationJSON) {

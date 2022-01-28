@@ -34,6 +34,7 @@ func (pv *ProjectConfigValidator) Check(pr string) bool {
 	return pv.projects[pr]
 }
 
+//Projects returns all supported projects
 func (pv *ProjectConfigValidator) Projects() []string {
 	var res []string
 	for k := range pv.projects {

@@ -40,6 +40,7 @@ func handleByTest(t *testing.T) pegomock.FailHandler {
 	}
 }
 
+//ToReader convert object to string reader of JSON
 func ToReader(data interface{}) io.Reader {
 	bytes, _ := json.Marshal(data)
 	return strings.NewReader(string(bytes))

@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+//SProvider session provider wrapper
 type SProvider interface{
 	NewSession() (mongo.Session, error)
 	CheckIndexes(dbs []string) error

@@ -99,7 +99,7 @@ func checkIndex(s mongo.Session, indexData IndexData, database string) error {
 	return nil
 }
 
-// Healthy checks if mongo DB is up
+//CheckIndexes tries to create indexes in db if not exists
 func (sp *SessionProvider) CheckIndexes(dbs []string) error {
 	goapp.Log.Infof("Check indexes for %v", dbs)
 	session, err := sp.NewSession()

@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+//CreateInput for create key request
 type CreateInput struct {
 	ID           string     `json:"id,omitempty"`
 	OperationID  string     `json:"operationID,omitempty"`
@@ -15,6 +16,7 @@ type CreateInput struct {
 	SaveRequests bool       `json:"saveRequests,omitempty"`
 }
 
+//CreditsInput for add credits
 type CreditsInput struct {
 	OperationID string  `json:"operationID,omitempty"`
 	Credits     float64 `json:"credits,omitempty"`
@@ -39,11 +41,13 @@ type Key struct {
 	LastIP   string     `json:"lastIP,omitempty"`
 }
 
+//KeyID provides key ID by key, response structure
 type KeyID struct {
 	ID      string `json:"id,omitempty"`
 	Service string `json:"service,omitempty"`
 }
 
+//Usage response
 type Usage struct {
 	RequestCount  int     `json:"requestCount"`
 	UsedCredits   float64 `json:"usedCredits,omitempty"`
@@ -51,6 +55,7 @@ type Usage struct {
 	Logs          []*Log  `json:"logs,omitempty"`
 }
 
+//Log detailed usage record
 type Log struct {
 	UsedCredits float64    `json:"usedCredits,omitempty"`
 	Date        *time.Time `json:"date,omitempty"`
@@ -64,6 +69,7 @@ var ErrNoRecord = errors.New("no record found")
 //ErrOperationExists indicates existing operation for the record
 var ErrOperationExists = errors.New("operation exists")
 
+//ErrField error indicating input field problem
 type ErrField struct {
 	Field, Msg string
 }
