@@ -4,8 +4,8 @@ services:
 
   doorman-admin:
     image: airenas/api-doorman-admin:${ADMIN_VERSION}
-    ports:
-      - "${ADMIN_PORT}:8000"
+    # ports:
+    #   - "${ADMIN_PORT}:8000"
     depends_on:
       - mongo  
     environment:
@@ -30,5 +30,16 @@ services:
       dockerfile: ./Dockerfile.test
     depends_on:
       - doorman-admin
+    environment:
+      ADMIN_URL: http://doorman-admin:8000  
     volumes:
-      - ../../../:/go/src/  
+      - ../../../:/go/src/
+    command: -tags integration -v -count=1 ./testing/integration/...
+
+  unit-tests:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.test
+    volumes:
+      - ../../../:/go/src/
+    command: -v -count=1 ./...

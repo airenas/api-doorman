@@ -2,4 +2,7 @@ FROM golang:1.16-alpine
 
 WORKDIR /go/src/
 
-CMD CGO_ENABLED=0 ADMIN_URL=http://doorman-admin:8000 go test -tags integration -v -count=1 ./testing/integration/...
+ENV CGO_ENABLED=0
+
+ENTRYPOINT ["go", "test"]
+CMD ["-v", "./..."]

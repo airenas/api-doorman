@@ -1,8 +1,24 @@
 -include Makefile.options
-
+#####################################################################################
+## print usage information
+help:
+	@echo 'Usage:'
+	@cat ${MAKEFILE_LIST} | grep -e "^## " -A 1 | grep -v '\-\-' | sed 's/^##//' | cut -f1 -d":" | \
+		awk '{info=$$0; getline; print "  " $$0 ": " info;}' | column -t -s ':' 
+.PHONY: help
+#####################################################################################
 test: 
 	go test -v ./...
-
+.PHONY: test
+#####################################################################################
+## build doorman-admin
+build/doorman-admin: 
+	cd deploy/doorman-admin && $(MAKE) clean dbuild
+## run integration tests
+test/integration: 
+	cd testing/integration/cms && $(MAKE) test/integration clean
+.PHONY: test/integration
+#####################################################################################
 generate: 
 	go get github.com/petergtz/pegomock/...
 	go generate ./...
