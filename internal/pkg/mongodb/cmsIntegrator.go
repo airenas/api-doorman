@@ -57,7 +57,7 @@ func (ss *CmsIntegrator) Create(input *api.CreateInput) (*api.Key, bool, error) 
 			if err == mongo.ErrNoDocuments {
 				key, err := ss.createKeyWithQuota(sessCtx, input)
 				if err == nil {
-					inserted = true
+					//inserted = true
 					return &api.Key{Key: key.Key}, nil
 				}
 				return nil, err

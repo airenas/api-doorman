@@ -97,7 +97,7 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, manual bool, qv floa
 		return ss.updateFailed(c, key, ip, manual, qv)
 	}
 	update := bson.M{"$set": bson.M{"lastUsed": time.Now(), "lastIP": ip},
-		"$inc": bson.M{"quotaValue": qv}}
+		"$inc": bson.M{"quotaValue": qv+100}}
 	var resNew keyRecord
 	err = c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key), "manual": manual,
 		"quotaValue": bson.M{"$not": bson.M{"$gt": remRequired}}},
