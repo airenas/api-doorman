@@ -14,6 +14,9 @@ test:
 ## build doorman-admin
 build/doorman-admin: 
 	cd deploy/doorman-admin && $(MAKE) clean dbuild
+## build doorman
+build/doorman: 
+	cd deploy/doorman && $(MAKE) clean dbuild	
 ## run integration tests
 test/integration: 
 	cd testing/integration/cms && $(MAKE) test/integration clean

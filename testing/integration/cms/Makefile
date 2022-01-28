@@ -1,7 +1,7 @@
 -include .env
 -include ../../../.version
 #####################################################################################
-ADMIN_VERSION=$(admin_version).$(shell git rev-list --count HEAD)
+ADMIN_VERSION=$(admin_version)
 #####################################################################################
 ## print usage information
 help:
