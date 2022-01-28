@@ -33,7 +33,7 @@ jobs:
       run: make test/unit
 
     - name: Run vet & lint
-      run: run: make test/lint 
+      run: make test/lint 
         
     - name: Go report
       uses: creekorful/goreportcard-action@v1.0
