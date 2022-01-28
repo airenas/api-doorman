@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Init services
-        run: cd examples/docker-compose && make start
+      - name: Build containers
+        run: make build/doorman-admin build/doorman
       - name: Run load tests
-        run: cd testing/load && make all
+        run: make test/load
