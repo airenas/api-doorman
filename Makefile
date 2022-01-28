@@ -4,7 +4,7 @@
 help:
 	@echo 'Usage:'
 	@cat ${MAKEFILE_LIST} | grep -e "^## " -A 1 | grep -v '\-\-' | sed 's/^##//' | cut -f1 -d":" | \
-		awk '{info=$$0; getline; print "  " $$0 ": " info;}' | column -t -s ':' 
+		awk '{info=$$0; getline; print "  " $$0 ": " info;}' | column -t -s ':' | sort 
 .PHONY: help
 #####################################################################################
 ## invoke unit tests
