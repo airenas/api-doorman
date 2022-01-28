@@ -9,5 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Build container
+        run: make build/doorman-admin
       - name: Run integration tests
-        run: cd testing/integration/cms && make test/integration clean
+        run: make test/integration
