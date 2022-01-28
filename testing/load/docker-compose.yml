@@ -1,0 +1,65 @@
+version: '3.7'
+
+services:
+  doorman:
+    image: airenas/api-doorman:${DOORMAN_VERSION}
+    ports:
+      - "${DOORMAN_PORT}:8000"
+    environment:
+      MONGO_URL: "${MONGO_URL}"  
+      PROXY_HANDLERS: "test,test2,test3,tts,default"
+      PROXY_DEFAULT_BACKEND: "http://test-api:8000/"
+      PROXY_TEST_TYPE: quota
+      PROXY_TEST_DB: test
+      PROXY_TEST_BACKEND: "http://test-api:8000/"
+      PROXY_TEST_PREFIXURL: "/private"
+      PROXY_TEST_QUOTA_TYPE: "json"
+      PROXY_TEST_QUOTA_FIELD: "text"
+      PROXY_TEST_QUOTA_DEFAULT: 100
+      PROXY_TEST2_TYPE: simple
+      PROXY_TEST2_DB: test
+      PROXY_TEST2_BACKEND: "http://test-api:8000/"
+      PROXY_TEST2_PREFIXURL: "/simple/public"
+      PROXY_TEST2_STRIPPREFIX: "/simple"
+      PROXY_TEST2_QUOTA_DEFAULT: 100
+      PROXY_TEST3_TYPE: quota
+      PROXY_TEST3_DB: test
+      PROXY_TEST3_BACKEND: "http://test-api:8000/"
+      PROXY_TEST3_PREFIXURL: "/quotatts/private"
+      PROXY_TEST3_STRIPPREFIX: "/quotatts"
+      PROXY_TEST3_QUOTA_TYPE: "jsonTTS"
+      PROXY_TEST3_QUOTA_DISCOUNT: 0.80
+      PROXY_TEST3_QUOTA_DEFAULT: 100
+      PROXY_TTS_TYPE: quota
+      PROXY_TTS_DB: tts
+      PROXY_TTS_BACKEND: "http://test-api:8000/"
+      PROXY_TTS_PREFIXURL: "/quotatts1/private"
+      PROXY_TTS_STRIPPREFIX: "/quotatts1"
+      PROXY_TTS_QUOTA_TYPE: "jsonTTS"
+      PROXY_TTS_QUOTA_DISCOUNT: 0.80
+      PROXY_TTS_QUOTA_DEFAULT: 100
+    restart: on-failure    
+
+  doorman-admin:
+    image: airenas/api-doorman-admin:${ADMIN_VERSION}
+    ports:
+      - "${ADMIN_PORT}:8000"
+    environment:
+      MONGO_URL: "${MONGO_URL}"  
+      PROJECTS: test,test1,tts,asr
+    restart: on-failure    
+  
+  test-api:
+    image: airenas/test-api:0.9.85
+    restart: on-failure    
+
+  mongo:
+    image: mongo:4.4.1
+    hostname: mongo
+    environment:
+      MONGO_DATA_DIR: "/data/db"
+      MONGO_LOG_DIR: "/dev/null"
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+    restart: on-failure        
+    command: mongod --replSet rs0 --logpath=/dev/null --bind_ip mongo,localhost 

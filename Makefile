@@ -20,6 +20,9 @@ build/doorman:
 ## run integration tests
 test/integration: 
 	cd testing/integration/cms && $(MAKE) test/integration clean
+## run load tests
+test/load: 
+	cd testing/load && $(MAKE) start all clean	
 .PHONY: test/integration
 #####################################################################################
 generate: 
