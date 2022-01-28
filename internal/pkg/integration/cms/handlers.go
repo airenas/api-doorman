@@ -14,7 +14,7 @@ import (
 )
 
 type (
-	// KeyCreator creates key
+	// Integrator wraps integratoin functionality
 	Integrator interface {
 		Create(*api.CreateInput) (*api.Key, bool, error)
 		GetKey(keyID string) (*api.Key, error)
@@ -30,12 +30,14 @@ type (
 		Check(string) bool
 	}
 
+	//Data is main handler's data keeper
 	Data struct {
 		ProjectValidator PrValidator
 		Integrator       Integrator
 	}
 )
 
+//InitRoutes http routes for CMS integration
 func InitRoutes(e *echo.Echo, data *Data) {
 	e.POST("/key", keyCreate(data))
 	e.POST("/keyID", keyGetID(data))
