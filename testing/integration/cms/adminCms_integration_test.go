@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -42,12 +44,16 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func waitForReady(url string) <-chan struct{} {
+func waitForReady(urlWait string) <-chan struct{} {
+	u, err := url.Parse(urlWait)
+	if err != nil {
+		log.Fatalf("can't parse %s", urlWait)
+	}
 	res := make(chan struct{}, 1)
 	go func() {
 		for {
-			if err := listens(url); err != nil {
-				log.Printf("waiting for %s ...", url)
+			if err := listen(net.JoinHostPort(u.Hostname(), u.Port())); err != nil {
+				log.Printf("waiting for %s ...", urlWait)
 				time.Sleep(500 * time.Millisecond)
 			} else {
 				res <- struct{}{}
@@ -58,9 +64,13 @@ func waitForReady(url string) <-chan struct{} {
 	return res
 }
 
-func listens(url string) error {
-	req, _ := http.NewRequest(http.MethodGet, url, nil)
-	_, err := cfg.httpclient.Do(req)
+func listen(urlStr string) error {
+	log.Printf("dial %s", urlStr)
+	conn, err := net.DialTimeout("tcp", urlStr, time.Second)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 	return err
 }
 
