@@ -30,8 +30,9 @@ clean:
 .PHONY: clean	
 #####################################################################################
 mongo/prepare:
-	until docker-compose exec -T mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS) --eval "rs.initiate()"; \
-	do sleep 1; done
+	@echo wait until mongo ready
+	@docker-compose exec -T mongo timeout 20 bash -c "until echo > /dev/tcp/mongo/27017; do sleep 1; done"
+	docker-compose exec -T mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS) --eval "rs.initiate()"
 .PHONY: mongo/prepare
 
 .EXPORT_ALL_VARIABLES:
