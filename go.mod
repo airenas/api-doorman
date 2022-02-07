@@ -23,9 +23,7 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
 	go.mongodb.org/mongo-driver v1.4.2
-	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20211019181941-9d821ace8654 // indirect
-	golang.org/x/tools v0.1.9 // indirect
 )

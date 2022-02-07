@@ -54,4 +54,7 @@ push-docker-admin:
 clean:
 	cd deploy/doorman && $(MAKE) clean
 	cd deploy/doorman-admin && $(MAKE) clean
+	rm -rf internal/pkg/test/mocks/matchers
+	rm -rf internal/pkg/test/mocks2/matchers
+	go clean 
 
