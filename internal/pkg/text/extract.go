@@ -76,10 +76,13 @@ func (dc *Extractor) Get(name string, file io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		return "", errors.Errorf("can't invoke %s. Code %d. Response %s", dc.url, resp.StatusCode, string(bodyBytes))
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
+
+	if err := goapp.ValidateHTTPResp(resp, 100); err != nil {
+		return "", errors.Wrap(err, "can't get text")
 	}
 	var respData textResponse
 	err = json.NewDecoder(resp.Body).Decode(&respData)

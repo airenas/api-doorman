@@ -65,7 +65,10 @@ func (dc *Duration) Get(name string, file io.Reader) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
 	if err := goapp.ValidateHTTPResp(resp, 100); err != nil {
 		return 0, errors.Wrap(err, "can't get duration")
 	}
