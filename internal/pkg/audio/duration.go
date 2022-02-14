@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 )
@@ -33,7 +34,7 @@ func NewDurationClient(urlStr string) (*Duration, error) {
 		return nil, errors.New("Can't parse url " + urlStr)
 	}
 	res.url = urlRes.String()
-	res.httpclient = &http.Client{}
+	res.httpclient = &http.Client{Transport: utils.NewTransport()}
 	res.timeout = time.Minute * 3
 	return &res, nil
 }
@@ -66,7 +67,7 @@ func (dc *Duration) Get(name string, file io.Reader) (float64, error) {
 		return 0, err
 	}
 	defer func() {
-		_, _ = io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1000))
 		_ = resp.Body.Close()
 	}()
 	if err := goapp.ValidateHTTPResp(resp, 100); err != nil {

@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 )
@@ -35,7 +36,7 @@ func NewExtractor(urlStr string) (*Extractor, error) {
 		return nil, errors.New("can't parse url " + urlStr)
 	}
 	res.url = urlRes.String()
-	res.httpclient = &http.Client{}
+	res.httpclient = &http.Client{Transport: utils.NewTransport()}
 	res.timeOut = time.Minute
 	return &res, nil
 }
@@ -77,7 +78,7 @@ func (dc *Extractor) Get(name string, file io.Reader) (string, error) {
 		return "", err
 	}
 	defer func() {
-		_, _ = io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1000))
 		_ = resp.Body.Close()
 	}()
 

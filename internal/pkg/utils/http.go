@@ -18,3 +18,13 @@ func TakeJSONInput(c echo.Context, input interface{}) error {
 	}
 	return nil
 }
+
+//NewTransport creates new roundtriper with same MaxIdleConnsPerHost
+// ready to be used for access to only one host
+func NewTransport() http.RoundTripper {
+	res := http.DefaultTransport.(*http.Transport).Clone()
+	res.MaxIdleConns = 100
+	res.MaxConnsPerHost = 100
+	res.MaxIdleConnsPerHost = 100
+	return res
+}
