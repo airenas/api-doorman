@@ -1,5 +1,5 @@
 -include .env
--include ../../.version
+-include ../../version
 #####################################################################################
 DOCKER_IP=$(shell echo $$(ip addr show docker0 | grep -Po 'inet \K[\d.]+'))
 ADMIN_VERSION=$(admin_version)

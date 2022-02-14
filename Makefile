@@ -21,11 +21,11 @@ test/lint:
 #####################################################################################
 ## build doorman-admin
 build/doorman-admin: 
-	cd deploy/doorman-admin && $(MAKE) clean dbuild
+	cd build/doorman-admin && $(MAKE) clean dbuild
 .PHONY: build/doorman-admin
 ## build doorman
 build/doorman: 
-	cd deploy/doorman && $(MAKE) clean dbuild	
+	cd build/doorman && $(MAKE) clean dbuild	
 .PHONY: build/doorman
 ## run integration tests
 test/integration: 
