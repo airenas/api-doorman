@@ -18,7 +18,3 @@ func TestURL_Fail(t *testing.T) {
 	_, err = ParseURL("http://")
 	assert.NotNil(t, err)
 }
-func TestHidePass_Mongo(t *testing.T) {
-	assert.Equal(t, "mongodb://mongo:27017", HidePass("mongodb://mongo:27017"))
-	assert.Equal(t, "mongodb://l:----@mongo:27017", HidePass("mongodb://l:olia@mongo:27017"))
-}

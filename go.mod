@@ -3,7 +3,7 @@ module github.com/airenas/api-doorman
 go 1.15
 
 require (
-	github.com/airenas/go-app v0.3.0
+	github.com/airenas/go-app v0.3.18
 	github.com/facebookgo/clock v0.0.0-20150410010913-600d898af40a // indirect
 	github.com/facebookgo/ensure v0.0.0-20200202191622-63f1cf65ac4c // indirect
 	github.com/facebookgo/freeport v0.0.0-20150612182905-d4adf43b75b9 // indirect
@@ -25,5 +25,4 @@ require (
 	go.mongodb.org/mongo-driver v1.4.2
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20211019181941-9d821ace8654 // indirect
 )
