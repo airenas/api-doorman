@@ -4,6 +4,7 @@
 package cms
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -25,7 +26,7 @@ import (
 
 type config struct {
 	url        string
-	httpclient *http.Client
+	httpClient *http.Client
 }
 
 var cfg config
@@ -33,35 +34,35 @@ var cfg config
 func TestMain(m *testing.M) {
 	cfg.url = os.Getenv("ADMIN_URL")
 	if cfg.url == "" {
-		log.Fatal("no ADMIN_URL set")
+		log.Fatal("FAIL: no ADMIN_URL set")
 	}
-	cfg.httpclient = &http.Client{Timeout: time.Second}
-	select {
-	case <-time.After(20 * time.Second):
-		log.Fatalf("can't access %s", cfg.url)
-	case <-waitForReady(cfg.url):
-	}
+	cfg.httpClient = &http.Client{Timeout: time.Second}
+
+	tCtx, cf := context.WithTimeout(context.Background(), time.Second*20)
+	defer cf()
+	waitForOpenOrFail(tCtx, cfg.url)
+	
 	os.Exit(m.Run())
 }
 
-func waitForReady(urlWait string) <-chan struct{} {
+func waitForOpenOrFail(ctx context.Context, urlWait string) {
 	u, err := url.Parse(urlWait)
 	if err != nil {
-		log.Fatalf("can't parse %s", urlWait)
+		log.Fatalf("FAIL: can't parse %s", urlWait)
 	}
-	res := make(chan struct{}, 1)
-	go func() {
-		for {
-			if err := listen(net.JoinHostPort(u.Hostname(), u.Port())); err != nil {
-				log.Printf("waiting for %s ...", urlWait)
-				time.Sleep(500 * time.Millisecond)
-			} else {
-				res <- struct{}{}
-				return
-			}
+	for {
+		if err := listen(net.JoinHostPort(u.Hostname(), u.Port())); err != nil {
+			log.Printf("waiting for %s ...", urlWait)
+		} else {
+			return
 		}
-	}()
-	return res
+		select {
+		case <-ctx.Done():
+			log.Fatalf("FAIL: can't access %s", urlWait)
+			break
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
 }
 
 func listen(urlStr string) error {
@@ -143,8 +144,9 @@ func newRequest(t *testing.T, method string, urlSuffix string, body interface{})
 
 func invoke(t *testing.T, r *http.Request) *http.Response {
 	t.Helper()
-	resp, err := cfg.httpclient.Do(r)
+	resp, err := cfg.httpClient.Do(r)
 	require.Nil(t, err, "not nil error = %v", err)
+	t.Cleanup(func() { resp.Body.Close() })
 	return resp
 }
 
