@@ -1,4 +1,4 @@
--include ../../.version
+-include ../../version
 #####################################################################################
 dist_dir=$(CURDIR)/data
 executable_name=doorman

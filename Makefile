@@ -16,6 +16,7 @@ test/lint:
 	go vet ./...
 	go get -u golang.org/x/lint/golint
 	golint -set_exit_status ./...
+	go mod tidy
 .PHONY: test/lint
 #####################################################################################
 ## build doorman-admin
@@ -38,6 +39,7 @@ test/load:
 generate: 
 	go get github.com/petergtz/pegomock/...
 	go generate ./...
+	go mod tidy
 
 run:
 	cd cmd/doorman/ && go run . -c config.yml	
@@ -57,4 +59,4 @@ clean:
 	rm -rf internal/pkg/test/mocks/matchers
 	rm -rf internal/pkg/test/mocks2/matchers
 	go clean 
-
+	go mod tidy
