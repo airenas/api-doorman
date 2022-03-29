@@ -24,9 +24,13 @@ build/doorman-admin:
 	cd build/doorman-admin && $(MAKE) clean dbuild
 .PHONY: build/doorman-admin
 ## build doorman
-build/doorman: 
-	cd build/doorman && $(MAKE) clean dbuild	
-.PHONY: build/doorman
+docker/doorman/build: 
+	cd build/doorman && $(MAKE) dbuild	
+.PHONY: docker/doorman/build
+## scan doorman for vulnerabilities
+docker/doorman/scan:
+	cd build/doorman && $(MAKE) dscan	
+.PHONY: docker/doorman/scan
 ## run integration tests
 test/integration: 
 	cd testing/integration/cms && $(MAKE) test/integration clean
@@ -36,10 +40,10 @@ test/load:
 	cd testing/load && $(MAKE) start all clean	
 .PHONY: test/load
 #####################################################################################
+## generate mock objects for test
 generate: 
-	go get github.com/petergtz/pegomock/...
+	go install github.com/petergtz/pegomock/...@latest
 	go generate ./...
-	go mod tidy
 
 run:
 	cd cmd/doorman/ && go run . -c config.yml	
@@ -54,9 +58,6 @@ push-docker-admin:
 	cd deploy/doorman-admin && $(MAKE) dpush	
 
 clean:
-	cd deploy/doorman && $(MAKE) clean
-	cd deploy/doorman-admin && $(MAKE) clean
-	rm -rf internal/pkg/test/mocks/matchers
-	rm -rf internal/pkg/test/mocks2/matchers
 	go clean 
-	go mod tidy
+	go mod tidy -compat=1.17
+	cd build/doorman-admin && $(MAKE) clean
