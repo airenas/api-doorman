@@ -36,10 +36,12 @@ jobs:
       - name: Upload snyk result to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v1
         with:
-          sarif_file: snyk.sarif  
+          sarif_file: snyk.sarif
+          category: doorman-analysis-tool  
 
       - name: Upload snyk admin result to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v1
         with:
-          sarif_file: snyk-admin.sarif  
+          sarif_file: snyk-admin.sarif
+          category: admin-analysis-tool  
 
