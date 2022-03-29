@@ -313,10 +313,12 @@ func (ss *CmsIntegrator) Changes(from *time.Time, services []string) (*api.Chang
 			return nil, err
 		}
 		for _, k := range keys {
-			res.Data = append(res.Data, mapToKey(s, k, false))
+			if k.ExternalID != "" { // skip without IDs
+				res.Data = append(res.Data, mapToKey(s, k, false))
+			}
 		}
 	}
-	to := time.Now().Add(-time.Second) // make sure we will not loose some updates
+	to := time.Now().Add(-time.Second) // make sure we will not loose some updates, so add -1 sec
 	res.Till = &to
 	return res, nil
 }
