@@ -20,16 +20,20 @@ test/lint:
 .PHONY: test/lint
 #####################################################################################
 ## build doorman-admin
-build/doorman-admin: 
-	cd build/doorman-admin && $(MAKE) clean dbuild
-.PHONY: build/doorman-admin
+docker/doorman-admin/build: 
+	cd build/doorman-admin && $(MAKE) dbuild
+.PHONY: docker/doorman-admin/build
 ## build doorman
 docker/doorman/build: 
 	cd build/doorman && $(MAKE) dbuild	
 .PHONY: docker/doorman/build
+## scan doorman-admin for vulnerabilities
+docker/doorman-admin/scan:
+	cd build/doorman-admin && $(MAKE) dscan
+.PHONY: docker/doorman-admin/scan	
 ## scan doorman for vulnerabilities
 docker/doorman/scan:
-	cd build/doorman && $(MAKE) dscan	
+	cd build/doorman && $(MAKE) dscan		
 .PHONY: docker/doorman/scan
 ## run integration tests
 test/integration: 
@@ -44,20 +48,22 @@ test/load:
 generate: 
 	go install github.com/petergtz/pegomock/...@latest
 	go generate ./...
+.PHONY: generate	
+## push doorman-admin docker
+docker/doorman-admin/push:
+	cd build/doorman-admin && $(MAKE) dpush
+.PHONY: docker/doorman-admin/push		
+## push doorman docker
+
+docker/doorman/push:
+	cd build/doorman && $(MAKE) dpush		
+.PHONY: docker/doorman/push
 
 run:
 	cd cmd/doorman/ && go run . -c config.yml	
-
-push-docker:
-	cd deploy/doorman && $(MAKE) dpush
-
 run-admin:
 	cd cmd/doorman-admin/ && go run . -c config.yml	
-
-push-docker-admin:
-	cd deploy/doorman-admin && $(MAKE) dpush	
 
 clean:
 	go clean 
 	go mod tidy -compat=1.17
-	cd build/doorman-admin && $(MAKE) clean
