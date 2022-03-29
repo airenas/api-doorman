@@ -423,3 +423,42 @@ func TestKeyGetID(t *testing.T) {
 		})
 	}
 }
+
+func TestKeysChanges(t *testing.T) {
+	type ret struct {
+		res api.Changes
+		err error
+	}
+	from := time.Now()
+	to := from.Add(time.Second)
+	tests := []struct {
+		name   string
+		ret    ret
+		params map[string]string
+		want   int
+	}{
+		{name: "OK", ret: ret{res: api.Changes{From: &from, Till: &to, Data: []*api.Key{}}, err: nil}, want: http.StatusOK},
+		{name: "Fail", ret: ret{res: api.Changes{From: &from, Till: &to, Data: []*api.Key{}}, err: errors.New("olia")},
+			want: http.StatusInternalServerError},
+		{name: "From", ret: ret{res: api.Changes{From: &from, Till: &to, Data: []*api.Key{}}, err: nil},
+			params: map[string]string{"from": "2020-01-20T14:50:30Z"},
+			want:   http.StatusOK},
+		{name: "From fail", ret: ret{res: api.Changes{From: &from, Till: &to, Data: []*api.Key{}}, err: nil},
+			params: map[string]string{"from": "xx2020-01-20T14:50:30Z"},
+			want:   http.StatusBadRequest},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			initTest(t)
+			pegomock.When(intMock.Changes(matchers.AnyPtrToTimeTime(), pegomock.AnyStringSlice())).
+				ThenReturn(&tt.ret.res, tt.ret.err)
+			req := httptest.NewRequest(http.MethodGet, "/keys/changes", nil)
+			for k, v := range tt.params {
+				q := req.URL.Query()
+				q.Add(k, v)
+				req.URL.RawQuery = q.Encode()
+			}
+			testCode(t, req, tt.want)
+		})
+	}
+}
