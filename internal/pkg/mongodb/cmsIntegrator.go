@@ -97,7 +97,7 @@ func (ss *CmsIntegrator) GetKey(keyID string) (*api.Key, error) {
 	if err != nil {
 		return nil, err
 	}
-	return mapToKey(keyMapR, keyR), nil
+	return mapToKey(keyMapR.Project, keyR, true), nil
 }
 
 //GetKeyID returns keyID by key value
@@ -148,9 +148,7 @@ func (ss *CmsIntegrator) AddCredits(keyID string, input *api.CreditsInput) (*api
 		return nil, err
 	}
 	keyR := resInt.(*keyRecord)
-	res := mapToKey(keyMapR, keyR)
-	res.Key = ""
-	return res, err
+	return mapToKey(keyMapR.Project, keyR, false), err
 }
 
 //Change generates new key for keyID, disables the old one, returns new key
@@ -210,9 +208,7 @@ func (ss *CmsIntegrator) Update(keyID string, input map[string]interface{}) (*ap
 		}
 		return nil, errors.Wrapf(err, "can't update %s.key", keyTable)
 	}
-	res := mapToKey(keyMapR, keyR)
-	res.Key = ""
-	return res, nil
+	return mapToKey(keyMapR.Project, keyR, false), nil
 }
 
 func prepareKeyUpdates(input map[string]interface{}, now time.Time) (bson.M, error) {
@@ -301,6 +297,72 @@ func (ss *CmsIntegrator) Usage(keyID string, from, to *time.Time, full bool) (*a
 	return res, err
 }
 
+//Changes returns changed keys information
+func (ss *CmsIntegrator) Changes(from *time.Time, services []string) (*api.Changes, error) {
+	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+
+	res := &api.Changes{}
+	res.From = from
+	to := time.Now()
+	res.Till = &to
+	for _, s := range services {
+		keys, err := loadKeys(sessCtx, s, from, to)
+		if err != nil {
+			return nil, err
+		}
+		for _, k := range keys {
+			res.Data = append(res.Data, mapToKey(s, k, false))
+		}
+	}
+	return res, nil
+}
+
+func loadKeys(sessCtx mongo.SessionContext, service string, from *time.Time, to time.Time) ([]*keyRecord, error) {
+	c := sessCtx.Client().Database(service).Collection(keyTable)
+	filter := makeDateFilterForKey(from, &to)
+	cursor, err := c.Find(sessCtx, filter)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't get keys")
+	}
+	defer cursor.Close(sessCtx)
+	res := []*keyRecord{}
+	for cursor.Next(sessCtx) {
+		var keyR keyRecord
+		if err := cursor.Decode(&keyR); err != nil {
+			return nil, errors.Wrap(err, "can't get key record")
+		}
+		res = append(res, &keyR)
+	}
+	return res, nil
+}
+
+func makeDateFilterForKey(from, to *time.Time) bson.M {
+	res := bson.M{"manual": true}
+	df := getDateFilter(from, to)
+	if len(df) > 0 {
+		res["updated"] = df
+	}
+	return res
+}
+
+func getDateFilter(from, to *time.Time) bson.M {
+	var res bson.M
+	if from != nil || to != nil {
+		res := bson.M{}
+		if from != nil {
+			res["$gte"] = *from
+		}
+		if to != nil {
+			res["$lt"] = *to
+		}
+	}
+	return res
+}
+
 func makeDateFilter(key string, old []oldKey, from, to *time.Time) bson.M {
 	res := bson.M{"key": sanitize(key)}
 	if len(old) > 0 {
@@ -310,14 +372,8 @@ func makeDateFilter(key string, old []oldKey, from, to *time.Time) bson.M {
 		}
 		res["key"] = bson.M{"$in": keys}
 	}
-	if from != nil || to != nil {
-		df := bson.M{}
-		if from != nil {
-			df["$gte"] = *from
-		}
-		if to != nil {
-			df["$lt"] = *to
-		}
+	df := getDateFilter(from, to)
+	if len(df) > 0 {
 		res["date"] = df
 	}
 	return res
@@ -417,8 +473,10 @@ func loadKeyMapRecord(sessCtx mongo.SessionContext, keyID string) (*keyMapRecord
 	return keyMapR, nil
 }
 
-func mapToKey(keyMapR *keyMapRecord, keyR *keyRecord) *api.Key {
-	return &api.Key{Key: keyMapR.Key, Service: keyMapR.Project, ValidTo: toTime(&keyR.ValidTo),
+func mapToKey(service string, keyR *keyRecord, returnKey bool) *api.Key {
+	res := &api.Key{Service: service,
+		ID:       keyR.ExternalID,
+		ValidTo:  toTime(&keyR.ValidTo),
 		LastUsed: toTime(&keyR.LastUsed), LastIP: keyR.LastIP,
 		TotalCredits: keyR.Limit, UsedCredits: keyR.QuotaValue, FailedCredits: keyR.QuotaValueFailed,
 		Disabled: keyR.Disabled, Created: toTime(&keyR.Created),
@@ -426,6 +484,10 @@ func mapToKey(keyMapR *keyMapRecord, keyR *keyRecord) *api.Key {
 		IPWhiteList:  keyR.IPWhiteList,
 		SaveRequests: mapToSaveRequests(keyR.Tags),
 	}
+	if returnKey {
+		res.Key = keyR.Key
+	}
+	return res
 }
 
 func mapToSaveRequests(tags []string) bool {
@@ -480,6 +542,7 @@ func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input 
 	c = sessCtx.Client().Database(input.Service).Collection(keyTable)
 	res := initNewKey(input, ss.defaultValidToDuration, time.Now())
 	res.Key = keyMap.Key
+	res.ExternalID = keyMap.ExternalID
 	_, err = c.InsertOne(sessCtx, res)
 	if err != nil {
 		if IsDuplicate(err) {
@@ -534,6 +597,7 @@ func initNewKey(input *api.CreateInput, defDuration time.Duration, now time.Time
 		res.ValidTo = now.Add(defDuration)
 	}
 	res.Created = now
+	res.Updated = now
 	res.Manual = true
 	if input.SaveRequests {
 		res.Tags = []string{saveRequestTag}

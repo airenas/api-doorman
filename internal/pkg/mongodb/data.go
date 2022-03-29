@@ -19,6 +19,7 @@ type keyRecord struct {
 	IPWhiteList      string    `bson:"IPWhiteList,omitempty"`
 	Description      string    `bson:"description,omitempty"`
 	Tags             []string  `bson:"tags,omitempty"`
+	ExternalID       string    `bson:"externalID,omitempty"`
 }
 
 type logRecord struct {

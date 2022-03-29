@@ -23,11 +23,13 @@ type (
 		Usage(string, *time.Time, *time.Time, bool) (*api.Usage, error)
 		Update(string, map[string]interface{}) (*api.Key, error)
 		Change(string) (*api.Key, error)
+		Changes(*time.Time, []string) (*api.Changes, error)
 	}
 
 	// PrValidator validates if project is available
 	PrValidator interface {
 		Check(string) bool
+		Projects() []string
 	}
 
 	//Data is main handler's data keeper
@@ -46,6 +48,7 @@ func InitRoutes(e *echo.Echo, data *Data) {
 	e.PATCH("/key/:keyID/credits", keyAddCredits(data))
 	e.POST("/key/:keyID/change", keyChange(data))
 	e.GET("/key/:keyID/usage", keyUsage(data))
+	e.GET("/keys/changes", keysChanges(data))
 }
 
 func keyCreate(data *Data) func(echo.Context) error {
@@ -245,6 +248,23 @@ func keyUsage(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.JSON(http.StatusOK, usageResp)
+	}
+}
+
+func keysChanges(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		from, err := parseDateParam(c.QueryParam("from"))
+		if err != nil {
+			return err
+		}
+		changesResp, err := data.Integrator.Changes(from, data.ProjectValidator.Projects())
+
+		if err != nil {
+			goapp.Log.Error("can't get changes. ", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		return c.JSON(http.StatusOK, changesResp)
 	}
 }
 

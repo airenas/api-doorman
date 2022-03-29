@@ -24,6 +24,7 @@ type CreditsInput struct {
 
 // Key structure for key data
 type Key struct {
+	ID           string     `json:"id,omitempty"`
 	Key          string     `json:"key,omitempty"`
 	Service      string     `json:"service,omitempty"`
 	ValidTo      *time.Time `json:"validTo,omitempty"`
@@ -55,6 +56,13 @@ type Usage struct {
 	Logs          []*Log  `json:"logs,omitempty"`
 }
 
+//Changes response
+type Changes struct {
+	From *time.Time `json:"from,omitempty"`
+	Till *time.Time `json:"till,omitempty"`
+	Data []*Key     `json:"data,omitempty"`
+}
+
 //Log detailed usage record
 type Log struct {
 	UsedCredits float64    `json:"usedCredits,omitempty"`
@@ -66,6 +74,7 @@ type Log struct {
 
 //ErrNoRecord indicates no record found error
 var ErrNoRecord = errors.New("no record found")
+
 //ErrOperationExists indicates existing operation for the record
 var ErrOperationExists = errors.New("operation exists")
 

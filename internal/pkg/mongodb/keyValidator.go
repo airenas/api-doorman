@@ -96,7 +96,8 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, manual bool, qv floa
 	if remRequired <= 0 {
 		return ss.updateFailed(c, key, ip, manual, qv)
 	}
-	update := bson.M{"$set": bson.M{"lastUsed": time.Now(), "lastIP": ip},
+	now := time.Now()
+	update := bson.M{"$set": bson.M{"lastUsed": now, "updated": now, "lastIP": ip},
 		"$inc": bson.M{"quotaValue": qv}}
 	var resNew keyRecord
 	err = c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key), "manual": manual,
@@ -126,7 +127,9 @@ func (ss *KeyValidator) Restore(key string, manual bool, qv float64) (float64, f
 	defer session.EndSession(context.Background())
 	c := db.Collection(keyTable)
 
-	update := bson.M{"$set": bson.M{"lastUsed": time.Now()}, "$inc": bson.M{"quotaValueFailed": qv, "quotaValue": -qv}}
+	now := time.Now()
+	update := bson.M{"$set": bson.M{"lastUsed": now, "updated": now},
+		"$inc": bson.M{"quotaValueFailed": qv, "quotaValue": -qv}}
 	var resNew keyRecord
 	err = c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key), "manual": manual},
 		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&resNew)

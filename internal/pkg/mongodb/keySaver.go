@@ -63,6 +63,7 @@ func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, er
 		res.ValidTo = *key.ValidTo
 	}
 	res.Created = time.Now()
+	res.Updated = res.Created
 	res.Manual = true
 	res.Description = key.Description
 	res.IPWhiteList = key.IPWhiteList
