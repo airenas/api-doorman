@@ -158,8 +158,9 @@ func Test_mapLogRecord(t *testing.T) {
 
 func Test_mapToKey(t *testing.T) {
 	type args struct {
-		keyMapR *keyMapRecord
-		keyR    *keyRecord
+		pr     string
+		keyR   *keyRecord
+		retKey bool
 	}
 	now := time.Now()
 	tests := []struct {
@@ -167,28 +168,31 @@ func Test_mapToKey(t *testing.T) {
 		args args
 		want *api.Key
 	}{
-		{name: "All", args: args{keyMapR: &keyMapRecord{Key: "key", Project: "pro", ExternalID: "ID"},
+		{name: "All", args: args{pr: "pro", retKey: true,
 			keyR: &keyRecord{Key: "key", Limit: 100, QuotaValue: 10, QuotaValueFailed: 20,
 				Manual: true, ValidTo: now, Created: now, Updated: now, LastUsed: now, LastIP: "ip",
-				IPWhiteList: "ipw",
-				Disabled:    true}},
+				IPWhiteList: "ipw", ExternalID: "externalID",
+				Disabled: true}},
 			want: &api.Key{UsedCredits: 10, Key: "key", Service: "pro", TotalCredits: 100,
 				FailedCredits: 20, Disabled: true, IPWhiteList: "ipw", LastIP: "ip",
-				LastUsed: &now, ValidTo: &now, Created: &now, Updated: &now}},
-		{name: "SaveRequests", args: args{keyMapR: &keyMapRecord{Key: "key", Project: "pro", ExternalID: "ID"},
+				LastUsed: &now, ValidTo: &now, Created: &now, Updated: &now, ID: "externalID"}},
+		{name: "SaveRequests", args: args{pr: "pro", retKey: true,
 			keyR: &keyRecord{Key: "key", Manual: true,
 				Tags: []string{"x-tts-collect-data:always"}}},
 			want: &api.Key{Key: "key", Service: "pro",
 				SaveRequests: true}},
-		{name: "SaveRequests false", args: args{keyMapR: &keyMapRecord{Key: "key", Project: "pro", ExternalID: "ID"},
+		{name: "SaveRequests false", args: args{pr: "pro", retKey: true,
 			keyR: &keyRecord{Key: "key", Manual: true,
 				Tags: []string{"x-tts-collect-data:never"}}},
 			want: &api.Key{Key: "key", Service: "pro",
 				SaveRequests: false}},
+		{name: "Skip key", args: args{pr: "pro", retKey: false,
+			keyR: &keyRecord{Key: "key", Manual: true}},
+			want: &api.Key{Service: "pro"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mapToKey(tt.args.keyMapR, tt.args.keyR); !reflect.DeepEqual(got, tt.want) {
+			if got := mapToKey(tt.args.pr, tt.args.keyR, tt.args.retKey); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("mapToKey() = %v, want %v", got, tt.want)
 			}
 		})
@@ -208,15 +212,17 @@ func Test_initNewKey(t *testing.T) {
 		want *keyRecord
 	}{
 		{name: "All", args: args{input: &api.CreateInput{ID: "1", Credits: 100}, defDuration: time.Minute, now: now},
-			want: &keyRecord{Manual: true, ValidTo: now.Add(time.Minute), Created: now, Limit: 100}},
+			want: &keyRecord{Manual: true, ValidTo: now.Add(time.Minute), Created: now, Updated: now, Limit: 100,
+				ExternalID: "1"}},
 		{name: "ValidTo", args: args{input: &api.CreateInput{ID: "1", Credits: 100,
 			ValidTo: &[]time.Time{now.Add(time.Hour)}[0]},
 			defDuration: time.Minute, now: now},
-			want: &keyRecord{Manual: true, ValidTo: now.Add(time.Hour), Created: now, Limit: 100}},
+			want: &keyRecord{Manual: true, ValidTo: now.Add(time.Hour), Created: now, Limit: 100, ExternalID: "1",
+				Updated: now}},
 		{name: "SaveRequest", args: args{input: &api.CreateInput{ID: "1", SaveRequests: true},
 			defDuration: time.Minute, now: now},
 			want: &keyRecord{Manual: true, ValidTo: now.Add(time.Minute), Created: now,
-				Tags: []string{"x-tts-collect-data:always"}}},
+				Tags: []string{"x-tts-collect-data:always"}, Updated: now, ExternalID: "1"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -280,6 +286,35 @@ func Test_prepareKeyUpdates(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("prepareKeyUpdates() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_makeDateFilterForKey(t *testing.T) {
+	type args struct {
+		from *time.Time
+		to   *time.Time
+	}
+	from := time.Now()
+	to := from.Add(time.Second)
+	tests := []struct {
+		name string
+		args args
+		want bson.M
+	}{
+		{name: "Empty", args: args{from: nil, to: nil}, want: bson.M{"manual": true}},
+		{name: "From", args: args{from: &from, to: nil},
+			want: bson.M{"manual": true, "updated": bson.M{"$gte": from}}},
+		{name: "To", args: args{from: nil, to: &to},
+			want: bson.M{"manual": true, "updated": bson.M{"$lt": to}}},
+		{name: "All", args: args{from: &from, to: &to},
+			want: bson.M{"manual": true, "updated": bson.M{"$gte": from, "$lt": to}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := makeDateFilterForKey(tt.args.from, tt.args.to); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("makeDateFilterForKey() = %v, want %v", got, tt.want)
 			}
 		})
 	}

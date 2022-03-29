@@ -46,6 +46,7 @@ type (
 	// PrValidator validates if project is available
 	PrValidator interface {
 		Check(string) bool
+		Projects() []string
 	}
 
 	//Data is service operation data

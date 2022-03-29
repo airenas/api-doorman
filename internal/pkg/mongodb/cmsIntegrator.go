@@ -352,7 +352,7 @@ func makeDateFilterForKey(from, to *time.Time) bson.M {
 func getDateFilter(from, to *time.Time) bson.M {
 	var res bson.M
 	if from != nil || to != nil {
-		res := bson.M{}
+		res = bson.M{}
 		if from != nil {
 			res["$gte"] = *from
 		}
@@ -542,7 +542,6 @@ func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input 
 	c = sessCtx.Client().Database(input.Service).Collection(keyTable)
 	res := initNewKey(input, ss.defaultValidToDuration, time.Now())
 	res.Key = keyMap.Key
-	res.ExternalID = keyMap.ExternalID
 	_, err = c.InsertOne(sessCtx, res)
 	if err != nil {
 		if IsDuplicate(err) {
@@ -599,6 +598,7 @@ func initNewKey(input *api.CreateInput, defDuration time.Duration, now time.Time
 	res.Created = now
 	res.Updated = now
 	res.Manual = true
+	res.ExternalID = input.ID
 	if input.SaveRequests {
 		res.Tags = []string{saveRequestTag}
 	}
