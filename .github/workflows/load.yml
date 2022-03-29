@@ -14,6 +14,6 @@ jobs:
           go-version: 1.17
       - uses: actions/checkout@v2
       - name: Build containers
-        run: make build/doorman-admin build/doorman
+        run: make docker/doorman-admin/build docker/doorman/build
       - name: Run load tests
         run: make test/load
