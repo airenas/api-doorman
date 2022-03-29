@@ -37,7 +37,7 @@ docker/doorman/scan:
 .PHONY: docker/doorman/scan
 ## run integration tests
 test/integration: 
-	cd testing/integration/cms && $(MAKE) test/integration clean
+	cd testing/integration/cms && ( $(MAKE) -j1 test/integration clean || ( $(MAKE) clean; exit 1; ))
 .PHONY: test/integration
 ## run load tests - start services, do load tests, clean services
 test/load: 

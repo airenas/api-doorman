@@ -10,7 +10,7 @@ services:
       - mongo  
     environment:
       MONGO_URL: "${MONGO_URL}"  
-      PROJECTS: test,tts
+      PROJECTS: test,tts,changes
     restart: on-failure
 
   mongo:

@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 	tCtx, cf := context.WithTimeout(context.Background(), time.Second*20)
 	defer cf()
 	waitForOpenOrFail(tCtx, cfg.url)
-	
+
 	os.Exit(m.Run())
 }
 
@@ -140,6 +140,60 @@ func newRequest(t *testing.T, method string, urlSuffix string, body interface{})
 		req.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	}
 	return req
+}
+
+func TestKeysChanges(t *testing.T) {
+	t.Parallel()
+
+	from := time.Now().Add(-time.Second*2)
+	id := uuid.NewString()
+	in := api.CreateInput{ID: id, OperationID: uuid.NewString(), Service: "changes", Credits: 100}
+	resp := invoke(t, newRequest(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusCreated)
+
+	resp = invoke(t, newRequest(t, http.MethodGet, "/keys/changes", in))
+	checkCode(t, resp, http.StatusOK)
+	res := api.Changes{}
+	decode(t, resp, &res)
+	require.NotEmpty(t, filter(res.Data, "changes"))
+	assert.Equal(t, id, filter(res.Data, "changes")[0].ID, "%v", res)
+	assert.Nil(t, res.From)
+	assert.Greater(t, res.Till.Unix(), from.Unix())
+
+	in = api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "changes", Credits: 100}
+	resp = invoke(t, newRequest(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusCreated)
+	resp = invoke(t, newRequest(t, http.MethodGet, "/keys/changes", in))
+	checkCode(t, resp, http.StatusOK)
+
+	res = api.Changes{}
+	decode(t, resp, &res)
+	assert.Equal(t, 2, len(filter(res.Data, "changes")))
+
+	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s", from.Format(time.RFC3339)), in))
+	checkCode(t, resp, http.StatusOK)
+	res = api.Changes{}
+	decode(t, resp, &res)
+	assert.Equal(t, 2, len(filter(res.Data, "changes")))
+	assert.Equal(t, from.Unix(), res.From.Unix())
+	assert.Greater(t, res.Till.Unix(), res.From.Unix())
+
+	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s",
+		res.Till.Add(time.Second*2).Format(time.RFC3339)), in))
+	checkCode(t, resp, http.StatusOK)
+	res = api.Changes{}
+	decode(t, resp, &res)
+	assert.Equal(t, 0, len(filter(res.Data, "changes")))
+}
+
+func filter(keys []*api.Key, s string) []*api.Key {
+	var res []*api.Key
+	for _, d := range keys {
+		if d.Service == "changes" {
+			res = append(res, d)
+		}
+	}
+	return res
 }
 
 func invoke(t *testing.T, r *http.Request) *http.Response {

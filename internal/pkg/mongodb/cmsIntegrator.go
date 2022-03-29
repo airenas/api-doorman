@@ -307,10 +307,8 @@ func (ss *CmsIntegrator) Changes(from *time.Time, services []string) (*api.Chang
 
 	res := &api.Changes{}
 	res.From = from
-	to := time.Now()
-	res.Till = &to
 	for _, s := range services {
-		keys, err := loadKeys(sessCtx, s, from, to)
+		keys, err := loadKeys(sessCtx, s, from)
 		if err != nil {
 			return nil, err
 		}
@@ -318,12 +316,14 @@ func (ss *CmsIntegrator) Changes(from *time.Time, services []string) (*api.Chang
 			res.Data = append(res.Data, mapToKey(s, k, false))
 		}
 	}
+	to := time.Now().Add(-time.Second) // make sure we will not loose some updates
+	res.Till = &to
 	return res, nil
 }
 
-func loadKeys(sessCtx mongo.SessionContext, service string, from *time.Time, to time.Time) ([]*keyRecord, error) {
+func loadKeys(sessCtx mongo.SessionContext, service string, from *time.Time) ([]*keyRecord, error) {
 	c := sessCtx.Client().Database(service).Collection(keyTable)
-	filter := makeDateFilterForKey(from, &to)
+	filter := makeDateFilterForKey(from, nil)
 	cursor, err := c.Find(sessCtx, filter)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't get keys")
