@@ -12,15 +12,6 @@ jobs:
       - name: Build containers
         run: make docker/doorman-admin/build docker/doorman/build doorman_version=latest admin_version=latest
 
-      - name: Run Snyk to check Docker image for vulnerabilities
-        continue-on-error: true
-        uses: snyk/actions/docker@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          image: airenas/api-doorman:latest
-          args: --file=build/doorman/Dockerfile --sarif-file-output=snyk.sarif
-
       - name: Run Snyk to check Admin Docker image for vulnerabilities
         continue-on-error: true
         uses: snyk/actions/docker@master
@@ -28,7 +19,19 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: airenas/api-doorman-admin:latest
-          args: --file=build/doorman-admin/Dockerfile --sarif-file-output=snyk-admin.sarif     
+          args: --file=build/doorman-admin/Dockerfile
+
+      - name: Make sarif file copy
+        run: mv snyk.sarif snyk-admin.sarif
+
+      - name: Run Snyk to check Docker image for vulnerabilities
+        continue-on-error: true
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: airenas/api-doorman:latest
+          args: --file=build/doorman/Dockerfile
 
       - name: Upload snyk result to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v1
