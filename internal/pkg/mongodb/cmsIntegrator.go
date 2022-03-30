@@ -307,6 +307,7 @@ func (ss *CmsIntegrator) Changes(from *time.Time, services []string) (*api.Chang
 
 	res := &api.Changes{}
 	res.From = from
+	to := time.Now().Add(-time.Millisecond) // make sure we will not loose some updates, so add -1 ms
 	for _, s := range services {
 		keys, err := loadKeys(sessCtx, s, from)
 		if err != nil {
@@ -318,7 +319,6 @@ func (ss *CmsIntegrator) Changes(from *time.Time, services []string) (*api.Chang
 			}
 		}
 	}
-	to := time.Now().Add(-time.Second) // make sure we will not loose some updates, so add -1 sec
 	res.Till = &to
 	return res, nil
 }

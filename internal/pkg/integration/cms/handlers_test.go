@@ -227,6 +227,8 @@ func Test_parseDateParam(t *testing.T) {
 		{name: "Parse TZ", args: args{s: "2006-01-02T17:04:05+02:00"}, want: wanted, wantErr: false},
 		{name: "Parse TZ", args: args{s: "2006-01-02T12:04:05-03:00"}, want: wanted, wantErr: false},
 		{name: "Parse TZ", args: args{s: "2006-01-02T11:34:05-03:30"}, want: wanted, wantErr: false},
+		{name: "Millis", args: args{s: "2006-01-02T11:34:05.123-03:30"}, want: wanted.Add(time.Millisecond * 123),
+			wantErr: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

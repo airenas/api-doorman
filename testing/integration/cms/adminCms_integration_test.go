@@ -145,7 +145,7 @@ func newRequest(t *testing.T, method string, urlSuffix string, body interface{})
 func TestKeysChanges(t *testing.T) {
 	t.Parallel()
 
-	from := time.Now().Add(-time.Second*2)
+	from := time.Now().Add(-time.Millisecond) // make sure we are in past at least by 1ms
 	id := uuid.NewString()
 	in := api.CreateInput{ID: id, OperationID: uuid.NewString(), Service: "changes", Credits: 100}
 	resp := invoke(t, newRequest(t, http.MethodPost, "/key", in))
@@ -158,7 +158,7 @@ func TestKeysChanges(t *testing.T) {
 	require.NotEmpty(t, filter(res.Data, "changes"))
 	assert.Equal(t, id, filter(res.Data, "changes")[0].ID, "%v", res)
 	assert.Nil(t, res.From)
-	assert.Greater(t, res.Till.Unix(), from.Unix())
+	assert.NotNil(t, res.Till)
 
 	in = api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "changes", Credits: 100}
 	resp = invoke(t, newRequest(t, http.MethodPost, "/key", in))
@@ -170,20 +170,29 @@ func TestKeysChanges(t *testing.T) {
 	decode(t, resp, &res)
 	assert.Equal(t, 2, len(filter(res.Data, "changes")))
 
-	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s", from.Format(time.RFC3339)), in))
+	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s", from.Format(time.RFC3339Nano)), in))
 	checkCode(t, resp, http.StatusOK)
 	res = api.Changes{}
 	decode(t, resp, &res)
 	assert.Equal(t, 2, len(filter(res.Data, "changes")))
 	assert.Equal(t, from.Unix(), res.From.Unix())
-	assert.Greater(t, res.Till.Unix(), res.From.Unix())
 
 	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s",
-		res.Till.Add(time.Second*2).Format(time.RFC3339)), in))
+		res.Till.Add(time.Millisecond).Format(time.RFC3339Nano)), in))
 	checkCode(t, resp, http.StatusOK)
 	res = api.Changes{}
 	decode(t, resp, &res)
 	assert.Equal(t, 0, len(filter(res.Data, "changes")))
+	// create one more and see if it appears in changes list
+	in = api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "changes", Credits: 100}
+	resp = invoke(t, newRequest(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusCreated)
+	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s",
+		res.Till.Add(time.Millisecond).Format(time.RFC3339Nano)), in))
+	checkCode(t, resp, http.StatusOK)
+	res = api.Changes{}
+	decode(t, resp, &res)
+	assert.Equal(t, 1, len(filter(res.Data, "changes")))
 }
 
 func filter(keys []*api.Key, s string) []*api.Key {
