@@ -125,7 +125,17 @@ func TestFillRequestIDHeader(t *testing.T) {
 	resp := httptest.NewRecorder()
 	FillRequestIDHeader(newTestHandler(), "testdb").ServeHTTP(resp, req)
 	assert.Equal(t, testCode, resp.Code)
-	assert.Equal(t, "testdb:oliaID", req.Header.Get(headerRequestID))
+	assert.Equal(t, "testdb::oliaID", req.Header.Get(headerRequestID))
+}
+
+func TestFillRequestIDHeader_Manual(t *testing.T) {
+	req, ctx := customContext(httptest.NewRequest("POST", "/duration", nil))
+	ctx.RequestID = "oliaID"
+	ctx.Manual = true
+	resp := httptest.NewRecorder()
+	FillRequestIDHeader(newTestHandler(), "testdb").ServeHTTP(resp, req)
+	assert.Equal(t, testCode, resp.Code)
+	assert.Equal(t, "testdb:m:oliaID", req.Header.Get(headerRequestID))
 }
 
 func TestFillRequestIDHeader_NoHeader(t *testing.T) {

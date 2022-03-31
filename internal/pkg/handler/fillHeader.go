@@ -121,9 +121,16 @@ func FillRequestIDHeader(next http.Handler, dbName string) http.Handler {
 func (h *fillRequestIDHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
 	if ctx.RequestID != "" {
-		setHeader(rn, headerRequestID, fmt.Sprintf("%s:%s", h.db, ctx.RequestID))
+		setHeader(rn, headerRequestID, fmt.Sprintf("%s:%s:%s", h.db, manualStr(ctx.Manual), ctx.RequestID))
 	}
 	h.next.ServeHTTP(w, rn)
+}
+
+func manualStr(b bool) string {
+	if b {
+		return "m"
+	}
+	return ""
 }
 
 func (h *fillRequestIDHeader) Info(pr string) string {
