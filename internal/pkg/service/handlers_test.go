@@ -81,6 +81,7 @@ func TestQuotaHandle(t *testing.T) {
 	assert.Contains(t, h.Info(), "FillHeader")
 	assert.Contains(t, h.Info(), "FillOutHeader")
 	assert.Contains(t, h.Info(), "FillKeyHeader")
+	assert.Contains(t, h.Info(), "FillRequestIDHeader(db:test)")
 	assert.Contains(t, h.Info(), "CleanHeader ([TTS-ONE TTS-TWO])")
 }
 
@@ -320,6 +321,7 @@ tts:
 	assert.Contains(t, h.Info(), "FillHeader")
 	assert.Contains(t, h.Info(), "FillOutHeader")
 	assert.Contains(t, h.Info(), "FillKeyHeader")
+	assert.Contains(t, h.Info(), "FillRequestIDHeader(db:test)")
 	assert.Contains(t, h.Info(), "CleanHeader ([TTS-ONE])")
 }
 

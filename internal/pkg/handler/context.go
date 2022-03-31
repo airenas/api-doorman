@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/google/uuid"
 )
 
 type key int
@@ -23,6 +24,7 @@ type customData struct {
 	Value        string
 	Discount     *bool
 	Tags         []string
+	RequestID    string
 }
 
 func customContext(r *http.Request) (*http.Request, *customData) {
@@ -32,6 +34,7 @@ func customContext(r *http.Request) (*http.Request, *customData) {
 	}
 	res = &customData{}
 	res.IP = utils.ExtractIP(r)
+	res.RequestID = uuid.NewString()
 	ctx := context.WithValue(r.Context(), CtxContext, res)
 	return r.WithContext(ctx), res
 }

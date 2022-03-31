@@ -118,3 +118,21 @@ func Test_trim(t *testing.T) {
 		})
 	}
 }
+
+func TestFillRequestIDHeader(t *testing.T) {
+	req, ctx := customContext(httptest.NewRequest("POST", "/duration", nil))
+	ctx.RequestID = "oliaID"
+	resp := httptest.NewRecorder()
+	FillRequestIDHeader(newTestHandler(), "testdb").ServeHTTP(resp, req)
+	assert.Equal(t, testCode, resp.Code)
+	assert.Equal(t, "testdb:oliaID", req.Header.Get(headerRequestID))
+}
+
+func TestFillRequestIDHeader_NoHeader(t *testing.T) {
+	req, ctx := customContext(httptest.NewRequest("POST", "/duration", nil))
+	ctx.RequestID = ""
+	resp := httptest.NewRecorder()
+	FillRequestIDHeader(newTestHandler(), "testdb").ServeHTTP(resp, req)
+	assert.Equal(t, testCode, resp.Code)
+	assert.Equal(t, "", req.Header.Get(headerRequestID))
+}

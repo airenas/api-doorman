@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 )
 
 const headerSaveTags = "x-tts-save-tags"
+const headerRequestID = "x-doorman-requestid"
 
 type fillHeader struct {
 	next http.Handler
@@ -83,7 +85,7 @@ func hashKey(k string) string {
 	return trim(hex.EncodeToString(h.Sum(nil)), 10)
 }
 
-func trim(s string, i int) string{
+func trim(s string, i int) string {
 	if len(s) > i {
 		return s[:i]
 	}
@@ -101,4 +103,29 @@ func setHeader(r *http.Request, k, v string) {
 		vn = vo + "," + v
 	}
 	h.Set(k, vn)
+}
+
+type fillRequestIDHeader struct {
+	db   string
+	next http.Handler
+}
+
+//FillRequestIDHeader creates handler for adding requestID into header x-doorman-requestid"
+func FillRequestIDHeader(next http.Handler, dbName string) http.Handler {
+	res := &fillRequestIDHeader{}
+	res.next = next
+	res.db = dbName
+	return res
+}
+
+func (h *fillRequestIDHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	rn, ctx := customContext(r)
+	if ctx.RequestID != "" {
+		setHeader(rn, headerRequestID, fmt.Sprintf("%s:%s", h.db, ctx.RequestID))
+	}
+	h.next.ServeHTTP(w, rn)
+}
+
+func (h *fillRequestIDHeader) Info(pr string) string {
+	return pr + fmt.Sprintf("FillRequestIDHeader(db:%s)\n", h.db) + GetInfo(LogShitf(pr), h.next)
 }
