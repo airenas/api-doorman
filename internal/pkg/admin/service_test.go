@@ -10,16 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"go.mongodb.org/mongo-driver/mongo"
-
+	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
+	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
+	"github.com/airenas/api-doorman/internal/pkg/test/mocks/matchers"
 	"github.com/labstack/echo/v4"
 	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-
-	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
-	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
-	"github.com/airenas/api-doorman/internal/pkg/test/mocks/matchers"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var (
@@ -282,26 +280,30 @@ func TestUpdateKey_FailProject(t *testing.T) {
 
 func TestRestore(t *testing.T) {
 	initTest(t)
-	pegomock.When(uRestorer.Restore(pegomock.AnyString(), pegomock.AnyString())).
+	pegomock.When(uRestorer.RestoreUsage(pegomock.AnyString(), pegomock.AnyBool(), pegomock.AnyString())).
 		ThenReturn(nil)
-	req := httptest.NewRequest(http.MethodPost, "/pr/restore/rID", nil)
-	_ = testCode(t, req, 200)
-	cPr, cReq := uRestorer.VerifyWasCalled(pegomock.Once()).Restore(pegomock.AnyString(), pegomock.AnyString()).
+	req := httptest.NewRequest(http.MethodPost, "/pr/restore/m:rID", nil)
+	_ = testCode(t, req, http.StatusOK)
+	cPr, cManual, cReq := uRestorer.VerifyWasCalled(pegomock.Once()).
+		RestoreUsage(pegomock.AnyString(), pegomock.AnyBool(), pegomock.AnyString()).
 		GetCapturedArguments()
 	assert.Equal(t, "pr", cPr)
 	assert.Equal(t, "rID", cReq)
+	assert.Equal(t, true, cManual)
 }
 
 func TestRestore_Fail(t *testing.T) {
 	initTest(t)
-	pegomock.When(uRestorer.Restore(pegomock.AnyString(), pegomock.AnyString())).
-		ThenReturn(adminapi.ErrNoRecord)
 	req := httptest.NewRequest(http.MethodPost, "/pr/restore/rID", nil)
 	testCode(t, req, http.StatusBadRequest)
-	pegomock.When(uRestorer.Restore(pegomock.AnyString(), pegomock.AnyString())).
+	pegomock.When(uRestorer.RestoreUsage(pegomock.AnyString(), pegomock.AnyBool(), pegomock.AnyString())).
+		ThenReturn(adminapi.ErrNoRecord)
+	req = httptest.NewRequest(http.MethodPost, "/pr/restore/m:rID", nil)
+	testCode(t, req, http.StatusBadRequest)
+	pegomock.When(uRestorer.RestoreUsage(pegomock.AnyString(), pegomock.AnyBool(), pegomock.AnyString())).
 		ThenReturn(adminapi.ErrLogRestored)
 	testCode(t, req, http.StatusConflict)
-	pegomock.When(uRestorer.Restore(pegomock.AnyString(), pegomock.AnyString())).
+	pegomock.When(uRestorer.RestoreUsage(pegomock.AnyString(), pegomock.AnyBool(), pegomock.AnyString())).
 		ThenReturn(errors.New("olia"))
 	testCode(t, req, http.StatusInternalServerError)
 }
@@ -338,4 +340,34 @@ func TestLive(t *testing.T) {
 	tEcho.ServeHTTP(tResp, req)
 	assert.Equal(t, http.StatusOK, tResp.Code)
 	assert.Equal(t, `{"service":"OK"}`, tResp.Body.String())
+}
+
+func Test_parseRequestID(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    string
+		want    string
+		wantM   bool
+		wantErr bool
+	}{
+		{name: "Manual", args: "m:id", want: "id", wantM: true, wantErr: false},
+		{name: "Manual false", args: ":id", want: "id", wantM: false, wantErr: false},
+		{name: "Fails", args: "id", wantErr: true},
+		{name: "Fails2", args: "::id", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, err := parseRequestID(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseRequestID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("parseRequestID() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.wantM {
+				t.Errorf("parseRequestID() got1 = %v, want %v", got1, tt.wantM)
+			}
+		})
+	}
 }

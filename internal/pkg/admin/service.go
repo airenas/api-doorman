@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
@@ -30,7 +31,7 @@ type (
 
 	// UsageRestorer restores key usage by requestID
 	UsageRestorer interface {
-		Restore(string, string) error
+		RestoreUsage(string, bool, string) error
 	}
 
 	// KeyRetriever gets keys list from db
@@ -253,10 +254,15 @@ func keyUpdate(data *Data) func(echo.Context) error {
 func restore(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
 		defer goapp.Estimate("Service method: " + c.Path())()
-		rID := c.Param("requestID")
-		if rID == "" {
+		rStr := c.Param("requestID")
+		if rStr == "" {
 			goapp.Log.Error("no requestID")
 			return echo.NewHTTPError(http.StatusBadRequest, "no requestID")
+		}
+		rID, manual, err := parseRequestID(rStr)
+		if err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, "wrong requestID format")
 		}
 		project := c.Param("project")
 		if err := validateProject(project, data.ProjectValidator); err != nil {
@@ -264,7 +270,7 @@ func restore(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 
-		err := data.UsageRestorer.Restore(project, rID)
+		err = data.UsageRestorer.RestoreUsage(project, manual, rID)
 
 		if errors.Is(err, adminapi.ErrNoRecord) {
 			goapp.Log.Error("log not found. ", err)
@@ -278,6 +284,14 @@ func restore(data *Data) func(echo.Context) error {
 		}
 		return c.NoContent(http.StatusOK)
 	}
+}
+
+func parseRequestID(rStr string) (string, bool, error) {
+	strs := strings.Split(rStr, ":")
+	if len(strs) != 2 {
+		return "", false, errors.Errorf("wrong request format %s, wanted 'manual:rID'", rStr)
+	}
+	return strs[1], strs[0] == "m", nil
 }
 
 func validateProject(project string, prV PrValidator) error {
