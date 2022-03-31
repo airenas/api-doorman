@@ -175,11 +175,6 @@ func keyList(data *Data) func(echo.Context) error {
 	}
 }
 
-type keyInfoResp struct {
-	Key  *adminapi.Key   `json:"key,omitempty"`
-	Logs []*adminapi.Log `json:"logs,omitempty"`
-}
-
 func keyInfo(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
 		defer goapp.Estimate("Service method: " + c.Path())()
@@ -194,7 +189,7 @@ func keyInfo(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 
-		res := &keyInfoResp{}
+		res := &adminapi.KeyInfoResp{}
 		var err error
 		res.Key, err = data.OneKeyGetter.Get(project, key)
 		if errors.Is(err, adminapi.ErrNoRecord) {

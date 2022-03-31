@@ -34,7 +34,7 @@ services:
       ADMIN_URL: http://doorman-admin:8000  
     volumes:
       - ../../../:/go/src/
-    command: -tags integration -v -count=1 ./testing/integration/...
+    command: -tags integration -v -count=1 ./testing/integration/cms/...
 
   unit-tests:
     build:

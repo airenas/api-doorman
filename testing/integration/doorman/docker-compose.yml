@@ -1,0 +1,65 @@
+version: '3.7'
+
+services:
+
+  doorman-admin:
+    image: airenas/api-doorman-admin:${ADMIN_VERSION}
+    depends_on:
+      - mongo  
+    environment:
+      MONGO_URL: "${MONGO_URL}"  
+      PROJECTS: test,tts
+    restart: on-failure
+
+  doorman:
+    image: airenas/api-doorman:${DOORMAN_VERSION}
+    environment:
+      MONGO_URL: "${MONGO_URL}"  
+      PROJECTS: test,tts,changes
+      PROXY_HANDLERS: "test,tts,default"
+      PROXY_DEFAULT_BACKEND: "http://test-api:8000/"
+      PROXY_TEST_TYPE: quota
+      PROXY_TEST_DB: test
+      PROXY_TEST_BACKEND: "http://test-api:8000/"
+      PROXY_TEST_PREFIXURL: "/private"
+      PROXY_TEST_QUOTA_TYPE: "json"
+      PROXY_TEST_QUOTA_FIELD: "text"
+      PROXY_TEST_QUOTA_DEFAULT: 100
+      PROXY_TTS_TYPE: quota
+      PROXY_TTS_DB: tts
+      PROXY_TTS_BACKEND: "http://test-api:8000/"
+      PROXY_TTS_PREFIXURL: "/quotatts/private"
+      PROXY_TTS_STRIPPREFIX: "/quotatts"
+      PROXY_TTS_QUOTA_TYPE: "jsonTTS"
+      PROXY_TTS_QUOTA_DEFAULT: 100
+    depends_on:
+      - mongo  
+    restart: on-failure
+  
+  test-api:
+    image: airenas/test-api:${TEST_API_VERSION} 
+
+  mongo:
+    image: mongo:4.4.1
+    hostname: mongo
+    environment:
+      MONGO_DATA_DIR: "/data/db"
+      MONGO_LOG_DIR: "/dev/null"
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+    restart: on-failure    
+    command: mongod --replSet rs0 --logpath=/dev/null --bind_ip mongo,localhost 
+
+  integration-tests:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.test
+    depends_on:
+      - doorman-admin
+    environment:
+      ADMIN_URL: http://doorman-admin:8000  
+      DOORMAN_URL: http://doorman:8000  
+    volumes:
+      - ../../../:/go/src/
+    command: -tags integration -v -count=1 ./testing/integration/doorman/...
+

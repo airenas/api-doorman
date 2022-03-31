@@ -35,9 +35,16 @@ docker/doorman/scan:
 	cd build/doorman && $(MAKE) dscan		
 .PHONY: docker/doorman/scan
 ## run integration tests
-test/integration: 
-	cd testing/integration/cms && ( $(MAKE) -j1 test/integration clean || ( $(MAKE) clean; exit 1; ))
+test/integration: test/integration/cms test/integration/doorman 
 .PHONY: test/integration
+## run cms integration tests
+test/integration/cms: 
+	cd testing/integration/cms && ( $(MAKE) -j1 test/integration clean || ( $(MAKE) clean; exit 1; ))
+.PHONY: test/integration/cms
+## run doorman integration tests
+test/integration/doorman: 
+	cd testing/integration/doorman && ( $(MAKE) -j1 test/integration clean || ( $(MAKE) clean; exit 1; ))
+.PHONY: test/integration/doorman
 ## run load tests - start services, do load tests, clean services
 test/load: 
 	cd testing/load && $(MAKE) start all clean	
@@ -53,7 +60,6 @@ docker/doorman-admin/push:
 	cd build/doorman-admin && $(MAKE) dpush
 .PHONY: docker/doorman-admin/push		
 ## push doorman docker
-
 docker/doorman/push:
 	cd build/doorman && $(MAKE) dpush		
 .PHONY: docker/doorman/push

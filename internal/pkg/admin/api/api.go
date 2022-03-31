@@ -37,6 +37,12 @@ type Log struct {
 	ErrorMsg     string    `json:"errorMsg,omitempty"`
 }
 
+// KeyInfoResp keep key and logs data
+type KeyInfoResp struct {
+	Key  *Key   `json:"key,omitempty"`
+	Logs []*Log `json:"logs,omitempty"`
+}
+
 //ErrNoRecord indicates no record found error
 var ErrNoRecord = errors.New("no record found")
 
