@@ -31,7 +31,7 @@ type (
 
 	// UsageRestorer restores key usage by requestID
 	UsageRestorer interface {
-		RestoreUsage(string, bool, string) error
+		RestoreUsage(project string, manual bool, request string, errorMsg string) error
 	}
 
 	// KeyRetriever gets keys list from db
@@ -251,6 +251,10 @@ func keyUpdate(data *Data) func(echo.Context) error {
 	}
 }
 
+type restoreReq struct {
+	Error string `json:"error,omitempty"`
+}
+
 func restore(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
 		defer goapp.Estimate("Service method: " + c.Path())()
@@ -269,8 +273,13 @@ func restore(data *Data) func(echo.Context) error {
 			goapp.Log.Error(err)
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
+		input := restoreReq{}
+		if err := utils.TakeJSONInput(c, &input); err != nil {
+			goapp.Log.Error(err)
+			return err
+		}
 
-		err = data.UsageRestorer.RestoreUsage(project, manual, rID)
+		err = data.UsageRestorer.RestoreUsage(project, manual, rID, input.Error)
 
 		if errors.Is(err, adminapi.ErrNoRecord) {
 			goapp.Log.Error("log not found. ", err)

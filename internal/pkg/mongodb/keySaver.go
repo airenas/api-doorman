@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
@@ -54,12 +55,12 @@ func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, er
 	res.Key = key.Key
 	if res.Key == "" {
 		res.Key, err = randkey.Generate(ss.NewKeySize)
-		if (err != nil) {
+		if err != nil {
 			return nil, errors.Wrap(err, "can't generate key")
 		}
 	}
 	res.Limit = key.Limit
-	if (key.ValidTo != nil) {
+	if key.ValidTo != nil {
 		res.ValidTo = *key.ValidTo
 	}
 	res.Created = time.Now()
@@ -164,6 +165,55 @@ func (ss *KeySaver) Update(project string, key string, data map[string]interface
 	session.CommitTransaction(ctx)
 
 	return mapTo(&res), nil
+}
+
+//RestoreUsage erstores usage by requestID
+func (ss *KeySaver) RestoreUsage(project string, manual bool, requestID string, errMsg string) error {
+	goapp.Log.Debugf("Restoring quota for requestID %s", requestID)
+	sessCtx, cancel, err := newSessionWithContext(ss.SessionProvider)
+	if err != nil {
+		return err
+	}
+	defer cancel()
+
+	_, err = sessCtx.WithTransaction(sessCtx, func(sessCtx mongo.SessionContext) (interface{}, error) {
+		return nil, restoreQuota(sessCtx, project, manual, requestID, errMsg)
+	})
+	return err
+}
+
+func restoreQuota(sessCtx mongo.SessionContext, project string, manual bool, requestID string, errMsg string) error {
+	c := sessCtx.Client().Database(project).Collection(logTable)
+	var logR logRecord
+	err := c.FindOne(sessCtx, bson.M{"requestID": sanitize(requestID)}).Decode(&logR)
+	if err != nil {
+		if err != mongo.ErrNoDocuments {
+			return adminapi.ErrNoRecord
+		}
+		return err
+	}
+
+	if logR.Fail {
+		return adminapi.ErrLogRestored
+	}
+
+	err = c.FindOneAndUpdate(sessCtx,
+		bson.M{"requestID": sanitize(requestID)},
+		bson.M{"$set": bson.M{"fail": true, "errorMsg": errMsg}},
+		options.FindOneAndUpdate()).Err()
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return api.ErrNoRecord
+		}
+		return errors.Wrapf(err, "can't update %s.log", project)
+	}
+
+	now := time.Now()
+	update := bson.M{"$set": bson.M{"updated": now},
+		"$inc": bson.M{"quotaValueFailed": logR.QuotaValue, "quotaValue": -logR.QuotaValue}}
+	c = sessCtx.Client().Database(project).Collection(keyTable)
+	return c.FindOneAndUpdate(sessCtx, bson.M{"key": logR.Key, "manual": manual},
+		update, options.FindOneAndUpdate()).Err()
 }
 
 func prepareUpdates(data map[string]interface{}) (bson.M, error) {
