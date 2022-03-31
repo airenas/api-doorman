@@ -24,6 +24,7 @@ func TestLogDB(t *testing.T) {
 	ctx.Key = "kkk"
 	ctx.Manual = true
 	ctx.Value = "value"
+	ctx.RequestID = "reqID"
 	resp := httptest.NewRecorder()
 	h := LogDB(newTestHandler(), dbSaverMock).(*logDB)
 	h.sync = true
@@ -37,6 +38,7 @@ func TestLogDB(t *testing.T) {
 	assert.Equal(t, true, cLog.Fail)
 	assert.Equal(t, "192.0.2.1", cLog.IP)
 	assert.Equal(t, "/duration", cLog.URL)
+	assert.Equal(t, "reqID", cLog.RequestID)
 }
 
 func TestLogDB_NoFail(t *testing.T) {

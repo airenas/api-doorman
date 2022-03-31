@@ -7,20 +7,20 @@ import (
 
 // Key structure for key data
 type Key struct {
-	Key         string    `json:"key,omitempty"`
-	Manual      bool      `json:"manual,omitempty"`
+	Key         string     `json:"key,omitempty"`
+	Manual      bool       `json:"manual,omitempty"`
 	ValidTo     *time.Time `json:"validTo,omitempty"`
-	Limit       float64   `json:"limit,omitempty"`
-	QuotaValue  float64   `json:"quotaValue,omitempty"`
-	QuotaFailed float64   `json:"quotaFailed,omitempty"`
+	Limit       float64    `json:"limit,omitempty"`
+	QuotaValue  float64    `json:"quotaValue,omitempty"`
+	QuotaFailed float64    `json:"quotaFailed,omitempty"`
 	Created     *time.Time `json:"created,omitempty"`
 	Updated     *time.Time `json:"updated,omitempty"`
 	LastUsed    *time.Time `json:"lastUsed,omitempty"`
-	LastIP      string    `json:"lastIP,omitempty"`
-	IPWhiteList string    `json:"IPWhiteList,omitempty"`
-	Disabled    bool      `json:"disabled,omitempty"`
-	Description string    `json:"description,omitempty"`
-	Tags        []string  `json:"tags,omitempty"`
+	LastIP      string     `json:"lastIP,omitempty"`
+	IPWhiteList string     `json:"IPWhiteList,omitempty"`
+	Disabled    bool       `json:"disabled,omitempty"`
+	Description string     `json:"description,omitempty"`
+	Tags        []string   `json:"tags,omitempty"`
 }
 
 // Log structure for log data
@@ -33,6 +33,8 @@ type Log struct {
 	Value        string    `json:"value,omitempty"`
 	Fail         bool      `json:"fail,omitempty"`
 	ResponseCode int       `json:"response,omitempty"`
+	RequestID    string    `json:"requestID,omitempty"`
+	ErrorMsg     string    `json:"errorMsg,omitempty"`
 }
 
 //ErrNoRecord indicates no record found error

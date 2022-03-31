@@ -86,6 +86,8 @@ func mapFromLog(v *adminapi.Log) *logRecord {
 	res.QuotaValue = v.QuotaValue
 	res.Value = v.Value
 	res.ResponseCode = v.ResponseCode
+	res.RequestID = v.RequestID
+	res.ErrorMsg = v.ErrorMsg
 	return res
 }
 
@@ -99,5 +101,7 @@ func mapToLog(v *logRecord) *adminapi.Log {
 	res.QuotaValue = v.QuotaValue
 	res.Value = v.Value
 	res.ResponseCode = v.ResponseCode
+	res.RequestID = v.RequestID
+	res.ErrorMsg = v.ErrorMsg
 	return res
 }

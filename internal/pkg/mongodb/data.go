@@ -31,6 +31,9 @@ type logRecord struct {
 	Value        string    `bson:"value,omitempty"`
 	Fail         bool      `bson:"fail,omitempty"`
 	ResponseCode int       `bson:"responseCode,omitempty"`
+
+	RequestID string `bson:"requestID,omitempty"`
+	ErrorMsg  string `bson:"errorMsg,omitempty"`
 }
 
 type keyMapRecord struct {

@@ -38,6 +38,7 @@ func (h *logDB) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data.Date = time.Now()
 	data.QuotaValue = ctx.QuotaValue
 	data.Key = ctx.Key
+	data.RequestID = ctx.RequestID
 	data.IP = utils.ExtractIP(r)
 	data.URL = rn.URL.String()
 	data.ResponseCode = ctx.ResponseCode
