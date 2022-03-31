@@ -29,6 +29,7 @@ var (
 	logRetrieverMock    *mocks.MockLogRetriever
 	keyUpdaterMock      *mocks.MockKeyUpdater
 	prValidarorMock     *mocks.MockPrValidator
+	uRestorer           *mocks.MockUsageRestorer
 
 	tData *Data
 	tEcho *echo.Echo
@@ -43,6 +44,7 @@ func initTest(t *testing.T) {
 	logRetrieverMock = mocks.NewMockLogRetriever()
 	keyUpdaterMock = mocks.NewMockKeyUpdater()
 	prValidarorMock = mocks.NewMockPrValidator()
+	uRestorer = mocks.NewMockUsageRestorer()
 	pegomock.When(prValidarorMock.Check(pegomock.AnyString())).ThenReturn(true)
 
 	tData = newTestData()
@@ -278,6 +280,32 @@ func TestUpdateKey_FailProject(t *testing.T) {
 	testCode(t, req, 400)
 }
 
+func TestRestore(t *testing.T) {
+	initTest(t)
+	pegomock.When(uRestorer.Restore(pegomock.AnyString(), pegomock.AnyString())).
+		ThenReturn(nil)
+	req := httptest.NewRequest(http.MethodPost, "/pr/restore/rID", nil)
+	_ = testCode(t, req, 200)
+	cPr, cReq := uRestorer.VerifyWasCalled(pegomock.Once()).Restore(pegomock.AnyString(), pegomock.AnyString()).
+		GetCapturedArguments()
+	assert.Equal(t, "pr", cPr)
+	assert.Equal(t, "rID", cReq)
+}
+
+func TestRestore_Fail(t *testing.T) {
+	initTest(t)
+	pegomock.When(uRestorer.Restore(pegomock.AnyString(), pegomock.AnyString())).
+		ThenReturn(adminapi.ErrNoRecord)
+	req := httptest.NewRequest(http.MethodPost, "/pr/restore/rID", nil)
+	testCode(t, req, http.StatusBadRequest)
+	pegomock.When(uRestorer.Restore(pegomock.AnyString(), pegomock.AnyString())).
+		ThenReturn(adminapi.ErrLogRestored)
+	testCode(t, req, http.StatusConflict)
+	pegomock.When(uRestorer.Restore(pegomock.AnyString(), pegomock.AnyString())).
+		ThenReturn(errors.New("olia"))
+	testCode(t, req, http.StatusInternalServerError)
+}
+
 func toReader(key adminapi.Key) io.Reader {
 	bytes, _ := json.Marshal(key)
 	return strings.NewReader(string(bytes))
@@ -290,11 +318,13 @@ func newTestData() *Data {
 		LogGetter:        logRetrieverMock,
 		OneKeyUpdater:    keyUpdaterMock,
 		ProjectValidator: prValidarorMock,
+		UsageRestorer:    uRestorer,
 	}
 	return res
 }
 
 func testCode(t *testing.T, req *http.Request, code int) *httptest.ResponseRecorder {
+	t.Helper()
 	resp := httptest.NewRecorder()
 	tEcho.ServeHTTP(resp, req)
 	assert.Equal(t, code, resp.Code)

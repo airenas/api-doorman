@@ -28,6 +28,11 @@ type (
 		Update(string, string, map[string]interface{}) (*adminapi.Key, error)
 	}
 
+	// UsageRestorer restores key usage by requestID
+	UsageRestorer interface {
+		Restore(string, string) error
+	}
+
 	// KeyRetriever gets keys list from db
 	KeyRetriever interface {
 		List(string) ([]*adminapi.Key, error)
@@ -58,6 +63,7 @@ type (
 		OneKeyGetter     OneKeyRetriever
 		LogGetter        LogRetriever
 		OneKeyUpdater    KeyUpdater
+		UsageRestorer    UsageRestorer
 		ProjectValidator PrValidator
 
 		CmsData *cms.Data
@@ -99,6 +105,7 @@ func initRoutes(data *Data) *echo.Echo {
 	e.GET("/:project/key/:key", keyInfo(data))
 	e.POST("/:project/key", keyAdd(data))
 	e.PATCH("/:project/key/:key", keyUpdate(data))
+	e.POST("/:project/restore/:requestID", restore(data))
 
 	cms.InitRoutes(e, data.CmsData)
 
@@ -240,6 +247,36 @@ func keyUpdate(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.JSON(http.StatusOK, keyResp)
+	}
+}
+
+func restore(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		rID := c.Param("requestID")
+		if rID == "" {
+			goapp.Log.Error("no requestID")
+			return echo.NewHTTPError(http.StatusBadRequest, "no requestID")
+		}
+		project := c.Param("project")
+		if err := validateProject(project, data.ProjectValidator); err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+
+		err := data.UsageRestorer.Restore(project, rID)
+
+		if errors.Is(err, adminapi.ErrNoRecord) {
+			goapp.Log.Error("log not found. ", err)
+			return echo.NewHTTPError(http.StatusBadRequest, "requestID not found")
+		} else if errors.Is(err, adminapi.ErrLogRestored) {
+			goapp.Log.Error("already restored. ", err)
+			return echo.NewHTTPError(http.StatusConflict, "already restored")
+		} else if err != nil {
+			goapp.Log.Error("can't restore requestID usage. ", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		return c.NoContent(http.StatusOK)
 	}
 }
 
