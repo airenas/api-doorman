@@ -23,6 +23,7 @@ import (
 //go:generate pegomock generate --package=mocks --output=textGetter.go -m github.com/airenas/api-doorman/internal/pkg/handler TextGetter
 //go:generate pegomock generate --package=mocks --output=dbSaver.go -m github.com/airenas/api-doorman/internal/pkg/handler DBSaver
 //go:generate pegomock generate --package=mocks --output=ipSaver.go -m github.com/airenas/api-doorman/internal/pkg/handler IPSaver
+//go:generate pegomock generate --package=mocks --output=countGetter.go -m github.com/airenas/api-doorman/internal/pkg/handler CountGetter
 
 //go:generate pegomock generate --package=mocks --output=ipManager.go -m github.com/airenas/api-doorman/internal/pkg/service IPManager
 

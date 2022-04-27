@@ -7,6 +7,7 @@ import (
 
 	"github.com/airenas/api-doorman/internal/pkg/audio"
 	"github.com/airenas/api-doorman/internal/pkg/handler"
+	"github.com/airenas/api-doorman/internal/pkg/integration/tts"
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/api-doorman/internal/pkg/text"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
@@ -142,6 +143,16 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 
 	if tp == "quota" {
 		h = handler.QuotaValidate(h, keysValidator)
+		// configure skip first functionality
+		sfURL := strings.TrimSpace(cfg.GetString(name + ".quota.skipFirstURL"))
+		if (sfURL != "") {
+			goapp.Log.Infof("Skip First check service %s", sfURL)
+			counter, err := tts.NewCounter(sfURL)
+			if err != nil {
+				return nil, errors.Wrap(err, "can't init tts counter")
+			}
+			h = handler.SkipFirstQuota(h, counter)
+		}
 		qf := strings.TrimSpace(cfg.GetString(name + ".quota.field"))
 		if qt == "json" {
 			if qf == "" {

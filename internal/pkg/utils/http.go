@@ -3,6 +3,7 @@ package utils
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -26,5 +27,6 @@ func NewTransport() http.RoundTripper {
 	res.MaxIdleConns = 100
 	res.MaxConnsPerHost = 100
 	res.MaxIdleConnsPerHost = 100
+	res.IdleConnTimeout = time.Second * 90
 	return res
 }
