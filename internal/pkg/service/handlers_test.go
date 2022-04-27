@@ -63,6 +63,7 @@ tts:
     type: json
     field: field
     default: 100
+    skipFirstURL: http://tts:8000/{{rID}}
   prefixURL: /start
   method: POST
   cleanHeaders: tts-one,tts-two
@@ -83,6 +84,7 @@ func TestQuotaHandle(t *testing.T) {
 	assert.Contains(t, h.Info(), "FillKeyHeader")
 	assert.Contains(t, h.Info(), "FillRequestIDHeader(db:test)")
 	assert.Contains(t, h.Info(), "CleanHeader ([TTS-ONE TTS-TWO])")
+	assert.Contains(t, h.Info(), "SkipFirstQuota(rID)")
 }
 
 func TestQuotaHandleAudio(t *testing.T) {
@@ -210,6 +212,23 @@ tts:
     type: jsonTTS
     discount: 1.85
     default: 100
+  prefixURL: /start
+  stripPrefix: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, err)
+}
+
+func TestQuotaHandler_SkipFirstQuota_Fail(t *testing.T) {
+	_, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: jsonTTS
+    default: 100
+    skipFirstURL: http://tts;8000/{{}} # expexted {{keyID}}
   prefixURL: /start
   stripPrefix: /start
   method: POST
