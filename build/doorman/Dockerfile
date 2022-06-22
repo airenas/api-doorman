@@ -16,7 +16,7 @@ RUN go mod download
 # copy src
 COPY . /go/src
 
-RUN CGO_ENABLED=0 go build -o /go/bin/doorman -ldflags "-X main.version=$BUILD_VERSION" cmd/doorman/main.go
+RUN CGO_ENABLED=0 go build -o /go/bin/doorman -trimpath -ldflags "-s -w -X main.version=$BUILD_VERSION" cmd/doorman/main.go
 #####################################################################################
 FROM alpine:3.15 as runner
 
