@@ -91,6 +91,7 @@ func Test_extractKey(t *testing.T) {
 	}{
 		{name: "Empty", args: args{str: ""}, want: "", wantErr: false},
 		{name: "Extracts", args: args{str: "Key olia"}, want: "olia", wantErr: false},
+		{name: "Extracts with space", args: args{str: "Key olia\t\n"}, want: "olia", wantErr: false},
 		{name: "Fails", args: args{str: "Key"}, want: "", wantErr: true},
 		{name: "Fails", args: args{str: "olia"}, want: "", wantErr: true},
 		{name: "Fails", args: args{str: "Key olia olia"}, want: "", wantErr: true},

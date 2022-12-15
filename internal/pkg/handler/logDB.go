@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
@@ -37,7 +38,7 @@ func (h *logDB) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// data.Value = ctx.Value
 	data.Date = time.Now()
 	data.QuotaValue = ctx.QuotaValue
-	data.Key = ctx.Key
+	data.Key = strings.TrimSpace(ctx.Key)
 	data.RequestID = ctx.RequestID
 	data.IP = utils.ExtractIP(r)
 	data.URL = rn.URL.String()

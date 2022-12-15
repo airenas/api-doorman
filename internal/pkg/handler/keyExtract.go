@@ -37,7 +37,7 @@ func (h *keyExtract) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		keys, ok := r.URL.Query()["key"]
 		if ok && len(keys[0]) > 0 {
-			key = keys[0]
+			key = strings.TrimSpace(keys[0])
 			q, _ := url.ParseQuery(rn.URL.RawQuery)
 			q.Del("key")
 			rn.URL.RawQuery = q.Encode()
@@ -59,7 +59,7 @@ func extractKey(str string) (string, error) {
 	if len(strs) != 2 || strs[0] != "Key" {
 		return "", errors.New("wrong key format, wanted: Key <key>")
 	}
-	return strs[1], nil
+	return strings.TrimSpace(strs[1]), nil
 }
 
 func (h *keyExtract) Info(pr string) string {
