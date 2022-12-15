@@ -114,7 +114,7 @@ func (ss *KeySaver) Get(project string, key string) (*adminapi.Key, error) {
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(project).Collection(keyTable)
 	var res keyRecord
-	err = c.FindOne(ctx, bson.M{"key": sanitize(key)}).Decode(&res)
+	err = c.FindOne(ctx, bson.M{"key": Sanitize(key)}).Decode(&res)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, adminapi.ErrNoRecord
@@ -140,7 +140,7 @@ func (ss *KeySaver) Update(project string, key string, data map[string]interface
 
 	session.StartTransaction()
 	var res keyRecord
-	err = c.FindOne(ctx, bson.M{"key": sanitize(key)}).Decode(&res)
+	err = c.FindOne(ctx, bson.M{"key": Sanitize(key)}).Decode(&res)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, adminapi.ErrNoRecord
@@ -157,7 +157,7 @@ func (ss *KeySaver) Update(project string, key string, data map[string]interface
 	}
 
 	update := bson.M{"$set": updates}
-	err = c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key)}, update,
+	err = c.FindOneAndUpdate(ctx, bson.M{"key": Sanitize(key)}, update,
 		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&res)
 	if err != nil {
 		return nil, err
@@ -185,7 +185,7 @@ func (ss *KeySaver) RestoreUsage(project string, manual bool, requestID string, 
 func restoreQuota(sessCtx mongo.SessionContext, project string, manual bool, requestID string, errMsg string) error {
 	c := sessCtx.Client().Database(project).Collection(logTable)
 	var logR logRecord
-	err := c.FindOne(sessCtx, bson.M{"requestID": sanitize(requestID)}).Decode(&logR)
+	err := c.FindOne(sessCtx, bson.M{"requestID": Sanitize(requestID)}).Decode(&logR)
 	if err != nil {
 		if err != mongo.ErrNoDocuments {
 			return adminapi.ErrNoRecord
@@ -198,7 +198,7 @@ func restoreQuota(sessCtx mongo.SessionContext, project string, manual bool, req
 	}
 
 	err = c.FindOneAndUpdate(sessCtx,
-		bson.M{"requestID": sanitize(requestID)},
+		bson.M{"requestID": Sanitize(requestID)},
 		bson.M{"$set": bson.M{"fail": true, "errorMsg": errMsg}},
 		options.FindOneAndUpdate()).Err()
 	if err != nil {

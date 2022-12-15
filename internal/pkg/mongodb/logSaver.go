@@ -60,7 +60,7 @@ func (ss *LogGetter) Get(project, key string) ([]*adminapi.Log, error) {
 	}
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(project).Collection(logTable)
-	cursor, err := c.Find(ctx, bson.M{"key": sanitize(key)})
+	cursor, err := c.Find(ctx, bson.M{"key": Sanitize(key)})
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't get logs")
 	}

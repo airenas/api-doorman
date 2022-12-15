@@ -54,7 +54,7 @@ func (ss *CmsIntegrator) Create(input *api.CreateInput) (*api.Key, bool, error) 
 	resInt, err := sessCtx.WithTransaction(sessCtx, func(sessCtx mongo.SessionContext) (interface{}, error) {
 		c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
 		var keyMap keyMapRecord
-		err = c.FindOne(sessCtx, bson.M{"externalID": sanitize(input.ID)}).Decode(&keyMap)
+		err = c.FindOne(sessCtx, bson.M{"externalID": Sanitize(input.ID)}).Decode(&keyMap)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				key, err := ss.createKeyWithQuota(sessCtx, input)
@@ -113,7 +113,7 @@ func (ss *CmsIntegrator) GetKeyID(key string) (*api.KeyID, error) {
 
 	c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
 	keyMapR := &keyMapRecord{}
-	err = c.FindOne(sessCtx, bson.M{"key": sanitize(key)}).Decode(&keyMapR)
+	err = c.FindOne(sessCtx, bson.M{"key": Sanitize(key)}).Decode(&keyMapR)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, api.ErrNoRecord
@@ -366,9 +366,9 @@ func getDateFilter(from, to *time.Time) bson.M {
 }
 
 func makeDateFilter(key string, old []oldKey, from, to *time.Time) bson.M {
-	res := bson.M{"key": sanitize(key)}
+	res := bson.M{"key": Sanitize(key)}
 	if len(old) > 0 {
-		keys := []string{sanitize(key)}
+		keys := []string{Sanitize(key)}
 		for _, k := range old {
 			keys = append(keys, k.Key)
 		}
@@ -407,7 +407,7 @@ func newSessionWithContext(sessionProvider *SessionProvider) (mongo.SessionConte
 func addQuota(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.CreditsInput) (*keyRecord, error) {
 	c := sessCtx.Client().Database(keyMapR.Project).Collection(operationTable)
 	var operation operationRecord
-	err := c.FindOne(sessCtx, bson.M{"operationID": sanitize(input.OperationID)}).Decode(&operation)
+	err := c.FindOne(sessCtx, bson.M{"operationID": Sanitize(input.OperationID)}).Decode(&operation)
 	if err == nil {
 		if operation.Key != keyMapR.Key {
 			return nil, &api.ErrField{Field: "operationID", Msg: "exists for other key"}
@@ -459,13 +459,13 @@ func loadKeyRecord(sessCtx mongo.SessionContext, project, key string) (*keyRecor
 }
 
 func keyFilter(key string) bson.M {
-	return bson.M{"key": sanitize(key), "manual": true}
+	return bson.M{"key": Sanitize(key), "manual": true}
 }
 
 func loadKeyMapRecord(sessCtx mongo.SessionContext, keyID string) (*keyMapRecord, error) {
 	c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
 	keyMapR := &keyMapRecord{}
-	err := c.FindOne(sessCtx, bson.M{"externalID": sanitize(keyID)}).Decode(&keyMapR)
+	err := c.FindOne(sessCtx, bson.M{"externalID": Sanitize(keyID)}).Decode(&keyMapR)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, api.ErrNoRecord

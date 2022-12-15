@@ -34,7 +34,7 @@ func (ss *IPSaver) CheckCreate(ip string, limit float64) error {
 	defer session.EndSession(context.Background())
 	c := db.Collection(keyTable)
 
-	err = c.FindOne(ctx, bson.M{"key": sanitize(ip), "manual": false}).Err()
+	err = c.FindOne(ctx, bson.M{"key": Sanitize(ip), "manual": false}).Err()
 	if err == nil {
 		return nil
 	}

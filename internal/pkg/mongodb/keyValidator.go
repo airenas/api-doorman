@@ -2,7 +2,6 @@ package mongodb
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/utils"
@@ -18,7 +17,7 @@ type KeyValidator struct {
 	SessionProvider *DBProvider
 }
 
-//NewKeyValidator creates KeyValidator instance
+// NewKeyValidator creates KeyValidator instance
 func NewKeyValidator(sessionProvider *DBProvider) (*KeyValidator, error) {
 	f := KeyValidator{SessionProvider: sessionProvider}
 	return &f, nil
@@ -38,7 +37,7 @@ func (ss *KeyValidator) IsValid(key string, IP string, manual bool) (bool, []str
 	defer session.EndSession(context.Background())
 	c := db.Collection(keyTable)
 	var res keyRecord
-	err = c.FindOne(ctx, bson.M{"key": sanitize(key), "manual": manual}).Decode(&res)
+	err = c.FindOne(ctx, bson.M{"key": Sanitize(key), "manual": manual}).Decode(&res)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			goapp.Log.Infof("No key")
@@ -72,7 +71,7 @@ func validateKey(key *keyRecord, IP string) (bool, error) {
 	return res, err
 }
 
-//SaveValidate add qv to quota and validates with quota limit
+// SaveValidate add qv to quota and validates with quota limit
 func (ss *KeyValidator) SaveValidate(key string, ip string, manual bool, qv float64) (bool, float64, float64, error) {
 	goapp.Log.Debugf("Validating key")
 	ctx, cancel := mongoContext()
@@ -87,7 +86,7 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, manual bool, qv floa
 	c := db.Collection(keyTable)
 
 	var res keyRecord
-	err = c.FindOne(ctx, bson.M{"key": sanitize(key), "manual": manual}).Decode(&res)
+	err = c.FindOne(ctx, bson.M{"key": Sanitize(key), "manual": manual}).Decode(&res)
 	if err != nil {
 		return false, 0, 0, err
 	}
@@ -100,7 +99,7 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, manual bool, qv floa
 	update := bson.M{"$set": bson.M{"lastUsed": now, "updated": now, "lastIP": ip},
 		"$inc": bson.M{"quotaValue": qv}}
 	var resNew keyRecord
-	err = c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key), "manual": manual,
+	err = c.FindOneAndUpdate(ctx, bson.M{"key": Sanitize(key), "manual": manual,
 		"quotaValue": bson.M{"$not": bson.M{"$gt": remRequired}}},
 		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&resNew)
 	if err != nil {
@@ -113,7 +112,7 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, manual bool, qv floa
 	return true, resNew.Limit - resNew.QuotaValue, resNew.Limit, nil
 }
 
-//Restore restores quota value after failed service call
+// Restore restores quota value after failed service call
 func (ss *KeyValidator) Restore(key string, manual bool, qv float64) (float64, float64, error) {
 	goapp.Log.Debugf("Restoring quota for key")
 	ctx, cancel := mongoContext()
@@ -131,7 +130,7 @@ func (ss *KeyValidator) Restore(key string, manual bool, qv float64) (float64, f
 	update := bson.M{"$set": bson.M{"lastUsed": now, "updated": now},
 		"$inc": bson.M{"quotaValueFailed": qv, "quotaValue": -qv}}
 	var resNew keyRecord
-	err = c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key), "manual": manual},
+	err = c.FindOneAndUpdate(ctx, bson.M{"key": Sanitize(key), "manual": manual},
 		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&resNew)
 	if err != nil {
 		return 0, 0, err
@@ -146,14 +145,10 @@ func (ss *KeyValidator) updateFailed(c *mongo.Collection, key string, ip string,
 	update := bson.M{"$set": bson.M{"lastUsed": time.Now(), "lastIP": ip},
 		"$inc": bson.M{"quotaValueFailed": qv}}
 	var res keyRecord
-	err := c.FindOneAndUpdate(ctx, bson.M{"key": sanitize(key), "manual": manual},
+	err := c.FindOneAndUpdate(ctx, bson.M{"key": Sanitize(key), "manual": manual},
 		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&res)
 	if err != nil {
 		return false, 0, 0, err
 	}
 	return false, res.Limit - res.QuotaValue, res.Limit, nil
-}
-
-func sanitize(s string) string {
-	return strings.Trim(s, " $/^\\")
 }

@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 )
@@ -15,14 +16,14 @@ type keyExtract struct {
 	next http.Handler
 }
 
-//KeyExtract creates handler
+// KeyExtract creates handler
 func KeyExtract(next http.Handler) http.Handler {
 	res := &keyExtract{}
 	res.next = next
 	return res
 }
 
-//ServeHTTP tries to extract authorization key from header Authorization: Key <key>
+// ServeHTTP tries to extract authorization key from header Authorization: Key <key>
 // if not there then tries to extract from query parameter key=<key>
 func (h *keyExtract) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	key, err := extractKey(r.Header.Get(authHeader))
@@ -37,7 +38,7 @@ func (h *keyExtract) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		keys, ok := r.URL.Query()["key"]
 		if ok && len(keys[0]) > 0 {
-			key = strings.TrimSpace(keys[0])
+			key = strings.TrimSpace(mongodb.Sanitize(keys[0]))
 			q, _ := url.ParseQuery(rn.URL.RawQuery)
 			q.Del("key")
 			rn.URL.RawQuery = q.Encode()
@@ -59,7 +60,7 @@ func extractKey(str string) (string, error) {
 	if len(strs) != 2 || strs[0] != "Key" {
 		return "", errors.New("wrong key format, wanted: Key <key>")
 	}
-	return strings.TrimSpace(strs[1]), nil
+	return strings.TrimSpace(mongodb.Sanitize(strs[1])), nil
 }
 
 func (h *keyExtract) Info(pr string) string {

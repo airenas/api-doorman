@@ -1,6 +1,8 @@
 package mongodb
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -17,3 +19,9 @@ func IsDuplicate(err error) bool {
 	}
 	return false
 }
+
+//Sanitize sanitizes for mongo input
+func Sanitize(s string) string {
+	return strings.Trim(s, " $/^\\")
+}
+

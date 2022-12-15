@@ -7,13 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSanitize(t *testing.T) {
-	assert.Equal(t, "olia", sanitize("olia"))
-	assert.Equal(t, "olia", sanitize("$^olia$"))
-	assert.Equal(t, "olia", sanitize("\\olia$ "))
-	assert.Equal(t, "olia", sanitize("/$olia"))
-}
-
 func TestValidateKey(t *testing.T) {
 	key := &keyRecord{Disabled: false, IPWhiteList: "", ValidTo: time.Now().Add(time.Minute)}
 	testValidate(t, key, "", true, true)
