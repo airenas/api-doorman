@@ -11,13 +11,13 @@ help:
 
 ## start all test containers
 start: | .mongo
-	docker-compose up -d mongo
+	docker compose up -d mongo
 	$(MAKE) mongo-prepare 
-	docker-compose up -d
+	docker compose up -d
 
 ## stop containers
 stop:
-	docker-compose stop && docker-compose rm -f
+	docker compose stop && docker compose rm -f
 
 ## clean everything. Perhaps you should run 'sudo make clean'
 clean: stop
@@ -56,15 +56,15 @@ test/api/key:
 
 ########################################################################################################
 mongosh:
-	docker-compose exec mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS)
+	docker compose exec mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS)
 
 mongo-prepare:
 	@echo wait until mongo ready
-	@docker-compose exec -T mongo timeout 20 bash -c "until echo > /dev/tcp/mongo/27017; do sleep 1; done"
-	docker-compose exec -T mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS) --eval "rs.initiate()"
+	@docker compose exec -T mongo timeout 20 bash -c "until echo > /dev/tcp/mongo/27017; do sleep 1; done"
+	docker compose exec -T mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS) --eval "rs.initiate()"
 
 mongo-update-script:
-	docker-compose exec mongo sh -c \
+	docker compose exec mongo sh -c \
 	'printf "use test\ndb.log.update({}, {\$$rename:{\"quotavalue\":\"quotaValue\", \"responsecode\":\"responseCode\"}}, false, true)" | /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS)'
 
 #####################################################################################

@@ -14,19 +14,19 @@ help:
 #####################################################################################
 ## start all containers for testing
 start: 
-	docker-compose up -d mongo
+	docker compose up -d mongo
 	$(MAKE) mongo/prepare 
-	docker-compose up -d --build
+	docker compose up -d --build
 .PHONY: start
 ## clean everything, stops docker containers and removes them
 clean:
-	docker-compose stop && docker-compose rm -f
+	docker compose down 
 .PHONY: clean	
 #####################################################################################
 mongo/prepare:
 	@echo wait until mongo ready
-	@docker-compose exec -T mongo timeout 20 bash -c "until echo > /dev/tcp/mongo/27017; do sleep 1; done"
-	docker-compose exec -T mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS) --eval "rs.initiate()"
+	@docker compose exec -T mongo timeout 20 bash -c "until echo > /dev/tcp/mongo/27017; do sleep 1; done"
+	docker compose exec -T mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS) --eval "rs.initiate()"
 .PHONY: mongo/prepare
 #####################################################################################
 vu?=10
