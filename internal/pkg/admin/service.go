@@ -82,7 +82,7 @@ func StartWebServer(data *Data) error {
 	e.Server.IdleTimeout = 3 * time.Minute
 	e.Server.ReadHeaderTimeout = 10 * time.Second
 	e.Server.ReadTimeout = 20 * time.Second
-	e.Server.WriteTimeout = 30 * time.Second
+	e.Server.WriteTimeout = 60 * time.Second
 
 	w := goapp.Log.Writer()
 	defer w.Close()
