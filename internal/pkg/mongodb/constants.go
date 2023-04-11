@@ -6,6 +6,7 @@ const (
 	operationTable = "operation"
 	keyMapTable    = "map"
 	keyMapDB       = "keyMap"
+	settingTable  = "setting"
 )
 
 var indexData = []IndexData{

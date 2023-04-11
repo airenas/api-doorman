@@ -1,7 +1,6 @@
 package cms
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -230,11 +229,11 @@ func keyUsage(data *Data) func(echo.Context) error {
 			goapp.Log.Error("no key ID")
 			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
 		}
-		from, err := parseDateParam(c.QueryParam("from"))
+		from, err := utils.ParseDateParam(c.QueryParam("from"))
 		if err != nil {
 			return err
 		}
-		to, err := parseDateParam(c.QueryParam("to"))
+		to, err := utils.ParseDateParam(c.QueryParam("to"))
 		if err != nil {
 			return err
 		}
@@ -254,7 +253,7 @@ func keyUsage(data *Data) func(echo.Context) error {
 func keysChanges(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
 		defer goapp.Estimate("Service method: " + c.Path())()
-		from, err := parseDateParam(c.QueryParam("from"))
+		from, err := utils.ParseDateParam(c.QueryParam("from"))
 		if err != nil {
 			return err
 		}
@@ -266,18 +265,6 @@ func keysChanges(data *Data) func(echo.Context) error {
 		}
 		return c.JSON(http.StatusOK, changesResp)
 	}
-}
-
-func parseDateParam(s string) (*time.Time, error) {
-	if s == "" {
-		return nil, nil
-	}
-	res, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		goapp.Log.Error(errors.Wrapf(err, "can't parse as date '%s'", s))
-		return nil, echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("can't parse as date '%s'", s))
-	}
-	return &res, nil
 }
 
 func validateService(project string, prV PrValidator) error {

@@ -14,6 +14,7 @@ type keyRecord struct {
 	Created          time.Time `bson:"created,omitempty"`
 	Updated          time.Time `bson:"updated,omitempty"`
 	LastUsed         time.Time `bson:"lastUsed,omitempty"`
+	ResetAt          time.Time `bson:"resetAt,omitempty"`
 	LastIP           string    `bson:"lastIP,omitempty"`
 	Disabled         bool      `bson:"disabled,omitempty"`
 	IPWhiteList      string    `bson:"IPWhiteList,omitempty"`
@@ -54,4 +55,10 @@ type operationRecord struct {
 	OperationID string    `bson:"operationID"`
 	Date        time.Time `bson:"date,omitempty"`
 	QuotaValue  float64   `bson:"quotaValue,omitempty"`
+}
+
+type settingsRecord struct {
+	ResetStarted time.Time `bson:"resetStarted,omitempty"`
+	NextReset time.Time `bson:"nextReset,omitempty"`
+	Updated          time.Time `bson:"updated,omitempty"`
 }

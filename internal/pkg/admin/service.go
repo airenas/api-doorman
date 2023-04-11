@@ -16,6 +16,7 @@ import (
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 type (
@@ -49,6 +50,11 @@ type (
 		Get(string, string) ([]*adminapi.Log, error)
 	}
 
+	// UsageReseter resets montly usage
+	UsageReseter interface {
+		Reset(ctx context.Context, project string, since time.Time, limit float64) error
+	}
+
 	// PrValidator validates if project is available
 	PrValidator interface {
 		Check(string) bool
@@ -65,13 +71,14 @@ type (
 		LogGetter        LogRetriever
 		OneKeyUpdater    KeyUpdater
 		UsageRestorer    UsageRestorer
+		UsageReseter     UsageReseter
 		ProjectValidator PrValidator
 
 		CmsData *cms.Data
 	}
 )
 
-//StartWebServer starts the HTTP service and listens for the admin requests
+// StartWebServer starts the HTTP service and listens for the admin requests
 func StartWebServer(data *Data) error {
 	goapp.Log.Infof("Starting HTTP doorman admin service at %d", data.Port)
 
@@ -107,6 +114,7 @@ func initRoutes(data *Data) *echo.Echo {
 	e.POST("/:project/key", keyAdd(data))
 	e.PATCH("/:project/key/:key", keyUpdate(data))
 	e.POST("/:project/restore/:requestID", restore(data))
+	e.POST("/:project/reset", reset(data))
 
 	cms.InitRoutes(e, data.CmsData)
 
@@ -284,6 +292,44 @@ func restore(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusConflict, "already restored")
 		} else if err != nil {
 			goapp.Log.Error("can't restore requestID usage. ", err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		return c.NoContent(http.StatusOK)
+	}
+}
+
+func reset(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		project := c.Param("project")
+		if err := validateProject(project, data.ProjectValidator); err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+		qStr := c.Param("quota")
+		if qStr == "" {
+			goapp.Log.Error("no quota")
+			return echo.NewHTTPError(http.StatusBadRequest, "no quota")
+		}
+		quota, err := strconv.ParseFloat(qStr, 64)
+		if err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, "wrong quota '%s'", qStr)
+		}
+		since, err := utils.ParseDateParam(c.Param("since"))
+		if err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, "wrong since '%s'", qStr)
+		}
+		if since == nil {
+			goapp.Log.Error("no since")
+			return echo.NewHTTPError(http.StatusBadRequest, "no since")
+		}
+
+		err = data.UsageReseter.Reset(c.Request().Context(), project, *since, quota)
+
+		if err != nil {
+			goapp.Log.Errorf("reset usage: %v ", err)
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.NoContent(http.StatusOK)
