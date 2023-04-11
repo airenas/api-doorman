@@ -109,7 +109,7 @@ func updateResetConfig(sessCtx mongo.SessionContext, project string, next time.T
 	c := sessCtx.Client().Database(project).Collection(settingTable)
 	err := c.FindOneAndUpdate(sessCtx,
 		bson.M{},
-		bson.M{"$set": bson.M{"updated": time.Now(), "nextReste": next}},
+		bson.M{"$set": bson.M{"updated": time.Now(), "nextReset": next}},
 		options.FindOneAndUpdate().SetUpsert(true)).Err()
 	if err != nil {
 		return errors.Wrapf(err, "can't update %s.setting", project)
@@ -162,7 +162,7 @@ func getResetableItems(sessCtx mongo.SessionContext, service string, at time.Tim
 
 func makeResetFilterForDate(at time.Time) bson.M {
 	res := bson.M{"manual": false}
-	res["created"] = bson.M{"lt": at}
-	res["$or"] = bson.A{bson.M{"resetAt": nil}, bson.M{"resetAt": bson.M{"lt": at}}}
+	res["created"] = bson.M{"$lt": at}
+	res["$or"] = bson.A{bson.M{"resetAt": nil}, bson.M{"resetAt": bson.M{"$lt": at}}}
 	return res
 }
