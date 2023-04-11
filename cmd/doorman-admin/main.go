@@ -95,7 +95,7 @@ func main() {
 func initProjectReset(projects []string, config *viper.Viper) (map[string]float64, error) {
 	res := map[string]float64{}
 	for _, p := range projects {
-		v := config.GetFloat64(fmt.Sprintf("%sMonthlyReset", p))
+		v := config.GetFloat64(fmt.Sprintf("%s.MonthlyReset", p))
 		if v > 0 {
 			res[p] = v
 		}

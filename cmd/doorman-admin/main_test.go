@@ -11,7 +11,7 @@ import (
 func Test_initProjectReset(t *testing.T) {
 	v := viper.New()
 	v.SetConfigType("yaml")
-	err := v.ReadConfig(strings.NewReader("asrMonthlyReset: 600\nttsMonthlyReset: 2000"))
+	err := v.ReadConfig(strings.NewReader("asr:\n  MonthlyReset: 600\ntts:\n  MonthlyReset: 2000"))
 	assert.Nil(t, err)
 	res, err := initProjectReset([]string{"asr", "tts"}, v)
 	assert.Nil(t, err)
