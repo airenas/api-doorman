@@ -28,7 +28,7 @@ func NewReseter(sessionProvider *SessionProvider) (*Reseter, error) {
 
 // Reset does monthly reset
 func (ss *Reseter) Reset(ctx context.Context, project string, since time.Time, limit float64) error {
-	goapp.Log.Infof("reset project default quotas for %s, at %s", project, since.Format(time.RFC3339))
+	goapp.Log.Infof("reset project default quotas for %s(%f), at %s", project, limit, since.Format(time.RFC3339))
 	session, err := ss.sessionProvider.NewSession()
 	if err != nil {
 		return err
@@ -92,19 +92,20 @@ func getUpdateResetConfig(sessCtx mongo.SessionContext, project string, since ti
 		if err != mongo.ErrNoDocuments {
 			return nil, err
 		}
+		goapp.Log.Warn("no %s.setting", project)
 		settings.NextReset = utils.StartOfMonth(since, 0)
 	}
 	err = c.FindOneAndUpdate(sessCtx,
 		bson.M{},
 		bson.M{"$set": bson.M{"updated": since, "resetStarted": since}},
-		options.FindOneAndUpdate().SetUpsert(true)).Err()
+		options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)).Err()
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't update %s.setting", project)
 	}
 	return &settings, nil
 }
 
-func updateResetConfig(sessCtx mongo.SessionContext, project string, next time.Time) (error) {
+func updateResetConfig(sessCtx mongo.SessionContext, project string, next time.Time) error {
 	c := sessCtx.Client().Database(project).Collection(settingTable)
 	err := c.FindOneAndUpdate(sessCtx,
 		bson.M{},
