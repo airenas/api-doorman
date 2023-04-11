@@ -42,9 +42,12 @@ func (ss *Reseter) Reset(ctx context.Context, project string, since time.Time, l
 		return getUpdateResetConfig(sessCtx, project, since)
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("get reset config: %w", err)
 	}
-	settings := cfg.(*settingsRecord)
+	settings, ok := cfg.(*settingsRecord)
+	if !ok {
+		return fmt.Errorf("wrong reset cfg record")
+	}
 	if since.Before(settings.NextReset) {
 		goapp.Log.Infof("skip reset %s before %s", since.Format(time.RFC3339), settings.NextReset.Format(time.RFC3339))
 		return nil
@@ -118,12 +121,19 @@ func updateResetConfig(sessCtx mongo.SessionContext, project string, next time.T
 }
 
 func reset(sessCtx mongo.SessionContext, keyMapRecord *keyMapRecord, at time.Time, quota float64) error {
-	goapp.Log.Debugf("updating %s(%s), quota: +%f", keyMapRecord.Key, keyMapRecord.Project, quota)
+	goapp.Log.Debugf("updating %s(%s), quota: +%f (%s)", start(keyMapRecord.Key), keyMapRecord.Project, quota, at.Format(time.RFC3339))
 	_, err := addQuotaForIP(sessCtx, keyMapRecord, &api.CreditsInput{OperationID: uuid.NewString(), Credits: quota, Msg: "monthly reset"}, at)
 	if err != nil {
 		return fmt.Errorf("addQuota: %v", err)
 	}
 	return nil
+}
+
+func start(s string) string {
+	if len(s) > 3 {
+		return s[:3] + "..."
+	}
+	return s
 }
 
 func addQuotaForIP(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.CreditsInput, at time.Time) (*keyRecord, error) {
