@@ -45,8 +45,8 @@ func (ss *Reseter) Reset(ctx context.Context, project string, since time.Time, l
 		return err
 	}
 	settings := cfg.(*settingsRecord)
-	if settings.NextReset.Before(since) {
-		goapp.Log.Infof("skip reset")
+	if since.Before(settings.NextReset) {
+		goapp.Log.Infof("skip reset %s before %s", since.Format(time.RFC3339), settings.NextReset.Format(time.RFC3339))
 		return nil
 	}
 	if settings.ResetStarted.After(since.Add(time.Hour)) {
@@ -92,7 +92,7 @@ func getUpdateResetConfig(sessCtx mongo.SessionContext, project string, since ti
 		if err != mongo.ErrNoDocuments {
 			return nil, err
 		}
-		goapp.Log.Warn("no %s.setting", project)
+		goapp.Log.Warnf("no %s.setting", project)
 		settings.NextReset = utils.StartOfMonth(since, 0)
 	}
 	err = c.FindOneAndUpdate(sessCtx,
