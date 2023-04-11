@@ -46,7 +46,9 @@ func serviceLoop(ctx context.Context, data *TimerData) {
 		goapp.Log.Error(err)
 		nextRun = now.Add(time.Hour)
 	}
+
 	for {
+		goapp.Log.Infof("next reset run at %s", nextRun.Format(time.RFC3339))
 		select {
 		case <-time.After(time.Until(nextRun)):
 			now := time.Now()
@@ -57,7 +59,7 @@ func serviceLoop(ctx context.Context, data *TimerData) {
 				nextRun = now.Add(time.Hour)
 			}
 		case <-ctx.Done():
-			goapp.Log.Info("Stopped timer service")
+			goapp.Log.Info("Stopped reset service")
 			return
 		}
 	}
