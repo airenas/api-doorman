@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -19,14 +20,14 @@ const (
 	saveRequestTag = "x-tts-collect-data:always"
 )
 
-//CmsIntegrator integrator function implementation with mongoDB persistence
+// CmsIntegrator integrator function implementation with mongoDB persistence
 type CmsIntegrator struct {
 	sessionProvider        *SessionProvider
 	newKeySize             int
 	defaultValidToDuration time.Duration
 }
 
-//NewCmsIntegrator creates CmsIntegrator instance
+// NewCmsIntegrator creates CmsIntegrator instance
 func NewCmsIntegrator(sessionProvider *SessionProvider, keySize int) (*CmsIntegrator, error) {
 	f := CmsIntegrator{sessionProvider: sessionProvider}
 	if keySize < 10 || keySize > 100 {
@@ -37,7 +38,7 @@ func NewCmsIntegrator(sessionProvider *SessionProvider, keySize int) (*CmsIntegr
 	return &f, nil
 }
 
-//Create creates new key
+// Create creates new key
 func (ss *CmsIntegrator) Create(input *api.CreateInput) (*api.Key, bool, error) {
 	if err := validateInput(input); err != nil {
 		return nil, false, err
@@ -79,7 +80,7 @@ func (ss *CmsIntegrator) Create(input *api.CreateInput) (*api.Key, bool, error) 
 	return res, inserted, nil
 }
 
-//GetKey by ID
+// GetKey by ID
 func (ss *CmsIntegrator) GetKey(keyID string) (*api.Key, error) {
 	if keyID == "" {
 		return nil, api.ErrNoRecord
@@ -100,7 +101,7 @@ func (ss *CmsIntegrator) GetKey(keyID string) (*api.Key, error) {
 	return mapToKey(keyMapR.Project, keyR, true), nil
 }
 
-//GetKeyID returns keyID by key value
+// GetKeyID returns keyID by key value
 func (ss *CmsIntegrator) GetKeyID(key string) (*api.KeyID, error) {
 	if key == "" {
 		return nil, api.ErrNoRecord
@@ -123,7 +124,7 @@ func (ss *CmsIntegrator) GetKeyID(key string) (*api.KeyID, error) {
 	return &api.KeyID{ID: keyMapR.ExternalID, Service: keyMapR.Project}, nil
 }
 
-//AddCredits to the key
+// AddCredits to the key
 func (ss *CmsIntegrator) AddCredits(keyID string, input *api.CreditsInput) (*api.Key, error) {
 	if err := validateCreditsInput(input); err != nil {
 		return nil, err
@@ -151,7 +152,7 @@ func (ss *CmsIntegrator) AddCredits(keyID string, input *api.CreditsInput) (*api
 	return mapToKey(keyMapR.Project, keyR, false), err
 }
 
-//Change generates new key for keyID, disables the old one, returns new key
+// Change generates new key for keyID, disables the old one, returns new key
 func (ss *CmsIntegrator) Change(keyID string) (*api.Key, error) {
 	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
 	if err != nil {
@@ -179,7 +180,7 @@ func (ss *CmsIntegrator) Change(keyID string) (*api.Key, error) {
 	return &api.Key{Key: keyR.Key}, nil
 }
 
-//Update updates key table fields
+// Update updates key table fields
 func (ss *CmsIntegrator) Update(keyID string, input map[string]interface{}) (*api.Key, error) {
 	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
 	if err != nil {
@@ -257,7 +258,7 @@ func prepareKeyUpdates(input map[string]interface{}, now time.Time) (bson.M, err
 	return res, nil
 }
 
-//Usage returns usage information for the key
+// Usage returns usage information for the key
 func (ss *CmsIntegrator) Usage(keyID string, from, to *time.Time, full bool) (*api.Usage, error) {
 	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
 	if err != nil {
@@ -297,7 +298,7 @@ func (ss *CmsIntegrator) Usage(keyID string, from, to *time.Time, full bool) (*a
 	return res, err
 }
 
-//Changes returns changed keys information
+// Changes returns changed keys information
 func (ss *CmsIntegrator) Changes(from *time.Time, services []string) (*api.Changes, error) {
 	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
 	if err != nil {
@@ -419,7 +420,7 @@ func addQuota(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.Cr
 		return res, api.ErrOperationExists
 	}
 	if err != mongo.ErrNoDocuments {
-		return nil, err
+		return nil, fmt.Errorf("find operation: %v", err)
 	}
 
 	operation.Date = time.Now()

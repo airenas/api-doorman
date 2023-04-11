@@ -72,7 +72,7 @@ func (ss *Reseter) Reset(ctx context.Context, project string, since time.Time, l
 		}
 		ua++
 		ta += limit - (it.Limit - it.QuotaValue)
-		err = reset(sessCtx, &keyMapRecord{Key: it.Key, Project: project}, since, limit-(it.Limit-it.QuotaValue))
+		err = reset(sessCtx, &keyMapRecord{Key: it.Key, Project: project}, settings.NextReset, limit-(it.Limit-it.QuotaValue))
 		if err != nil {
 			return fmt.Errorf("reset: %w", err)
 		}
@@ -117,28 +117,59 @@ func updateResetConfig(sessCtx mongo.SessionContext, project string, next time.T
 	return nil
 }
 
-func reset(sessCtx mongo.SessionContext, keyMapRecord *keyMapRecord, since time.Time, quota float64) error {
-	_, err := sessCtx.WithTransaction(sessCtx, func(sessCtx mongo.SessionContext) (interface{}, error) {
-		return struct{}{}, resetInt(sessCtx, keyMapRecord, since, quota)
-	})
-	return err
-}
-
-func resetInt(sessCtx mongo.SessionContext, keyMapRecord *keyMapRecord, since time.Time, quota float64) error {
-	_, err := addQuota(sessCtx, keyMapRecord, &api.CreditsInput{OperationID: uuid.NewString(), Credits: quota})
+func reset(sessCtx mongo.SessionContext, keyMapRecord *keyMapRecord, at time.Time, quota float64) error {
+	goapp.Log.Debugf("updating %s(%s), quota: +%f", keyMapRecord.Key, keyMapRecord.Project, quota)
+	_, err := addQuotaForIP(sessCtx, keyMapRecord, &api.CreditsInput{OperationID: uuid.NewString(), Credits: quota, Msg: "monthly reset"}, at)
 	if err != nil {
-		return err
+		return fmt.Errorf("addQuota: %v", err)
 	}
-	return markResetTime(sessCtx, keyMapRecord, since)
+	return nil
 }
 
-func markResetTime(sessCtx mongo.SessionContext, keyMapRecord *keyMapRecord, since time.Time) error {
-	c := sessCtx.Client().Database(keyMapRecord.Project).Collection(keyTable)
+func addQuotaForIP(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.CreditsInput, at time.Time) (*keyRecord, error) {
+	c := sessCtx.Client().Database(keyMapR.Project).Collection(operationTable)
+	var operation operationRecord
+	err := c.FindOne(sessCtx, bson.M{"operationID": Sanitize(input.OperationID)}).Decode(&operation)
+	if err == nil {
+		if operation.Key != keyMapR.Key {
+			return nil, &api.ErrField{Field: "operationID", Msg: "exists for other key"}
+		}
+		res, err := loadKeyRecord(sessCtx, keyMapR.Project, keyMapR.Key)
+		if err != nil {
+			return nil, err
+		}
+		return res, api.ErrOperationExists
+	}
+	if err != mongo.ErrNoDocuments {
+		return nil, fmt.Errorf("find operations: %v", err)
+	}
 
-	now := time.Now()
-	update := bson.M{"$set": bson.M{"updated": now, "resetAt": since}}
-	return c.FindOneAndUpdate(sessCtx, bson.M{"key": keyMapRecord.Key, "manual": false},
-		update, options.FindOneAndUpdate()).Err()
+	operation.Date = time.Now()
+	operation.Key = keyMapR.Key
+	operation.OperationID = input.OperationID
+	operation.QuotaValue = input.Credits
+	operation.Msg = input.Msg
+	_, err = c.InsertOne(sessCtx, operation)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't insert operation")
+	}
+	update := bson.M{"$inc": bson.M{"limit": input.Credits}, "$set": bson.M{"updated": time.Now(), "resetAt": at}}
+	keyR := &keyRecord{}
+	c = sessCtx.Client().Database(keyMapR.Project).Collection(keyTable)
+	err = c.FindOneAndUpdate(sessCtx,
+		keyFilterIP(keyMapR.Key),
+		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&keyR)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, api.ErrNoRecord
+		}
+		return nil, errors.Wrapf(err, "can't update %s.key", keyMapR.Project)
+	}
+	return keyR, nil
+}
+
+func keyFilterIP(key string) bson.M {
+	return bson.M{"key": Sanitize(key), "manual": false}
 }
 
 func getResetableItems(sessCtx mongo.SessionContext, service string, at time.Time) ([]*keyRecord, error) {

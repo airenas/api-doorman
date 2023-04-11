@@ -55,10 +55,11 @@ type operationRecord struct {
 	OperationID string    `bson:"operationID"`
 	Date        time.Time `bson:"date,omitempty"`
 	QuotaValue  float64   `bson:"quotaValue,omitempty"`
+	Msg         string    `bson:"msg,omitempty"`
 }
 
 type settingsRecord struct {
 	ResetStarted time.Time `bson:"resetStarted,omitempty"`
-	NextReset time.Time `bson:"nextReset,omitempty"`
-	Updated          time.Time `bson:"updated,omitempty"`
+	NextReset    time.Time `bson:"nextReset,omitempty"`
+	Updated      time.Time `bson:"updated,omitempty"`
 }
