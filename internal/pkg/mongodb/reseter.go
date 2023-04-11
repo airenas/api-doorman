@@ -20,13 +20,13 @@ type Reseter struct {
 	sessionProvider *SessionProvider
 }
 
-// NewCmsIntegrator creates CmsIntegrator instance
+// NewReseter creates Reseter instance
 func NewReseter(sessionProvider *SessionProvider) (*Reseter, error) {
 	res := Reseter{sessionProvider: sessionProvider}
 	return &res, nil
 }
 
-// Create creates new key
+// Reset does monthly reset
 func (ss *Reseter) Reset(ctx context.Context, project string, since time.Time, limit float64) error {
 	goapp.Log.Infof("reset project default quotas for %s, at %s", project, since.Format(time.RFC3339))
 	session, err := ss.sessionProvider.NewSession()

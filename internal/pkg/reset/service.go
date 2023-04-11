@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Cleaner interface for one Clean job
+// Reseter runs reset timer
 type Reseter interface {
 	Reset(ctx context.Context, project string, since time.Time, limit float64) error
 }
