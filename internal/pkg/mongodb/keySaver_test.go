@@ -114,7 +114,7 @@ func TestAsSlice(t *testing.T) {
 	s, ok = asStringSlice(*new([]interface{}))
 	assert.True(t, ok)
 	assert.Equal(t, []string{}, s)
-	s, ok = asStringSlice(append(*new([]interface{}), 1, 2, "ok"))
+	_, ok = asStringSlice(append(*new([]interface{}), 1, 2, "ok"))
 	assert.False(t, ok)
 }
 

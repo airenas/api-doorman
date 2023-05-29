@@ -23,7 +23,7 @@ type KeySaver struct {
 	NewKeySize      int
 }
 
-//NewKeySaver creates KeySaver instance
+// NewKeySaver creates KeySaver instance
 func NewKeySaver(sessionProvider *SessionProvider, keySize int) (*KeySaver, error) {
 	f := KeySaver{SessionProvider: sessionProvider}
 	if keySize < 10 || keySize > 100 {
@@ -124,7 +124,7 @@ func (ss *KeySaver) Get(project string, key string) (*adminapi.Key, error) {
 	return mapTo(&res), nil
 }
 
-//Update update key record
+// Update update key record
 func (ss *KeySaver) Update(project string, key string, data map[string]interface{}) (*adminapi.Key, error) {
 	goapp.Log.Debug("Updating key")
 	ctx, cancel := mongoContext()
@@ -138,7 +138,10 @@ func (ss *KeySaver) Update(project string, key string, data map[string]interface
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(project).Collection(keyTable)
 
-	session.StartTransaction()
+	err = session.StartTransaction()
+	if err != nil {
+		return nil, err
+	}
 	var res keyRecord
 	err = c.FindOne(ctx, bson.M{"key": Sanitize(key)}).Decode(&res)
 	if err != nil {
@@ -162,12 +165,15 @@ func (ss *KeySaver) Update(project string, key string, data map[string]interface
 	if err != nil {
 		return nil, err
 	}
-	session.CommitTransaction(ctx)
+	err = session.CommitTransaction(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	return mapTo(&res), nil
 }
 
-//RestoreUsage erstores usage by requestID
+// RestoreUsage erstores usage by requestID
 func (ss *KeySaver) RestoreUsage(project string, manual bool, requestID string, errMsg string) error {
 	goapp.Log.Debugf("Restoring quota for requestID %s", requestID)
 	sessCtx, cancel, err := newSessionWithContext(ss.SessionProvider)

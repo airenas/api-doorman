@@ -70,7 +70,9 @@ func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func cleanFiles(f *multipart.Form) {
 	if f != nil {
-		f.RemoveAll()
+		if err := f.RemoveAll(); err != nil {
+			goapp.Log.Error(err)
+		}
 	}
 }
 

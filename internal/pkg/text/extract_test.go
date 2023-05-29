@@ -29,7 +29,7 @@ func TestInit(t *testing.T) {
 func initTestServer(t *testing.T, rCode int, body string) *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(rCode)
-		rw.Write([]byte(body))
+		_, _ = rw.Write([]byte(body))
 	}))
 	return server
 }

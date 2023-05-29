@@ -11,7 +11,6 @@ import (
 
 type logStdout struct {
 	next  http.Handler
-	field string
 	log   io.Writer
 }
 

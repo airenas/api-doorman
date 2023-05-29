@@ -112,9 +112,9 @@ func newToTextAndQuotaTestRequest(file, bodyText string) *http.Request {
 		part, _ := writer.CreateFormFile("file", file)
 		_, _ = io.Copy(part, strings.NewReader(bodyText))
 	}
-	writer.WriteField("olia", "olia1")
-	writer.WriteField("olia", "olia2")
-	writer.WriteField("email", "olia@olia.eu")
+	_ = writer.WriteField("olia", "olia1")
+	_ = writer.WriteField("olia", "olia2")
+	_ = writer.WriteField("email", "olia@olia.eu")
 	writer.Close()
 	req := httptest.NewRequest("POST", "/text", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
