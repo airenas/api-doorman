@@ -48,6 +48,7 @@ type (
 	// LogRetriever retrieves one list from db
 	LogRetriever interface {
 		Get(string, string) ([]*adminapi.Log, error)
+		List(string, time.Time) ([]*adminapi.Log, error)
 	}
 
 	// UsageReseter resets montly usage
@@ -115,6 +116,7 @@ func initRoutes(data *Data) *echo.Echo {
 	e.PATCH("/:project/key/:key", keyUpdate(data))
 	e.POST("/:project/restore/:requestID", restore(data))
 	e.POST("/:project/reset", reset(data))
+	e.GET("/:project/log", logList(data))
 
 	cms.InitRoutes(e, data.CmsData)
 
@@ -180,6 +182,31 @@ func keyList(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.JSON(http.StatusOK, keyResp)
+	}
+}
+
+func logList(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		project := c.Param("project")
+		if err := validateProject(project, data.ProjectValidator); err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+		to, err := utils.ParseDateParam(c.QueryParam("to"))
+		if err != nil {
+			return err
+		}
+		if to == nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "no 'to' query param")
+		}
+		res, err := data.LogGetter.List(project, *to)
+
+		if err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		return c.JSON(http.StatusOK, res)
 	}
 }
 

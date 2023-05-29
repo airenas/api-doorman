@@ -2,6 +2,8 @@ package mongodb
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/go-app/pkg/goapp"
@@ -14,7 +16,7 @@ type LogSaver struct {
 	SessionProvider *DBProvider
 }
 
-//NewLogSaver creates LogSaver instance
+// NewLogSaver creates LogSaver instance
 func NewLogSaver(sessionProvider *DBProvider) (*LogSaver, error) {
 	f := LogSaver{SessionProvider: sessionProvider}
 	return &f, nil
@@ -37,19 +39,19 @@ func (ss *LogSaver) Save(log *adminapi.Log) error {
 	return err
 }
 
-//LogGetter retrieves the log
-type LogGetter struct {
+// LogProvider retrieves the log
+type LogProvider struct {
 	SessionProvider *SessionProvider
 }
 
-//NewLogGetter creates LogSaver instance
-func NewLogGetter(sessionProvider *SessionProvider) (*LogGetter, error) {
-	f := LogGetter{SessionProvider: sessionProvider}
+// NewLogProvider creates LogProvider instance
+func NewLogProvider(sessionProvider *SessionProvider) (*LogProvider, error) {
+	f := LogProvider{SessionProvider: sessionProvider}
 	return &f, nil
 }
 
 // Get return all logs for key
-func (ss *LogGetter) Get(project, key string) ([]*adminapi.Log, error) {
+func (ss *LogProvider) Get(project, key string) ([]*adminapi.Log, error) {
 	goapp.Log.Infof("getting log list")
 	ctx, cancel := mongoContext()
 	defer cancel()
@@ -70,6 +72,33 @@ func (ss *LogGetter) Get(project, key string) ([]*adminapi.Log, error) {
 		var logR logRecord
 		if err = cursor.Decode(&logR); err != nil {
 			return nil, errors.Wrap(err, "Can't get log record")
+		}
+		res = append(res, mapToLog(&logR))
+	}
+	return res, nil
+}
+
+func (ss *LogProvider) List(project string, to time.Time) ([]*adminapi.Log, error) {
+	goapp.Log.Infof("getting log list")
+	ctx, cancel := mongoContext()
+	defer cancel()
+
+	session, err := ss.SessionProvider.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	defer session.EndSession(context.Background())
+	c := session.Client().Database(project).Collection(logTable)
+	cursor, err := c.Find(ctx, bson.M{"date": bson.M{"$lt": to}})
+	if err != nil {
+		return nil, fmt.Errorf("can't get logs: %w", err)
+	}
+	defer cursor.Close(ctx)
+	res := make([]*adminapi.Log, 0)
+	for cursor.Next(ctx) {
+		var logR logRecord
+		if err = cursor.Decode(&logR); err != nil {
+			return nil, fmt.Errorf("can't get logs: %w", err)
 		}
 		res = append(res, mapToLog(&logR))
 	}
