@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
-	"github.com/petergtz/pegomock"
+	"github.com/petergtz/pegomock/v4"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,7 +21,7 @@ func initSkipFirstQuotaTest(t *testing.T) {
 func TestSkipFirstQuota_Clears(t *testing.T) {
 	initSkipFirstQuotaTest(t)
 	pegomock.When(getCountMock.GetParamName()).ThenReturn("olia")
-	pegomock.When(getCountMock.Get(pegomock.AnyString())).ThenReturn(int64(0), nil)
+	pegomock.When(getCountMock.Get(pegomock.Any[string]())).ThenReturn(int64(0), nil)
 
 	req := httptest.NewRequest("POST", "/text?olia=111", nil)
 	req, ctx := customContext(req)
@@ -29,7 +29,7 @@ func TestSkipFirstQuota_Clears(t *testing.T) {
 	resp := httptest.NewRecorder()
 
 	SkipFirstQuota(newTestHandler(), getCountMock).ServeHTTP(resp, req)
-	ci := getCountMock.VerifyWasCalledOnce().Get(pegomock.AnyString()).GetCapturedArguments()
+	ci := getCountMock.VerifyWasCalledOnce().Get(pegomock.Any[string]()).GetCapturedArguments()
 	assert.Equal(t, 555, resp.Code)
 	assert.Equal(t, "111", ci)
 	assert.InDelta(t, 0, ctx.QuotaValue, 0.00001)
@@ -38,7 +38,7 @@ func TestSkipFirstQuota_Clears(t *testing.T) {
 func TestSkipFirstQuota_Leaves(t *testing.T) {
 	initSkipFirstQuotaTest(t)
 	pegomock.When(getCountMock.GetParamName()).ThenReturn("olia")
-	pegomock.When(getCountMock.Get(pegomock.AnyString())).ThenReturn(int64(1), nil)
+	pegomock.When(getCountMock.Get(pegomock.Any[string]())).ThenReturn(int64(1), nil)
 
 	req := httptest.NewRequest("POST", "/text?olia=111", nil)
 	req, ctx := customContext(req)
@@ -53,7 +53,7 @@ func TestSkipFirstQuota_Leaves(t *testing.T) {
 func TestSkipFirstQuota_Fails_NoParam(t *testing.T) {
 	initSkipFirstQuotaTest(t)
 	pegomock.When(getCountMock.GetParamName()).ThenReturn("olia1")
-	pegomock.When(getCountMock.Get(pegomock.AnyString())).ThenReturn(int64(1), nil)
+	pegomock.When(getCountMock.Get(pegomock.Any[string]())).ThenReturn(int64(1), nil)
 
 	req := httptest.NewRequest("POST", "/text?olia=111", nil)
 	req, ctx := customContext(req)
@@ -67,7 +67,7 @@ func TestSkipFirstQuota_Fails_NoParam(t *testing.T) {
 func TestSkipFirstQuota_Fails_Service(t *testing.T) {
 	initSkipFirstQuotaTest(t)
 	pegomock.When(getCountMock.GetParamName()).ThenReturn("olia")
-	pegomock.When(getCountMock.Get(pegomock.AnyString())).ThenReturn(int64(0), errors.New("olia"))
+	pegomock.When(getCountMock.Get(pegomock.Any[string]())).ThenReturn(int64(0), errors.New("olia"))
 
 	req := httptest.NewRequest("POST", "/text?olia=111", nil)
 	req, ctx := customContext(req)

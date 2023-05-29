@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
-	"github.com/petergtz/pegomock"
+	"github.com/petergtz/pegomock/v4"
 	"github.com/stretchr/testify/assert"
 )
 

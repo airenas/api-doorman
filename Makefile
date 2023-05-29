@@ -11,11 +11,12 @@ help:
 test/unit: 
 	go test -v -race ./...
 .PHONY: test/unit
+#####################################################################################
 ## code vet and lint
 test/lint: 
 	go vet ./...
-	go install golang.org/x/lint/golint@latest
-	golint -set_exit_status ./...
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	golangci-lint run -v ./...
 .PHONY: test/lint
 #####################################################################################
 ## build doorman-admin
@@ -51,10 +52,11 @@ test/load:
 .PHONY: test/load
 #####################################################################################
 ## generate mock objects for test
-generate: 
-	go install github.com/petergtz/pegomock/...@latest
+generate:
+	go install github.com/petergtz/pegomock/v4/pegomock@latest
 	go generate ./...
 .PHONY: generate	
+#####################################################################################
 ## push doorman-admin docker
 docker/doorman-admin/push:
 	cd build/doorman-admin && $(MAKE) dpush
@@ -71,4 +73,4 @@ run-admin:
 
 clean:
 	go clean 
-	go mod tidy -compat=1.17
+	go mod tidy -compat=1.19

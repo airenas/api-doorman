@@ -5,9 +5,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
-	"github.com/airenas/api-doorman/internal/pkg/test/mocks/matchers"
-	"github.com/petergtz/pegomock"
+	"github.com/petergtz/pegomock/v4"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,7 +32,7 @@ func TestLogDB(t *testing.T) {
 	h.ServeHTTP(resp, req)
 
 	assert.Equal(t, testCode, resp.Code)
-	cLog := dbSaverMock.VerifyWasCalledOnce().Save(matchers.AnyPtrToApiLog()).GetCapturedArguments()
+	cLog := dbSaverMock.VerifyWasCalledOnce().Save(pegomock.Any[*api.Log]()).GetCapturedArguments()
 	assert.Equal(t, "kkk", cLog.Key)
 	assert.Equal(t, 555, cLog.ResponseCode)
 	assert.Equal(t, true, cLog.Fail)
@@ -47,7 +47,7 @@ func TestLogDB_NoFail(t *testing.T) {
 	resp := httptest.NewRecorder()
 	h := LogDB(newTestHandler(), dbSaverMock).(*logDB)
 	h.sync = true
-	pegomock.When(dbSaverMock.Save(matchers.AnyPtrToApiLog())).ThenReturn(errors.New("olia"))
+	pegomock.When(dbSaverMock.Save(pegomock.Any[*api.Log]())).ThenReturn(errors.New("olia"))
 
 	h.ServeHTTP(resp, req)
 
