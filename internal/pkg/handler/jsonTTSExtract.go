@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/airenas/go-app/pkg/goapp"
@@ -14,7 +14,7 @@ type jsonTTSExtract struct {
 	next http.Handler
 }
 
-//TakeJSONTTS creates handler
+// TakeJSONTTS creates handler
 func TakeJSONTTS(next http.Handler) http.Handler {
 	res := &jsonTTSExtract{}
 	res.next = next
@@ -30,7 +30,7 @@ func (h *jsonTTSExtract) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
 
 	// read all bytes from content body and create new stream using it.
-	bodyBytes, _ := ioutil.ReadAll(r.Body)
+	bodyBytes, _ := io.ReadAll(r.Body)
 	var data ttsData
 	err := json.Unmarshal(bodyBytes, &data)
 	if err != nil {
@@ -40,7 +40,7 @@ func (h *jsonTTSExtract) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx.Value = data.Text
 	ctx.Discount = data.AllowCollectData
-	rn.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	rn.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	h.next.ServeHTTP(w, rn)
 }

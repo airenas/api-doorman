@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -40,13 +39,13 @@ func ToTextAndQuota(next http.Handler, field string, srv TextGetter) http.Handle
 
 func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
-	bodyBytes, err := ioutil.ReadAll(rn.Body)
+	bodyBytes, err := io.ReadAll(rn.Body)
 	if err != nil {
 		http.Error(w, "Can't read request", http.StatusBadRequest)
 		goapp.Log.Error(err)
 		return
 	}
-	rn.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	rn.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	// create new request for parsing the body
 	req2, _ := http.NewRequest(rn.Method, rn.URL.String(), bytes.NewReader(bodyBytes))
@@ -84,7 +83,7 @@ func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		goapp.Log.Error(err)
 		return
 	}
-	rn.Body = ioutil.NopCloser(newBytes)
+	rn.Body = io.NopCloser(newBytes)
 	rn.Header.Set("Content-Type", hv)
 	rn.Header.Set("Content-Length", strconv.Itoa(newBytes.Len()))
 	rn.ContentLength = int64(newBytes.Len())

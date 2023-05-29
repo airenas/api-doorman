@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -102,7 +101,7 @@ func TestToTextAndQuotaTest_passTxtFile(t *testing.T) {
 	ToTextAndQuota(th, "file", getTextMock).ServeHTTP(resp, req)
 	file, _, err := th.r.FormFile("file")
 	assert.Nil(t, err)
-	fd, _ := ioutil.ReadAll(file)
+	fd, _ := io.ReadAll(file)
 	assert.Equal(t, ts, string(fd))
 }
 

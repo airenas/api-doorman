@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -17,14 +16,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-//Extractor extract txt from file
+// Extractor extract txt from file
 type Extractor struct {
 	httpclient *http.Client
 	timeOut    time.Duration
 	url        string
 }
 
-//NewExtractor creates a e text extractor instance
+// NewExtractor creates a e text extractor instance
 func NewExtractor(urlStr string) (*Extractor, error) {
 	res := Extractor{}
 	var err error
@@ -41,10 +40,10 @@ func NewExtractor(urlStr string) (*Extractor, error) {
 	return &res, nil
 }
 
-//Get return text by calling the service
+// Get return text by calling the service
 func (dc *Extractor) Get(name string, file io.Reader) (string, error) {
 	if filepath.Ext(name) == ".txt" {
-		res, err := ioutil.ReadAll(file)
+		res, err := io.ReadAll(file)
 		if err != nil {
 			return "", errors.Wrap(err, "can't read file")
 		}

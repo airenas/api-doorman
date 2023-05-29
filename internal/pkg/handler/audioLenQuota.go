@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 
@@ -33,8 +32,8 @@ func AudioLenQuota(next http.Handler, field string, srv AudioLenGetter) http.Han
 
 func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
-	bodyBytes, _ := ioutil.ReadAll(rn.Body)
-	rn.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	bodyBytes, _ := io.ReadAll(rn.Body)
+	rn.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	// create new request for parsing the body
 	req2, _ := http.NewRequest(rn.Method, rn.URL.String(), bytes.NewReader(bodyBytes))
@@ -64,7 +63,7 @@ func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx.QuotaValue = dur
-	rn.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	rn.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	h.next.ServeHTTP(w, rn)
 }

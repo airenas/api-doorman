@@ -7,7 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -216,7 +216,7 @@ func invoke(t *testing.T, r *http.Request) *http.Response {
 func checkCode(t *testing.T, resp *http.Response, expected int) {
 	t.Helper()
 	if resp.StatusCode != expected {
-		b, _ := ioutil.ReadAll(resp.Body)
+		b, _ := io.ReadAll(resp.Body)
 		require.Equal(t, expected, resp.StatusCode, string(b))
 	}
 }

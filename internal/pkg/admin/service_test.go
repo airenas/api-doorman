@@ -3,7 +3,6 @@ package admin
 import (
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -61,7 +60,7 @@ func TestKeyList(t *testing.T) {
 	pegomock.When(keyRetrieverMock.List(pegomock.Any[string]())).ThenReturn([]*adminapi.Key{}, nil)
 	req := httptest.NewRequest("GET", "/pr/key-list", nil)
 	resp := testCode(t, req, 200)
-	bytes, _ := ioutil.ReadAll(resp.Body)
+	bytes, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, "[]\n", string(bytes))
 	cVal := prValidarorMock.VerifyWasCalled(pegomock.Once()).Check(pegomock.Any[string]()).GetCapturedArguments()
 	assert.Equal(t, "pr", cVal)
@@ -72,7 +71,7 @@ func TestKeyList_Returns(t *testing.T) {
 	pegomock.When(keyRetrieverMock.List(pegomock.Any[string]())).ThenReturn([]*adminapi.Key{{Key: "olia"}}, nil)
 	req := httptest.NewRequest("GET", "/pr/key-list", nil)
 	resp := testCode(t, req, 200)
-	bytes, _ := ioutil.ReadAll(resp.Body)
+	bytes, _ := io.ReadAll(resp.Body)
 	assert.Contains(t, string(bytes), `"key":"olia"`)
 }
 
@@ -95,7 +94,7 @@ func TestKey(t *testing.T) {
 	pegomock.When(oneKeyRetrieverMock.Get(pegomock.Any[string](), pegomock.Eq("kkk"))).ThenReturn(&adminapi.Key{Key: "kkk"}, nil)
 	req := httptest.NewRequest("GET", "/pr/key/kkk", nil)
 	resp := testCode(t, req, 200)
-	bytes, _ := ioutil.ReadAll(resp.Body)
+	bytes, _ := io.ReadAll(resp.Body)
 	assert.Contains(t, string(bytes), `"key":"kkk"`)
 	cVal := prValidarorMock.VerifyWasCalled(pegomock.Once()).Check(pegomock.Any[string]()).GetCapturedArguments()
 	assert.Equal(t, "pr", cVal)
@@ -107,7 +106,7 @@ func TestKey_ReturnsFull(t *testing.T) {
 	pegomock.When(logRetrieverMock.Get(pegomock.Any[string](), pegomock.Eq("kkk"))).ThenReturn([]*adminapi.Log{{IP: "101010"}}, nil)
 	req := httptest.NewRequest("GET", "/pr/key/kkk?full=1", nil)
 	resp := testCode(t, req, 200)
-	bytes, _ := ioutil.ReadAll(resp.Body)
+	bytes, _ := io.ReadAll(resp.Body)
 	assert.Contains(t, string(bytes), `"ip":"101010"`)
 }
 
@@ -147,7 +146,7 @@ func TestAddKey(t *testing.T) {
 	req := httptest.NewRequest("POST", "/pr/key", toReader(adminapi.Key{Limit: 10, ValidTo: testToTimePtr(time.Now().Add(time.Minute))}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	resp := testCode(t, req, 200)
-	bytes, _ := ioutil.ReadAll(resp.Body)
+	bytes, _ := io.ReadAll(resp.Body)
 	assert.Contains(t, string(bytes), `"key":"kkk"`)
 	cVal := prValidarorMock.VerifyWasCalled(pegomock.Once()).Check(pegomock.Any[string]()).GetCapturedArguments()
 	assert.Equal(t, "pr", cVal)
@@ -218,7 +217,7 @@ func TestUpdateKey(t *testing.T) {
 	req := httptest.NewRequest("PATCH", "/pr/key/kkk", toReader(adminapi.Key{Limit: 10, ValidTo: testToTimePtr(time.Now().Add(time.Minute))}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	resp := testCode(t, req, 200)
-	bytes, _ := ioutil.ReadAll(resp.Body)
+	bytes, _ := io.ReadAll(resp.Body)
 	assert.Contains(t, string(bytes), `"key":"kkk"`)
 	cPr, cKey, cMap := keyUpdaterMock.VerifyWasCalled(pegomock.Once()).Update(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[map[string]interface{}]()).
 		GetCapturedArguments()

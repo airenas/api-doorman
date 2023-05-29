@@ -15,7 +15,7 @@ func TestNewDBProvider(t *testing.T) {
 	dpr, err := NewDBProvider(pr, "db")
 	assert.NotNil(t, dpr)
 	assert.Nil(t, err)
-	pr.VerifyWasCalled(pegomock.Once()).CheckIndexes(pegomock.AnyStringSlice())
+	pr.VerifyWasCalled(pegomock.Once()).CheckIndexes(pegomock.Any[[]string]())
 }
 
 func TestNewDBProvider_Fail(t *testing.T) {
@@ -30,7 +30,7 @@ func TestNewDBProvider_Fail(t *testing.T) {
 	dpr, err = NewDBProvider(nil, "db")
 	assert.Nil(t, dpr)
 	assert.NotNil(t, err)
-	pegomock.When(pr.CheckIndexes(pegomock.AnyStringSlice())).ThenReturn(errors.New("olia"))
+	pegomock.When(pr.CheckIndexes(pegomock.Any[[]string]())).ThenReturn(errors.New("olia"))
 	dpr, err = NewDBProvider(pr, "db")
 	assert.Nil(t, dpr)
 	assert.NotNil(t, err)

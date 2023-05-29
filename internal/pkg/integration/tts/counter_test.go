@@ -27,7 +27,7 @@ func TestCounter(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		assert.Equal(t, "/olia", req.URL.Path)
 		rw.WriteHeader(http.StatusOK)
-		rw.Write([]byte(`{"count":123}`))
+		_, _ = rw.Write([]byte(`{"count":123}`))
 	}))
 	defer server.Close()
 	d, _ := NewCounter(server.URL + "/{{reqID}}")
@@ -55,7 +55,7 @@ func TestCounter_Fail(t *testing.T) {
 func TestCounter_FailJson(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusOK)
-		rw.Write([]byte("{"))
+		_, _ = rw.Write([]byte("{"))
 	}))
 	defer server.Close()
 
@@ -70,7 +70,7 @@ func TestCounter_FailTimeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		time.Sleep(time.Millisecond * 10)
 		rw.WriteHeader(http.StatusOK)
-		rw.Write([]byte(`{"count":123}`))
+		_, _ = rw.Write([]byte(`{"count":123}`))
 	}))
 	defer server.Close()
 

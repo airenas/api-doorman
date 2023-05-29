@@ -3,7 +3,6 @@ package cms
 import (
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -50,7 +49,7 @@ func TestAddKey(t *testing.T) {
 	req := httptest.NewRequest("POST", "/key", mocks.ToReader(api.CreateInput{ID: "1", Service: "pr"}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	resp := testCode(t, req, http.StatusCreated)
-	bytes, _ := ioutil.ReadAll(resp.Body)
+	bytes, _ := io.ReadAll(resp.Body)
 	assert.Contains(t, string(bytes), `"key":"kkk"`)
 	cVal := prValidarorMock.VerifyWasCalled(pegomock.Once()).Check(pegomock.Any[string]()).GetCapturedArguments()
 	assert.Equal(t, "pr", cVal)
@@ -192,17 +191,17 @@ func TestGetKey_ReturnKey(t *testing.T) {
 		ThenReturn(&api.Key{Key: "aaa", Service: "srv", LastIP: "1.1.1.1"}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/key/id1", nil)
 	resp := testCode(t, req, http.StatusOK)
-	bytes, _ := ioutil.ReadAll(resp.Body)
+	bytes, _ := io.ReadAll(resp.Body)
 	var k api.Key
-	json.Unmarshal(bytes, &k)
+	_ = json.Unmarshal(bytes, &k)
 	assert.Equal(t, api.Key{Service: "srv", LastIP: "1.1.1.1"}, k)
 
 	pegomock.When(intMock.GetKey(pegomock.Any[string]())).
 		ThenReturn(&api.Key{Key: "aaa", Service: "srv", LastIP: "1.1.1.1"}, nil)
 	req = httptest.NewRequest(http.MethodGet, "/key/id1?returnKey=1", nil)
 	resp = testCode(t, req, http.StatusOK)
-	bytes, _ = ioutil.ReadAll(resp.Body)
-	json.Unmarshal(bytes, &k)
+	bytes, _ = io.ReadAll(resp.Body)
+	_ = json.Unmarshal(bytes, &k)
 	assert.Equal(t, api.Key{Key: "aaa", Service: "srv", LastIP: "1.1.1.1"}, k)
 }
 
@@ -411,7 +410,7 @@ func TestKeysChanges(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.Changes(pegomock.Any[*time.Time](), pegomock.AnyStringSlice())).
+			pegomock.When(intMock.Changes(pegomock.Any[*time.Time](), pegomock.Any[[]string]())).
 				ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodGet, "/keys/changes", nil)
 			for k, v := range tt.params {
