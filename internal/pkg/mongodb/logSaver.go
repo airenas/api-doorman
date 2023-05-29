@@ -105,6 +105,24 @@ func (ss *LogProvider) List(project string, to time.Time) ([]*adminapi.Log, erro
 	return res, nil
 }
 
+func (ss *LogProvider) Delete(project string, to time.Time) (int, error) {
+	goapp.Log.Infof("getting log list")
+	ctx, cancel := mongoContext()
+	defer cancel()
+
+	session, err := ss.SessionProvider.NewSession()
+	if err != nil {
+		return 0, err
+	}
+	defer session.EndSession(context.Background())
+	c := session.Client().Database(project).Collection(logTable)
+	res, err := c.DeleteMany(ctx, bson.M{"date": bson.M{"$lt": to}})
+	if err != nil {
+		return 0, fmt.Errorf("can't delete logs: %w", err)
+	}
+	return int(res.DeletedCount), nil
+}
+
 func mapFromLog(v *adminapi.Log) *logRecord {
 	res := &logRecord{}
 	res.Key = v.Key

@@ -40,7 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "can't init log saver"))
 	}
-	data.LogGetter = logManager
+	data.LogProvider = logManager
 
 	prStr := goapp.Config.GetString("projects")
 	goapp.Log.Infof("Projects: %s", prStr)

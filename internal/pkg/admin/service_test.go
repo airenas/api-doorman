@@ -24,7 +24,7 @@ var (
 	keyCreatorMock      *mocks.MockKeyCreator
 	keyRetrieverMock    *mocks.MockKeyRetriever
 	oneKeyRetrieverMock *mocks.MockOneKeyRetriever
-	logRetrieverMock    *mocks.MockLogRetriever
+	logRetrieverMock    *mocks.MockLogProvider
 	keyUpdaterMock      *mocks.MockKeyUpdater
 	prValidarorMock     *mocks.MockPrValidator
 	uRestorer           *mocks.MockUsageRestorer
@@ -39,7 +39,7 @@ func initTest(t *testing.T) {
 	keyCreatorMock = mocks.NewMockKeyCreator()
 	keyRetrieverMock = mocks.NewMockKeyRetriever()
 	oneKeyRetrieverMock = mocks.NewMockOneKeyRetriever()
-	logRetrieverMock = mocks.NewMockLogRetriever()
+	logRetrieverMock = mocks.NewMockLogProvider()
 	keyUpdaterMock = mocks.NewMockKeyUpdater()
 	prValidarorMock = mocks.NewMockPrValidator()
 	uRestorer = mocks.NewMockUsageRestorer()
@@ -335,7 +335,7 @@ func newTestData() *Data {
 	res := &Data{KeySaver: keyCreatorMock,
 		KeyGetter:        keyRetrieverMock,
 		OneKeyGetter:     oneKeyRetrieverMock,
-		LogGetter:        logRetrieverMock,
+		LogProvider:      logRetrieverMock,
 		OneKeyUpdater:    keyUpdaterMock,
 		ProjectValidator: prValidarorMock,
 		UsageRestorer:    uRestorer,

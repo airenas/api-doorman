@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -46,9 +47,10 @@ type (
 	}
 
 	// LogRetriever retrieves one list from db
-	LogRetriever interface {
+	LogProvider interface {
 		Get(string, string) ([]*adminapi.Log, error)
 		List(string, time.Time) ([]*adminapi.Log, error)
+		Delete(string, time.Time) (int, error)
 	}
 
 	// UsageReseter resets montly usage
@@ -69,7 +71,7 @@ type (
 		KeySaver         KeyCreator
 		KeyGetter        KeyRetriever
 		OneKeyGetter     OneKeyRetriever
-		LogGetter        LogRetriever
+		LogProvider      LogProvider
 		OneKeyUpdater    KeyUpdater
 		UsageRestorer    UsageRestorer
 		UsageReseter     UsageReseter
@@ -117,6 +119,7 @@ func initRoutes(data *Data) *echo.Echo {
 	e.POST("/:project/restore/:requestID", restore(data))
 	e.POST("/:project/reset", reset(data))
 	e.GET("/:project/log", logList(data))
+	e.DELETE("/:project/log", logDelete(data))
 
 	cms.InitRoutes(e, data.CmsData)
 
@@ -200,13 +203,38 @@ func logList(data *Data) func(echo.Context) error {
 		if to == nil {
 			return echo.NewHTTPError(http.StatusBadRequest, "no 'to' query param")
 		}
-		res, err := data.LogGetter.List(project, *to)
+		res, err := data.LogProvider.List(project, *to)
 
 		if err != nil {
 			goapp.Log.Error(err)
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.JSON(http.StatusOK, res)
+	}
+}
+
+func logDelete(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		project := c.Param("project")
+		if err := validateProject(project, data.ProjectValidator); err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+		to, err := utils.ParseDateParam(c.QueryParam("to"))
+		if err != nil {
+			return err
+		}
+		if to == nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "no 'to' query param")
+		}
+
+		deleted, err := data.LogProvider.Delete(project, *to)
+		if err != nil {
+			goapp.Log.Error(err)
+			return echo.NewHTTPError(http.StatusInternalServerError)
+		}
+		return c.JSONBlob(http.StatusOK, []byte(fmt.Sprintf(`{"service":%d}`, deleted)))
 	}
 }
 
@@ -236,7 +264,7 @@ func keyInfo(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		if c.QueryParam("full") == "1" {
-			res.Logs, err = data.LogGetter.Get(project, key)
+			res.Logs, err = data.LogProvider.Get(project, key)
 			if err != nil {
 				goapp.Log.Error(err)
 				return echo.NewHTTPError(http.StatusInternalServerError)
