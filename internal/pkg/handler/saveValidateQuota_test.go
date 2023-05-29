@@ -24,7 +24,7 @@ func TestQuotaValidate(t *testing.T) {
 	ctx.QuotaValue = 100
 	ctx.Manual = true
 	resp := httptest.NewRecorder()
-	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.AnyBool(),
+	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool](),
 		pegomock.AnyFloat64())).ThenReturn(true, 10.0, 20.0, nil)
 
 	QuotaValidate(newTestHandler(), quotaValidatorMock).ServeHTTP(resp, req)
@@ -32,7 +32,7 @@ func TestQuotaValidate(t *testing.T) {
 	assert.Equal(t, testCode, resp.Code)
 	assert.Equal(t, testCode, ctx.ResponseCode)
 	cKey, _, cManual, cQuota := quotaValidatorMock.VerifyWasCalledOnce().SaveValidate(pegomock.Any[string](), pegomock.Any[string](),
-		pegomock.AnyBool(), pegomock.AnyFloat64()).GetCapturedArguments()
+		pegomock.Any[bool](), pegomock.AnyFloat64()).GetCapturedArguments()
 	assert.Equal(t, "kkk", cKey)
 	assert.Equal(t, 100.0, cQuota)
 	assert.True(t, cManual)
@@ -44,7 +44,7 @@ func TestQuotaValidate_Header(t *testing.T) {
 	ctx.Key = "kkk"
 	ctx.QuotaValue = 100
 	resp := httptest.NewRecorder()
-	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.AnyBool(),
+	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool](),
 		pegomock.AnyFloat64())).ThenReturn(true, 10.0, 20.0, nil)
 
 	QuotaValidate(newTestHandlerWithCode(200), quotaValidatorMock).ServeHTTP(resp, req)
@@ -58,7 +58,7 @@ func TestQuotaValidate_Fail(t *testing.T) {
 	ctx.Key = "kkk"
 	ctx.QuotaValue = 100
 	resp := httptest.NewRecorder()
-	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.AnyBool(),
+	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool](),
 		pegomock.AnyFloat64())).ThenReturn(true, 10.0, 20.0, errors.New("olia"))
 
 	QuotaValidate(newTestHandler(), quotaValidatorMock).ServeHTTP(resp, req)
@@ -73,7 +73,7 @@ func TestQuotaValidate_Unauthorized(t *testing.T) {
 	ctx.Key = "kkk"
 	ctx.QuotaValue = 100
 	resp := httptest.NewRecorder()
-	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.AnyBool(),
+	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool](),
 		pegomock.AnyFloat64())).ThenReturn(false, 10.0, 20.0, nil)
 
 	QuotaValidate(newTestHandler(), quotaValidatorMock).ServeHTTP(resp, req)
@@ -88,12 +88,12 @@ func TestQuotaValidate_NoRestore(t *testing.T) {
 	ctx.Key = "kkk"
 	ctx.QuotaValue = 100
 	resp := httptest.NewRecorder()
-	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.AnyBool(),
+	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool](),
 		pegomock.AnyFloat64())).ThenReturn(true, 10.0, 20.0, nil)
 
 	QuotaValidate(newTestHandlerWithCode(200), quotaValidatorMock).ServeHTTP(resp, req)
 
-	quotaValidatorMock.VerifyWasCalled(pegomock.Never()).Restore(pegomock.Any[string](), pegomock.AnyBool(), pegomock.AnyFloat64())
+	quotaValidatorMock.VerifyWasCalled(pegomock.Never()).Restore(pegomock.Any[string](), pegomock.Any[bool](), pegomock.AnyFloat64())
 }
 
 func TestQuotaValidate_Restore(t *testing.T) {
@@ -103,14 +103,14 @@ func TestQuotaValidate_Restore(t *testing.T) {
 	ctx.QuotaValue = 100
 	ctx.Manual = true
 	resp := httptest.NewRecorder()
-	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.AnyBool(),
+	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool](),
 		pegomock.AnyFloat64())).ThenReturn(true, 10.0, 20.0, nil)
-	pegomock.When(quotaValidatorMock.Restore(pegomock.Any[string](), pegomock.AnyBool(),
+	pegomock.When(quotaValidatorMock.Restore(pegomock.Any[string](), pegomock.Any[bool](),
 		pegomock.AnyFloat64())).ThenReturn(5.0, 25.0, nil)
 
 	QuotaValidate(newTestHandlerWithCode(503), quotaValidatorMock).ServeHTTP(resp, req)
 
-	cKey, cManual, cQuota := quotaValidatorMock.VerifyWasCalled(pegomock.Once()).Restore(pegomock.Any[string](), pegomock.AnyBool(), pegomock.AnyFloat64()).
+	cKey, cManual, cQuota := quotaValidatorMock.VerifyWasCalled(pegomock.Once()).Restore(pegomock.Any[string](), pegomock.Any[bool](), pegomock.AnyFloat64()).
 		GetCapturedArguments()
 	assert.Equal(t, "kkk", cKey)
 	assert.Equal(t, 100.0, cQuota)
@@ -126,14 +126,14 @@ func TestQuotaValidate_RestoreFail(t *testing.T) {
 	ctx.QuotaValue = 100
 	ctx.Manual = true
 	resp := httptest.NewRecorder()
-	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.AnyBool(),
+	pegomock.When(quotaValidatorMock.SaveValidate(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool](),
 		pegomock.AnyFloat64())).ThenReturn(true, 10.0, 20.0, nil)
-	pegomock.When(quotaValidatorMock.Restore(pegomock.Any[string](), pegomock.AnyBool(),
+	pegomock.When(quotaValidatorMock.Restore(pegomock.Any[string](), pegomock.Any[bool](),
 		pegomock.AnyFloat64())).ThenReturn(0.0, 0.0, errors.New("olia"))
 
 	QuotaValidate(newTestHandlerWithCode(404), quotaValidatorMock).ServeHTTP(resp, req)
 
-	quotaValidatorMock.VerifyWasCalled(pegomock.Once()).Restore(pegomock.Any[string](), pegomock.AnyBool(), pegomock.AnyFloat64())
+	quotaValidatorMock.VerifyWasCalled(pegomock.Once()).Restore(pegomock.Any[string](), pegomock.Any[bool](), pegomock.AnyFloat64())
 	assert.Equal(t, 404, resp.Code)
 }
 

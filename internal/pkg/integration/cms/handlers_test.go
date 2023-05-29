@@ -157,7 +157,7 @@ func TestKeyUsage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
 			pegomock.When(intMock.Usage(pegomock.Any[string](), pegomock.Any[*time.Time](),
-				pegomock.Any[*time.Time](), pegomock.AnyBool())).
+				pegomock.Any[*time.Time](), pegomock.Any[bool]())).
 				ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodGet, "/key/id1/usage", nil)
 			for k, v := range tt.params {
@@ -173,7 +173,7 @@ func TestKeyUsage(t *testing.T) {
 func TestKeyUsage_Full(t *testing.T) {
 	initTest(t)
 	pegomock.When(intMock.Usage(pegomock.Any[string](), pegomock.Any[*time.Time](),
-		pegomock.Any[*time.Time](), pegomock.AnyBool())).
+		pegomock.Any[*time.Time](), pegomock.Any[bool]())).
 		ThenReturn(&api.Usage{RequestCount: 1}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/key/id1/usage", nil)
 	testCode(t, req, http.StatusOK)

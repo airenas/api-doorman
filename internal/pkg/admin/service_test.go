@@ -280,13 +280,13 @@ func TestUpdateKey_FailProject(t *testing.T) {
 
 func TestRestore(t *testing.T) {
 	initTest(t)
-	pegomock.When(uRestorer.RestoreUsage(pegomock.Any[string](), pegomock.AnyBool(), pegomock.Any[string](), pegomock.Any[string]())).
+	pegomock.When(uRestorer.RestoreUsage(pegomock.Any[string](), pegomock.Any[bool](), pegomock.Any[string](), pegomock.Any[string]())).
 		ThenReturn(nil)
 	req := httptest.NewRequest(http.MethodPost, "/pr/restore/m:rID", toReader(restoreReq{Error: "err msg"}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	_ = testCode(t, req, http.StatusOK)
 	cPr, cManual, cReq, cErr := uRestorer.VerifyWasCalled(pegomock.Once()).
-		RestoreUsage(pegomock.Any[string](), pegomock.AnyBool(), pegomock.Any[string](), pegomock.Any[string]()).
+		RestoreUsage(pegomock.Any[string](), pegomock.Any[bool](), pegomock.Any[string](), pegomock.Any[string]()).
 		GetCapturedArguments()
 	assert.Equal(t, "pr", cPr)
 	assert.Equal(t, true, cManual)
@@ -309,19 +309,19 @@ func TestRestore_Fail(t *testing.T) {
 
 	req = httptest.NewRequest(http.MethodPost, "/pr/restore/m:rID", toReader(restoreReq{Error: "err msg"}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	pegomock.When(uRestorer.RestoreUsage(pegomock.Any[string](), pegomock.AnyBool(), pegomock.Any[string](), pegomock.Any[string]())).
+	pegomock.When(uRestorer.RestoreUsage(pegomock.Any[string](), pegomock.Any[bool](), pegomock.Any[string](), pegomock.Any[string]())).
 		ThenReturn(adminapi.ErrNoRecord)
 	testCode(t, req, http.StatusBadRequest)
 
 	req = httptest.NewRequest(http.MethodPost, "/pr/restore/m:rID", toReader(restoreReq{Error: "err msg"}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	pegomock.When(uRestorer.RestoreUsage(pegomock.Any[string](), pegomock.AnyBool(), pegomock.Any[string](), pegomock.Any[string]())).
+	pegomock.When(uRestorer.RestoreUsage(pegomock.Any[string](), pegomock.Any[bool](), pegomock.Any[string](), pegomock.Any[string]())).
 		ThenReturn(adminapi.ErrLogRestored)
 	testCode(t, req, http.StatusConflict)
 
 	req = httptest.NewRequest(http.MethodPost, "/pr/restore/m:rID", toReader(restoreReq{Error: "err msg"}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	pegomock.When(uRestorer.RestoreUsage(pegomock.Any[string](), pegomock.AnyBool(), pegomock.Any[string](), pegomock.Any[string]())).
+	pegomock.When(uRestorer.RestoreUsage(pegomock.Any[string](), pegomock.Any[bool](), pegomock.Any[string](), pegomock.Any[string]())).
 		ThenReturn(errors.New("olia"))
 	testCode(t, req, http.StatusInternalServerError)
 }
