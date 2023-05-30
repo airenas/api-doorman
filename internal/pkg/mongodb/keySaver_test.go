@@ -1,10 +1,12 @@
 package mongodb
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
+	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -118,11 +120,23 @@ func TestAsSlice(t *testing.T) {
 	assert.False(t, ok)
 }
 
-func TestMapTo(t *testing.T) {
-	data := &keyRecord{}
-	data.Tags = []string{"olia", "aa"}
-	data.Manual = true
-	res := mapTo(data)
-	assert.Equal(t, []string{"olia", "aa"}, res.Tags)
-	assert.Equal(t, true, res.Manual)
+func Test_mapTo(t *testing.T) {
+	type args struct {
+		v *keyRecord
+	}
+	tests := []struct {
+		name string
+		args args
+		want *adminapi.Key
+	}{
+		{name: "tags", args: args{v: &keyRecord{Tags: []string{"olia", "aa"}, Manual: true}}, want: &adminapi.Key{Manual: true, Tags: []string{"olia", "aa"}}},
+		{name: "keyID", args: args{v: &keyRecord{KeyID: "keyID", Tags: []string{"olia", "aa"}, Manual: true}}, want: &adminapi.Key{KeyID: "keyID", Manual: true, Tags: []string{"olia", "aa"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := mapTo(tt.args.v); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("mapTo() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

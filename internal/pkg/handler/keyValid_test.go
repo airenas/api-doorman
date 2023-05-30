@@ -33,6 +33,8 @@ func TestKeyValid(t *testing.T) {
 	assert.Equal(t, "kkk", cKey)
 	assert.Equal(t, "1.2.3.4", cIP)
 	assert.True(t, cM)
+
+	assert.Equal(t, "id1", ctx.KeyID)
 }
 
 func TestKeyValid_Unauthorized(t *testing.T) {
