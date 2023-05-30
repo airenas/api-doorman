@@ -77,6 +77,9 @@ func (ss *LogProvider) Get(project, key string) ([]*adminapi.Log, error) {
 		}
 		res = append(res, mapToLog(&logR))
 	}
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("can't get logs: %w", err)
+	}
 	return res, nil
 }
 
@@ -110,6 +113,9 @@ func (ss *LogProvider) List(project string, to time.Time) ([]*adminapi.Log, erro
 			return nil, fmt.Errorf("can't get logs: %w", err)
 		}
 		res = append(res, mapToLog(&logR))
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("can't get logs: %w", err)
 	}
 	return res, nil
 }

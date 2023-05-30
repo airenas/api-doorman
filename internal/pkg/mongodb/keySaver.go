@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
@@ -99,6 +100,9 @@ func (ss *KeySaver) List(project string) ([]*adminapi.Key, error) {
 			return nil, errors.Wrap(err, "Can't get key")
 		}
 		res = append(res, mapTo(&key))
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("can't get logs: %w", err)
 	}
 	return res, nil
 }

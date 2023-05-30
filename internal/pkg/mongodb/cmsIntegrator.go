@@ -295,6 +295,9 @@ func (ss *CmsIntegrator) Usage(keyID string, from, to *time.Time, full bool) (*a
 			res.Logs = append(res.Logs, mapLogRecord(&logR))
 		}
 	}
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("can't get logs: %w", err)
+	}
 	return res, err
 }
 
@@ -339,6 +342,9 @@ func loadKeys(sessCtx mongo.SessionContext, service string, from *time.Time) ([]
 			return nil, errors.Wrap(err, "can't get key record")
 		}
 		res = append(res, &keyR)
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("can't get keys: %w", err)
 	}
 	return res, nil
 }
