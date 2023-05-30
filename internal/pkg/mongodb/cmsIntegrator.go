@@ -271,7 +271,7 @@ func (ss *CmsIntegrator) Usage(keyID string, from, to *time.Time, full bool) (*a
 		return nil, err
 	}
 
-	filter := makeDateFilter(keyMapR.Key, keyMapR.Old, from, to)
+	filter := makeDateFilter(keyMapR.Key, keyMapR.Old, from, to) 
 
 	c := sessCtx.Client().Database(keyMapR.Project).Collection(logTable)
 	cursor, err := c.Find(sessCtx, filter)
@@ -373,7 +373,7 @@ func getDateFilter(from, to *time.Time) bson.M {
 }
 
 func makeDateFilter(key string, old []oldKey, from, to *time.Time) bson.M {
-	res := bson.M{"key": Sanitize(key)}
+	res := bson.M{"key": Sanitize(key)}  // TODO: need to use keyID for new records
 	if len(old) > 0 {
 		keys := []string{Sanitize(key)}
 		for _, k := range old {
@@ -522,7 +522,7 @@ func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input 
 	keyMap.Created = time.Now()
 	keyMap.ExternalID = input.ID
 	var err error
-	keyMap.Key, err = randkey.Generate(ss.newKeySize)
+	keyMap.Key, err = randkey.Generate(ss.newKeySize) // TODO: use UUID here, not the key
 	if err != nil {
 		return nil, errors.Wrap(err, "can't generate key")
 	}
@@ -538,7 +538,7 @@ func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input 
 	c = sessCtx.Client().Database(input.Service).Collection(operationTable)
 	var operation operationRecord
 	operation.Date = time.Now()
-	operation.Key = keyMap.Key
+	operation.Key = keyMap.Key    // TODO: use UUID here, not the user's key
 	operation.OperationID = input.OperationID
 	operation.QuotaValue = input.Credits
 	_, err = c.InsertOne(sessCtx, operation)
@@ -570,7 +570,7 @@ func (ss *CmsIntegrator) changeKey(sessCtx mongo.SessionContext, keyMapR *keyMap
 
 	// update map
 	c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
-	err = c.FindOneAndUpdate(sessCtx,
+	err = c.FindOneAndUpdate(sessCtx,  // TODO: use key hash here 
 		bson.M{"externalID": keyMapR.ExternalID},
 		bson.M{"$set": bson.M{"key": newKey, "updated": time.Now()},
 			"$push": bson.M{"old": bson.M{"changedOn": time.Now(), "key": oldKey}}}).Err()
