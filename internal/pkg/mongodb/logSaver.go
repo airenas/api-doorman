@@ -3,9 +3,11 @@ package mongodb
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -52,7 +54,7 @@ func NewLogProvider(sessionProvider *SessionProvider) (*LogProvider, error) {
 
 // Get return all logs for key
 func (ss *LogProvider) Get(project, key string) ([]*adminapi.Log, error) {
-	goapp.Log.Infof("getting log list")
+	goapp.Log.Infof("getting log list for key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -62,7 +64,7 @@ func (ss *LogProvider) Get(project, key string) ([]*adminapi.Log, error) {
 	}
 	defer session.EndSession(context.Background())
 	c := session.Client().Database(project).Collection(logTable)
-	cursor, err := c.Find(ctx, bson.M{"key": Sanitize(key)})
+	cursor, err := c.Find(ctx, bson.M{getLogKeyField(key): Sanitize(key)})
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't get logs")
 	}
@@ -78,8 +80,15 @@ func (ss *LogProvider) Get(project, key string) ([]*adminapi.Log, error) {
 	return res, nil
 }
 
+func getLogKeyField(key string) string {
+	if strings.Contains(key, "-") { // UUID?
+		return "keyID"
+	}
+	return "key"
+}
+
 func (ss *LogProvider) List(project string, to time.Time) ([]*adminapi.Log, error) {
-	goapp.Log.Infof("getting log list")
+	goapp.Log.Infof("getting log list up to date")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -106,7 +115,7 @@ func (ss *LogProvider) List(project string, to time.Time) ([]*adminapi.Log, erro
 }
 
 func (ss *LogProvider) Delete(project string, to time.Time) (int, error) {
-	goapp.Log.Infof("getting log list")
+	goapp.Log.Infof("deleting log list")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -125,7 +134,11 @@ func (ss *LogProvider) Delete(project string, to time.Time) (int, error) {
 
 func mapFromLog(v *adminapi.Log) *logRecord {
 	res := &logRecord{}
-	res.Key = v.Key
+	if getLogKeyField(v.Key) == "key" {
+		res.Key = v.Key
+	} else {
+		res.KeyID = v.Key
+	}
 	res.Date = v.Date
 	res.Fail = v.Fail
 	res.IP = v.IP
@@ -140,7 +153,7 @@ func mapFromLog(v *adminapi.Log) *logRecord {
 
 func mapToLog(v *logRecord) *adminapi.Log {
 	res := &adminapi.Log{}
-	res.Key = v.Key
+	res.Key = getKey(v.KeyID, v.Key)
 	res.Date = v.Date
 	res.Fail = v.Fail
 	res.IP = v.IP
@@ -151,4 +164,11 @@ func mapToLog(v *logRecord) *adminapi.Log {
 	res.RequestID = v.RequestID
 	res.ErrorMsg = v.ErrorMsg
 	return res
+}
+
+func getKey(id, key string) string {
+	if id != "" {
+		return id
+	}
+	return utils.HashKey(key)
 }

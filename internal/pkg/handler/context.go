@@ -18,6 +18,7 @@ const (
 type customData struct {
 	ResponseCode int
 	Key          string
+	KeyID        string
 	IP           string
 	Manual       bool
 	QuotaValue   float64

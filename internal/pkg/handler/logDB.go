@@ -10,7 +10,7 @@ import (
 	"github.com/airenas/go-app/pkg/goapp"
 )
 
-//DBSaver logs to db
+// DBSaver logs to db
 type DBSaver interface {
 	Save(*api.Log) error
 }
@@ -21,7 +21,7 @@ type logDB struct {
 	sync bool
 }
 
-//LogDB creates handler
+// LogDB creates handler
 func LogDB(next http.Handler, dbs DBSaver) http.Handler {
 	res := &logDB{}
 	res.next = next
@@ -38,7 +38,11 @@ func (h *logDB) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// data.Value = ctx.Value
 	data.Date = time.Now()
 	data.QuotaValue = ctx.QuotaValue
-	data.Key = strings.TrimSpace(ctx.Key)
+	if ctx.KeyID != "" {
+		data.Key = strings.TrimSpace(ctx.KeyID)
+	} else {
+		data.Key = strings.TrimSpace(ctx.Key)
+	}
 	data.RequestID = ctx.RequestID
 	data.IP = utils.ExtractIP(r)
 	data.URL = rn.URL.String()

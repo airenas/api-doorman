@@ -6,6 +6,7 @@ import (
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/google/uuid"
 
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
 	"github.com/airenas/go-app/pkg/goapp"
@@ -63,6 +64,7 @@ func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, er
 	if key.ValidTo != nil {
 		res.ValidTo = *key.ValidTo
 	}
+	res.KeyID = uuid.NewString()
 	res.Created = time.Now()
 	res.Updated = res.Created
 	res.Manual = true
@@ -276,6 +278,7 @@ func prepareUpdates(data map[string]interface{}) (bson.M, error) {
 func mapTo(v *keyRecord) *adminapi.Key {
 	res := &adminapi.Key{}
 	res.Key = v.Key
+	res.KeyID = v.KeyID
 	res.Manual = v.Manual
 	res.ValidTo = toTime(&v.ValidTo)
 	res.Limit = v.Limit

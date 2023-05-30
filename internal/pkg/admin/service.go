@@ -269,6 +269,14 @@ func keyInfo(data *Data) func(echo.Context) error {
 				goapp.Log.Error(err)
 				return echo.NewHTTPError(http.StatusInternalServerError)
 			}
+			if res.Key.KeyID != "" {
+				logsByKeyID, err := data.LogProvider.Get(project, res.Key.KeyID)
+				if err != nil {
+					goapp.Log.Error(err)
+					return echo.NewHTTPError(http.StatusInternalServerError)
+				}
+				res.Logs = append(res.Logs, logsByKeyID...)
+			}
 		}
 		return c.JSON(http.StatusOK, res)
 	}

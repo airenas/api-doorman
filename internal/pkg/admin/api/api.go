@@ -8,6 +8,7 @@ import (
 // Key structure for key data
 type Key struct {
 	Key         string     `json:"key,omitempty"`
+	KeyID       string     `json:"keyID,omitempty"`
 	Manual      bool       `json:"manual,omitempty"`
 	ValidTo     *time.Time `json:"validTo,omitempty"`
 	Limit       float64    `json:"limit,omitempty"`

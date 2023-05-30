@@ -6,6 +6,7 @@ import (
 
 type keyRecord struct {
 	Key              string    `bson:"key"`
+	KeyID            string    `bson:"keyID,omitempty"`
 	Manual           bool      `bson:"manual"`
 	ValidTo          time.Time `bson:"validTo,omitempty"`
 	Limit            float64   `bson:"limit,omitempty"`
@@ -25,6 +26,7 @@ type keyRecord struct {
 
 type logRecord struct {
 	Key          string    `bson:"key,omitempty"`
+	KeyID        string    `bson:"keyID,omitempty"`
 	URL          string    `bson:"url,omitempty"`
 	QuotaValue   float64   `bson:"quotaValue,omitempty"`
 	Date         time.Time `bson:"date,omitempty"`
