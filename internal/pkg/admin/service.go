@@ -234,7 +234,7 @@ func logDelete(data *Data) func(echo.Context) error {
 			goapp.Log.Error(err)
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
-		return c.JSONBlob(http.StatusOK, []byte(fmt.Sprintf(`{"service":%d}`, deleted)))
+		return c.JSONBlob(http.StatusOK, []byte(fmt.Sprintf(`{"deleted":%d}`, deleted)))
 	}
 }
 

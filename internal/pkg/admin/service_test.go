@@ -2,6 +2,7 @@ package admin
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -325,6 +326,67 @@ func TestRestore_Fail(t *testing.T) {
 	testCode(t, req, http.StatusInternalServerError)
 }
 
+func TestLogList(t *testing.T) {
+	initTest(t)
+	pegomock.When(logRetrieverMock.List(pegomock.Any[string](), pegomock.Any[time.Time]())).
+		ThenReturn([]*adminapi.Log{{Key: "1", ResponseCode: 200}, {Key: "2", ResponseCode: 400}}, nil)
+	req := httptest.NewRequest(http.MethodGet, "/pr/log?to=2023-01-02T15:04:05Z", nil)
+	resp := testCode(t, req, http.StatusOK)
+	bytes, _ := io.ReadAll(resp.Body)
+	assert.Contains(t, string(bytes), `"key":"1"`)
+	assert.Contains(t, string(bytes), `"key":"2"`)
+	assert.Contains(t, string(bytes), `"response":400`)
+	cPr, cTime := logRetrieverMock.VerifyWasCalled(pegomock.Once()).
+		List(pegomock.Any[string](), pegomock.Any[time.Time]()).
+		GetCapturedArguments()
+	assert.Equal(t, "pr", cPr)
+	assert.Equal(t, time.Date(2023, time.January, 2, 15, 04, 05, 0, time.UTC), cTime)
+}
+
+func TestLogList_FailDate(t *testing.T) {
+	initTest(t)
+	pegomock.When(logRetrieverMock.List(pegomock.Any[string](), pegomock.Any[time.Time]())).
+		ThenReturn([]*adminapi.Log{{Key: "1", ResponseCode: 200}, {Key: "2", ResponseCode: 400}}, nil)
+	req := httptest.NewRequest(http.MethodGet, "/pr/log", nil)
+	testCode(t, req, http.StatusBadRequest)
+}
+
+func TestLogList_FailDB(t *testing.T) {
+	initTest(t)
+	pegomock.When(logRetrieverMock.List(pegomock.Any[string](), pegomock.Any[time.Time]())).
+		ThenReturn(nil, fmt.Errorf("err"))
+	req := httptest.NewRequest(http.MethodGet, "/pr/log?to=2023-01-02T15:04:05Z", nil)
+	testCode(t, req, http.StatusInternalServerError)
+}
+
+func TestLogDelete(t *testing.T) {
+	initTest(t)
+	pegomock.When(logRetrieverMock.Delete(pegomock.Any[string](), pegomock.Any[time.Time]())).ThenReturn(10, nil)
+	req := httptest.NewRequest(http.MethodDelete, "/pr/log?to=2023-01-02T15:04:05Z", nil)
+	resp := testCode(t, req, http.StatusOK)
+	bytes, _ := io.ReadAll(resp.Body)
+	assert.Equal(t, `{"deleted":10}`, string(bytes))
+	cPr, cTime := logRetrieverMock.VerifyWasCalled(pegomock.Once()).
+		Delete(pegomock.Any[string](), pegomock.Any[time.Time]()).
+		GetCapturedArguments()
+	assert.Equal(t, "pr", cPr)
+	assert.Equal(t, time.Date(2023, time.January, 2, 15, 04, 05, 0, time.UTC), cTime)
+}
+
+func TestLogDelete_FailDate(t *testing.T) {
+	initTest(t)
+	pegomock.When(logRetrieverMock.Delete(pegomock.Any[string](), pegomock.Any[time.Time]())).ThenReturn(10, nil)
+	req := httptest.NewRequest(http.MethodDelete, "/pr/log", nil)
+	testCode(t, req, http.StatusBadRequest)
+}
+
+func TestLogDelete_FailDB(t *testing.T) {
+	initTest(t)
+	pegomock.When(logRetrieverMock.Delete(pegomock.Any[string](), pegomock.Any[time.Time]())).ThenReturn(0, fmt.Errorf("err"))
+	req := httptest.NewRequest(http.MethodDelete, "/pr/log?to=2023-01-02T15:04:05Z", nil)
+	testCode(t, req, http.StatusInternalServerError)
+}
+
 func toReader(key interface{}) io.Reader {
 	bytes, _ := json.Marshal(key)
 	return strings.NewReader(string(bytes))
@@ -346,7 +408,9 @@ func testCode(t *testing.T, req *http.Request, code int) *httptest.ResponseRecor
 	t.Helper()
 	resp := httptest.NewRecorder()
 	tEcho.ServeHTTP(resp, req)
-	assert.Equal(t, code, resp.Code)
+	if !assert.Equal(t, code, resp.Code) {
+		assert.Equal(t, code, resp.Code, resp.Body.String())
+	}
 	return resp
 }
 
