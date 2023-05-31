@@ -198,6 +198,9 @@ func getResetableItems(sessCtx mongo.SessionContext, service string, at time.Tim
 		}
 		res = append(res, &keyR)
 	}
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("can't get keys: %w", err)
+	}
 	return res, nil
 }
 
