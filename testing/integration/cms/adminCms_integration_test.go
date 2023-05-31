@@ -126,6 +126,23 @@ func TestGet_ReturnsKey(t *testing.T) {
 	assert.NotEmpty(t, res.Key)
 }
 
+func TestGet_ReturnsKeyID(t *testing.T) {
+	t.Parallel()
+	in := api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100}
+	resp := invoke(t, newRequest(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusCreated)
+	res := api.Key{}
+	decode(t, resp, &res)
+
+	resp = invoke(t, newRequest(t, http.MethodPost, "/keyID", api.Key{Key: res.Key}))
+	checkCode(t, resp, http.StatusOK)
+	resKey := api.KeyID{}
+	decode(t, resp, &resKey)
+
+	assert.Equal(t, in.ID, resKey.ID)
+	assert.Equal(t, in.Service, resKey.Service)
+}
+
 func TestKey_NotFound(t *testing.T) {
 	t.Parallel()
 	checkCode(t, invoke(t, newRequest(t, http.MethodGet,

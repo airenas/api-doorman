@@ -115,7 +115,7 @@ func (ss *CmsIntegrator) GetKeyID(key string) (*api.KeyID, error) {
 
 	c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
 	keyMapR := &keyMapRecord{}
-	err = c.FindOne(sessCtx, bson.M{"key": Sanitize(key)}).Decode(&keyMapR)
+	err = c.FindOne(sessCtx, bson.M{"keyHash": utils.HashKey(key)}).Decode(&keyMapR)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, api.ErrNoRecord
