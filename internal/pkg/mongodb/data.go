@@ -40,7 +40,8 @@ type logRecord struct {
 }
 
 type keyMapRecord struct {
-	Key        string    `bson:"key"`
+	KeyID      string    `bson:"keyID"`
+	KeyHash    string    `bson:"keyHash"`
 	ExternalID string    `bson:"externalID"`
 	Project    string    `bson:"project"`
 	Created    time.Time `bson:"created,omitempty"`
@@ -48,12 +49,12 @@ type keyMapRecord struct {
 }
 
 type oldKey struct {
-	Key       string    `bson:"key"`
+	KeyHash   string    `bson:"keyHash"`
 	ChangedOn time.Time `bson:"changedOn,omitempty"`
 }
 
 type operationRecord struct {
-	Key         string    `bson:"key"`
+	KeyID       string    `bson:"keyID"`
 	OperationID string    `bson:"operationID"`
 	Date        time.Time `bson:"date,omitempty"`
 	QuotaValue  float64   `bson:"quotaValue,omitempty"`

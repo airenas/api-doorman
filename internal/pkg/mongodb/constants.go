@@ -11,7 +11,7 @@ const (
 
 var indexData = []IndexData{
 	newIndexData(keyTable, []string{"key", "manual"}, true),
-	// newIndexData(keyTable, []string{"keyID"}, true),
+	newIndexData(keyTable, []string{"keyID"}, false), // expected to be true, but it needs to support old functionality
 	newIndexData(keyTable, []string{"updated"}, false),
 	newIndexData(logTable, []string{"key"}, false),
 	newIndexData(logTable, []string{"keyID"}, false),
@@ -21,6 +21,6 @@ var indexData = []IndexData{
 }
 
 var keyMapIndexData = []IndexData{
-	newIndexData(keyMapTable, []string{"key"}, true),
+	newIndexData(keyMapTable, []string{"keyHash"}, true),
 	newIndexData(keyMapTable, []string{"externalID"}, true),
 }

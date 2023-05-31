@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
@@ -75,7 +76,7 @@ func (ss *Reseter) Reset(ctx context.Context, project string, since time.Time, l
 		}
 		ua++
 		ta += limit - (it.Limit - it.QuotaValue)
-		err = reset(sessCtx, &keyMapRecord{Key: it.Key, Project: project}, settings.NextReset, limit-(it.Limit-it.QuotaValue))
+		err = reset(sessCtx, &keyMapRecord{KeyID: getKeyNoHash(it.KeyID, it.Key), Project: project}, settings.NextReset, limit-(it.Limit-it.QuotaValue))
 		if err != nil {
 			return fmt.Errorf("reset: %w", err)
 		}
@@ -85,6 +86,13 @@ func (ss *Reseter) Reset(ctx context.Context, project string, since time.Time, l
 		return nil, updateResetConfig(sessCtx, project, utils.StartOfMonth(since, 1))
 	})
 	return err
+}
+
+func getKeyNoHash(id, key string) string {
+	if id != "" {
+		return id
+	}
+	return key
 }
 
 func getUpdateResetConfig(sessCtx mongo.SessionContext, project string, since time.Time) (*settingsRecord, error) {
@@ -121,7 +129,7 @@ func updateResetConfig(sessCtx mongo.SessionContext, project string, next time.T
 }
 
 func reset(sessCtx mongo.SessionContext, keyMapRecord *keyMapRecord, at time.Time, quota float64) error {
-	goapp.Log.Debugf("updating %s(%s), quota: +%f (%s)", start(keyMapRecord.Key), keyMapRecord.Project, quota, at.Format(time.RFC3339))
+	goapp.Log.Debugf("updating %s(%s), quota: +%f (%s)", start(keyMapRecord.KeyID), keyMapRecord.Project, quota, at.Format(time.RFC3339))
 	_, err := addQuotaForIP(sessCtx, keyMapRecord, &api.CreditsInput{OperationID: uuid.NewString(), Credits: quota, Msg: "monthly reset"}, at)
 	if err != nil {
 		return fmt.Errorf("addQuota: %v", err)
@@ -141,21 +149,17 @@ func addQuotaForIP(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *a
 	var operation operationRecord
 	err := c.FindOne(sessCtx, bson.M{"operationID": Sanitize(input.OperationID)}).Decode(&operation)
 	if err == nil {
-		if operation.Key != keyMapR.Key {
+		if operation.KeyID != keyMapR.KeyID {
 			return nil, &api.ErrField{Field: "operationID", Msg: "exists for other key"}
 		}
-		res, err := loadKeyRecord(sessCtx, keyMapR.Project, keyMapR.Key)
-		if err != nil {
-			return nil, err
-		}
-		return res, api.ErrOperationExists
+		return nil, api.ErrOperationExists
 	}
 	if err != mongo.ErrNoDocuments {
 		return nil, fmt.Errorf("find operations: %v", err)
 	}
 
 	operation.Date = time.Now()
-	operation.Key = keyMapR.Key
+	operation.KeyID = keyMapR.KeyID
 	operation.OperationID = input.OperationID
 	operation.QuotaValue = input.Credits
 	operation.Msg = input.Msg
@@ -167,7 +171,7 @@ func addQuotaForIP(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *a
 	keyR := &keyRecord{}
 	c = sessCtx.Client().Database(keyMapR.Project).Collection(keyTable)
 	err = c.FindOneAndUpdate(sessCtx,
-		keyFilterIP(keyMapR.Key),
+		keyFilterIP(keyMapR.KeyID),
 		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&keyR)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -178,8 +182,15 @@ func addQuotaForIP(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *a
 	return keyR, nil
 }
 
-func keyFilterIP(key string) bson.M {
-	return bson.M{"key": Sanitize(key), "manual": false}
+func keyFilterIP(keyID string) bson.M {
+	return bson.M{getKeyField(keyID): Sanitize(keyID), "manual": false}
+}
+
+func getKeyField(key string) string {
+	if strings.Contains(key, "-") { // UUID?
+		return "keyID"
+	}
+	return "key"
 }
 
 func getResetableItems(sessCtx mongo.SessionContext, service string, at time.Time) ([]*keyRecord, error) {

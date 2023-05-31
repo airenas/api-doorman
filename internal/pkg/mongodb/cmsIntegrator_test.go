@@ -98,7 +98,6 @@ func Test_validateInput(t *testing.T) {
 func Test_makeDateFilter(t *testing.T) {
 	type args struct {
 		key  string
-		old  []oldKey
 		from *time.Time
 		to   *time.Time
 	}
@@ -109,21 +108,17 @@ func Test_makeDateFilter(t *testing.T) {
 		args args
 		want bson.M
 	}{
-		{name: "Key", args: args{key: "id"}, want: bson.M{"key": "id"}},
+		{name: "Key", args: args{key: "id"}, want: bson.M{"keyID": "id"}},
 		{name: "Dates", args: args{key: "id", from: &from, to: &to},
-			want: bson.M{"key": "id", "date": bson.M{"$gte": from, "$lt": to}}},
+			want: bson.M{"keyID": "id", "date": bson.M{"$gte": from, "$lt": to}}},
 		{name: "From", args: args{key: "id", from: &from},
-			want: bson.M{"key": "id", "date": bson.M{"$gte": from}}},
+			want: bson.M{"keyID": "id", "date": bson.M{"$gte": from}}},
 		{name: "To", args: args{key: "id", to: &to},
-			want: bson.M{"key": "id", "date": bson.M{"$lt": to}}},
-		{name: "Several keys", args: args{key: "id", old: []oldKey{{Key: "id1"}}},
-			want: bson.M{"key": bson.M{"$in": []string{"id", "id1"}}}},
-		{name: "Several keys", args: args{key: "id", old: []oldKey{{Key: "id1"}, {Key: "id2"}}},
-			want: bson.M{"key": bson.M{"$in": []string{"id", "id1", "id2"}}}},
+			want: bson.M{"keyID": "id", "date": bson.M{"$lt": to}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := makeDateFilter(tt.args.key, tt.args.old, tt.args.from, tt.args.to); !reflect.DeepEqual(got, tt.want) {
+			if got := makeDateFilter(tt.args.key, tt.args.from, tt.args.to); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("makeDateFilter() = %v, want %v", got, tt.want)
 			}
 		})
@@ -315,6 +310,26 @@ func Test_makeDateFilterForKey(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := makeDateFilterForKey(tt.args.from, tt.args.to); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("makeDateFilterForKey() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_keyFilter(t *testing.T) {
+	type args struct {
+		keyID string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bson.M
+	}{
+		{name: "simple", args: args{keyID: "olia"}, want: bson.M{"keyID": "olia", "manual": true}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := keyFilter(tt.args.keyID); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("keyFilter() = %v, want %v", got, tt.want)
 			}
 		})
 	}

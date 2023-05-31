@@ -10,6 +10,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -70,7 +71,7 @@ func (ss *CmsIntegrator) Create(input *api.CreateInput) (*api.Key, bool, error) 
 		if keyMap.Project != input.Service {
 			return nil, &api.ErrField{Field: "service", Msg: "exists for other service"}
 		}
-		return &api.Key{Key: keyMap.Key}, nil
+		return &api.Key{}, nil
 	})
 
 	if err != nil {
@@ -94,7 +95,7 @@ func (ss *CmsIntegrator) GetKey(keyID string) (*api.Key, error) {
 	if err != nil {
 		return nil, err
 	}
-	keyR, err := loadKeyRecord(sessCtx, keyMapR.Project, keyMapR.Key)
+	keyR, err := loadKeyRecord(sessCtx, keyMapR.Project, keyMapR.KeyID)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +201,7 @@ func (ss *CmsIntegrator) Update(keyID string, input map[string]interface{}) (*ap
 	keyR := &keyRecord{}
 	c := sessCtx.Client().Database(keyMapR.Project).Collection(keyTable)
 	err = c.FindOneAndUpdate(sessCtx,
-		keyFilter(keyMapR.Key),
+		keyFilter(keyMapR.KeyID),
 		bson.M{"$set": update},
 		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&keyR)
 	if err != nil {
@@ -271,7 +272,7 @@ func (ss *CmsIntegrator) Usage(keyID string, from, to *time.Time, full bool) (*a
 		return nil, err
 	}
 
-	filter := makeDateFilter(keyMapR.Key, keyMapR.Old, from, to) 
+	filter := makeDateFilter(keyMapR.KeyID, from, to)
 
 	c := sessCtx.Client().Database(keyMapR.Project).Collection(logTable)
 	cursor, err := c.Find(sessCtx, filter)
@@ -372,15 +373,8 @@ func getDateFilter(from, to *time.Time) bson.M {
 	return res
 }
 
-func makeDateFilter(key string, old []oldKey, from, to *time.Time) bson.M {
-	res := bson.M{"key": Sanitize(key)}  // TODO: need to use keyID for new records
-	if len(old) > 0 {
-		keys := []string{Sanitize(key)}
-		for _, k := range old {
-			keys = append(keys, k.Key)
-		}
-		res["key"] = bson.M{"$in": keys}
-	}
+func makeDateFilter(keyID string, from, to *time.Time) bson.M {
+	res := bson.M{"keyID": Sanitize(keyID)}
 	df := getDateFilter(from, to)
 	if len(df) > 0 {
 		res["date"] = df
@@ -416,10 +410,10 @@ func addQuota(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.Cr
 	var operation operationRecord
 	err := c.FindOne(sessCtx, bson.M{"operationID": Sanitize(input.OperationID)}).Decode(&operation)
 	if err == nil {
-		if operation.Key != keyMapR.Key {
+		if operation.KeyID != keyMapR.KeyID {
 			return nil, &api.ErrField{Field: "operationID", Msg: "exists for other key"}
 		}
-		res, err := loadKeyRecord(sessCtx, keyMapR.Project, keyMapR.Key)
+		res, err := loadKeyRecord(sessCtx, keyMapR.Project, keyMapR.KeyID)
 		if err != nil {
 			return nil, err
 		}
@@ -430,7 +424,7 @@ func addQuota(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.Cr
 	}
 
 	operation.Date = time.Now()
-	operation.Key = keyMapR.Key
+	operation.KeyID = keyMapR.KeyID
 	operation.OperationID = input.OperationID
 	operation.QuotaValue = input.Credits
 	_, err = c.InsertOne(sessCtx, operation)
@@ -441,7 +435,7 @@ func addQuota(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.Cr
 	keyR := &keyRecord{}
 	c = sessCtx.Client().Database(keyMapR.Project).Collection(keyTable)
 	err = c.FindOneAndUpdate(sessCtx,
-		keyFilter(keyMapR.Key),
+		keyFilter(keyMapR.KeyID),
 		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&keyR)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -452,10 +446,10 @@ func addQuota(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *api.Cr
 	return keyR, nil
 }
 
-func loadKeyRecord(sessCtx mongo.SessionContext, project, key string) (*keyRecord, error) {
+func loadKeyRecord(sessCtx mongo.SessionContext, project, keyID string) (*keyRecord, error) {
 	c := sessCtx.Client().Database(project).Collection(keyTable)
 	keyR := &keyRecord{}
-	err := c.FindOne(sessCtx, keyFilter(key)).Decode(&keyR)
+	err := c.FindOne(sessCtx, keyFilter(keyID)).Decode(&keyR)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, api.ErrNoRecord
@@ -465,8 +459,8 @@ func loadKeyRecord(sessCtx mongo.SessionContext, project, key string) (*keyRecor
 	return keyR, nil
 }
 
-func keyFilter(key string) bson.M {
-	return bson.M{"key": Sanitize(key), "manual": true}
+func keyFilter(keyID string) bson.M {
+	return bson.M{"keyID": Sanitize(keyID), "manual": true}
 }
 
 func loadKeyMapRecord(sessCtx mongo.SessionContext, keyID string) (*keyMapRecord, error) {
@@ -521,12 +515,13 @@ func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input 
 	var keyMap keyMapRecord
 	keyMap.Created = time.Now()
 	keyMap.ExternalID = input.ID
-	var err error
-	keyMap.Key, err = randkey.Generate(ss.newKeySize) // TODO: use UUID here, not the key
+	key, err := randkey.Generate(ss.newKeySize)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't generate key")
 	}
 	keyMap.Project = input.Service
+	keyMap.KeyHash = utils.HashKey(key)
+	keyMap.KeyID = uuid.NewString()
 	_, err = c.InsertOne(sessCtx, keyMap)
 	if err != nil {
 		if IsDuplicate(err) {
@@ -538,7 +533,7 @@ func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input 
 	c = sessCtx.Client().Database(input.Service).Collection(operationTable)
 	var operation operationRecord
 	operation.Date = time.Now()
-	operation.Key = keyMap.Key    // TODO: use UUID here, not the user's key
+	operation.KeyID = keyMap.KeyID
 	operation.OperationID = input.OperationID
 	operation.QuotaValue = input.Credits
 	_, err = c.InsertOne(sessCtx, operation)
@@ -550,7 +545,8 @@ func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input 
 	}
 	c = sessCtx.Client().Database(input.Service).Collection(keyTable)
 	res := initNewKey(input, ss.defaultValidToDuration, time.Now())
-	res.Key = keyMap.Key
+	res.Key = key
+	res.KeyID = keyMap.KeyID
 	_, err = c.InsertOne(sessCtx, res)
 	if err != nil {
 		if IsDuplicate(err) {
@@ -562,7 +558,7 @@ func (ss *CmsIntegrator) createKeyWithQuota(sessCtx mongo.SessionContext, input 
 }
 
 func (ss *CmsIntegrator) changeKey(sessCtx mongo.SessionContext, keyMapR *keyMapRecord) (*keyRecord, error) {
-	oldKey := keyMapR.Key
+	oldKey := keyMapR.KeyHash
 	newKey, err := randkey.Generate(ss.newKeySize)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't generate key")
@@ -570,10 +566,10 @@ func (ss *CmsIntegrator) changeKey(sessCtx mongo.SessionContext, keyMapR *keyMap
 
 	// update map
 	c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
-	err = c.FindOneAndUpdate(sessCtx,  // TODO: use key hash here 
+	err = c.FindOneAndUpdate(sessCtx, 
 		bson.M{"externalID": keyMapR.ExternalID},
-		bson.M{"$set": bson.M{"key": newKey, "updated": time.Now()},
-			"$push": bson.M{"old": bson.M{"changedOn": time.Now(), "key": oldKey}}}).Err()
+		bson.M{"$set": bson.M{"keyHash": utils.HashKey(newKey), "updated": time.Now()},
+			"$push": bson.M{"old": bson.M{"changedOn": time.Now(), "keyHash": oldKey}}}).Err()
 
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -586,7 +582,7 @@ func (ss *CmsIntegrator) changeKey(sessCtx mongo.SessionContext, keyMapR *keyMap
 	c = sessCtx.Client().Database(keyMapR.Project).Collection(keyTable)
 	res := &keyRecord{}
 	err = c.FindOneAndUpdate(sessCtx,
-		keyFilter(oldKey),
+		keyFilter(keyMapR.KeyID),
 		bson.M{"$set": bson.M{"key": newKey, "updated": time.Now()}},
 		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&res)
 
