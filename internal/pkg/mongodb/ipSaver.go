@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -44,6 +45,7 @@ func (ss *IPSaver) CheckCreate(ip string, limit float64) error {
 
 	res := &keyRecord{}
 	res.Key = ip
+	res.KeyID = uuid.NewString()
 	res.Manual = false
 	res.Limit = limit
 	res.ValidTo = time.Date(2100, time.Month(1), 1, 01, 0, 0, 0, time.UTC)
