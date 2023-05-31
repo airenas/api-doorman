@@ -93,7 +93,7 @@ func TestCreate(t *testing.T) {
 	checkCode(t, resp, http.StatusConflict)
 	resN := api.Key{}
 	decode(t, resp, &resN)
-	assert.Equal(t, res.Key, resN.Key)
+	assert.Equal(t, "", resN.Key)
 
 	resp = invoke(t, newRequest(t, http.MethodPost, "/key",
 		api.CreateInput{ID: uuid.NewString(), OperationID: in.OperationID,
