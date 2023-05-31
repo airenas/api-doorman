@@ -224,7 +224,11 @@ func restoreQuota(sessCtx mongo.SessionContext, project string, manual bool, req
 	update := bson.M{"$set": bson.M{"updated": now},
 		"$inc": bson.M{"quotaValueFailed": logR.QuotaValue, "quotaValue": -logR.QuotaValue}}
 	c = sessCtx.Client().Database(project).Collection(keyTable)
-	return c.FindOneAndUpdate(sessCtx, bson.M{"key": logR.Key, "manual": manual},
+	keyF, key := "keyID", logR.KeyID
+	if key == "" {
+		keyF, key = "key", logR.Key
+	}
+	return c.FindOneAndUpdate(sessCtx, bson.M{keyF: key, "manual": manual},
 		update, options.FindOneAndUpdate()).Err()
 }
 
