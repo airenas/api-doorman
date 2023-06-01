@@ -71,12 +71,16 @@ func (ss *Reseter) Reset(ctx context.Context, project string, since time.Time, l
 		if !since.After(it.Created) {
 			continue
 		}
-		if (it.Limit - it.QuotaValue) >= limit {
+		cv := it.Limit - it.QuotaValue
+		if cv >= limit {
+			continue
+		}
+		if utils.Float64Equal(cv, limit) {
 			continue
 		}
 		ua++
-		ta += limit - (it.Limit - it.QuotaValue)
-		err = reset(sessCtx, &keyMapRecord{KeyID: getKeyNoHash(it.KeyID, it.Key), Project: project}, settings.NextReset, limit-(it.Limit-it.QuotaValue))
+		ta += limit - cv
+		err = reset(sessCtx, &keyMapRecord{KeyID: getKeyNoHash(it.KeyID, it.Key), Project: project}, settings.NextReset, limit-cv)
 		if err != nil {
 			return fmt.Errorf("reset: %w", err)
 		}
