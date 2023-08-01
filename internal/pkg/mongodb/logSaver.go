@@ -122,7 +122,7 @@ func (ss *LogProvider) List(project string, to time.Time) ([]*adminapi.Log, erro
 
 func (ss *LogProvider) Delete(project string, to time.Time) (int, error) {
 	goapp.Log.Infof("deleting log list")
-	ctx, cancel := mongoContext()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
