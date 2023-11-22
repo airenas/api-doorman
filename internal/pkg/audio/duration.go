@@ -1,9 +1,9 @@
 package audio
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -15,14 +15,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-//Duration comunicates with duration service
+// Duration comunicates with duration service
 type Duration struct {
 	httpclient *http.Client
 	url        string
 	timeout    time.Duration
 }
 
-//NewDurationClient creates a transcriber client
+// NewDurationClient creates a transcriber client
 func NewDurationClient(urlStr string) (*Duration, error) {
 	res := Duration{}
 	var err error
@@ -39,20 +39,24 @@ func NewDurationClient(urlStr string) (*Duration, error) {
 	return &res, nil
 }
 
-//Get return duration by calling the service
+// Get return duration by calling the service
 func (dc *Duration) Get(name string, file io.Reader) (float64, error) {
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("file", name)
-	if err != nil {
-		return 0, errors.Wrap(err, "can't add file to request")
-	}
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return 0, errors.Wrap(err, "can't add file to request")
-	}
-	writer.Close()
-	req, err := http.NewRequest(http.MethodPost, dc.url, body)
+	pr, pw := io.Pipe()
+	writer := multipart.NewWriter(pw)
+	go func() {
+		part, err := writer.CreateFormFile("file", name)
+		if err != nil {
+			pw.CloseWithError(fmt.Errorf("can't add file to request: %w", err))
+			return
+		}
+		if _, err = io.Copy(part, file); err != nil {
+			pw.CloseWithError(fmt.Errorf("can't add file to request: %w", err))
+			return
+		}
+		pw.CloseWithError(writer.Close())
+	}()
+
+	req, err := http.NewRequest(http.MethodPost, dc.url, pr)
 	if err != nil {
 		return 0, err
 	}
