@@ -1,6 +1,8 @@
 module github.com/airenas/api-doorman
 
-go 1.19
+go 1.22
+
+toolchain go1.22.1
 
 require (
 	github.com/airenas/go-app v0.3.20
