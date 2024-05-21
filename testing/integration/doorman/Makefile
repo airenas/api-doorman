@@ -1,8 +1,4 @@
 -include .env
--include ../../../version
-#####################################################################################
-ADMIN_VERSION=$(admin_version)
-DOORMAN_VERSION=$(doorman_version)
 #####################################################################################
 ## print usage information
 help:

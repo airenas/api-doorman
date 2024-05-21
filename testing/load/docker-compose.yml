@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
   doorman:
-    image: airenas/api-doorman:${DOORMAN_VERSION}
+    image: airenas/api-doorman:dev
     ports:
       - "${DOORMAN_PORT}:8000"
     environment:
@@ -41,7 +41,7 @@ services:
     restart: on-failure    
 
   doorman-admin:
-    image: airenas/api-doorman-admin:${ADMIN_VERSION}
+    image: airenas/api-doorman-admin:dev
     ports:
       - "${ADMIN_PORT}:8000"
     environment:

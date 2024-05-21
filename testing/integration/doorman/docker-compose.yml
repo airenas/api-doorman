@@ -3,7 +3,7 @@ version: '3.7'
 services:
 
   doorman-admin:
-    image: airenas/api-doorman-admin:${ADMIN_VERSION}
+    image: airenas/api-doorman-admin:dev
     depends_on:
       - mongo  
     environment:
@@ -12,7 +12,7 @@ services:
     restart: on-failure
 
   doorman:
-    image: airenas/api-doorman:${DOORMAN_VERSION}
+    image: airenas/api-doorman:dev
     environment:
       MONGO_URL: "${MONGO_URL}"  
       PROJECTS: test,tts,changes
@@ -37,7 +37,7 @@ services:
     restart: on-failure
   
   test-api:
-    image: airenas/test-api:${TEST_API_VERSION} 
+    image: airenas/test-api:0.9.85
 
   mongo:
     image: mongo:4.4.1

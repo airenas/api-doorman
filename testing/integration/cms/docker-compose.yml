@@ -3,8 +3,7 @@ version: '3.7'
 services:
 
   doorman-admin:
-    image: airenas/api-doorman-admin:${ADMIN_VERSION}
-    # ports:
+    image: airenas/api-doorman-admin:dev
     #   - "${ADMIN_PORT}:8000"
     depends_on:
       - mongo  
