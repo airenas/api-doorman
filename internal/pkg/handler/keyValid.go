@@ -54,7 +54,7 @@ func getLimitSetting(tags []string) (int64, error) {
 	for _, hs := range tags {
 		if strings.HasPrefix(hs, rateLimitTag) {
 			str := hs[len(rateLimitTag):]
-			return strconv.ParseInt(str, 10, 64)
+			return strconv.ParseInt(strings.TrimSpace(str), 10, 64)
 		}
 	}
 	return 0, nil

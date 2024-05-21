@@ -60,3 +60,32 @@ func TestKeyValid_Fail(t *testing.T) {
 	KeyValid(newTestHandler(), keyValidatorMock).ServeHTTP(resp, req)
 	assert.Equal(t, 500, resp.Code)
 }
+
+func Test_getLimitSetting(t *testing.T) {
+	type args struct {
+		tags []string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    int64
+		wantErr bool
+	}{
+		{name: "empty", args: args{tags: []string{}}, want: 0, wantErr: false},
+		{name: "parses", args: args{tags: []string{"x-rate-limit:500"}}, want: 500, wantErr: false},
+		{name: "several parses", args: args{tags: []string{"olia:100", "x-rate-limit: 500"}}, want: 500, wantErr: false},
+		{name: "several parses", args: args{tags: []string{"olia:100", "x-rate-limit: aa500"}}, want: 0, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getLimitSetting(tt.args.tags)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getLimitSetting() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("getLimitSetting() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
