@@ -145,6 +145,10 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 
 	if tp == "quota" {
 		h = handler.QuotaValidate(h, keysValidator)
+		if h, err = newRateLimiter(name, cfg, h); err != nil {
+			return nil, errors.Wrap(err, "can't init rate limiter")
+		}
+
 		// configure skip first functionality
 		sfURL := strings.TrimSpace(cfg.GetString(name + ".quota.skipFirstURL"))
 		if sfURL != "" {
@@ -208,10 +212,6 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 		return nil, errors.Wrap(err, "can't init log saver")
 	}
 	h = handler.LogDB(h, ls)
-
-	if h, err = newRateLimiter(name, cfg, h); err != nil {
-		return nil, errors.Wrap(err, "can't init rate limiter")
-	}
 
 	hKey := handler.KeyValid(h, keysValidator)
 	dl := cfg.GetFloat64(name + ".quota.default")
