@@ -64,6 +64,10 @@ tts:
     field: field
     default: 100
     skipFirstURL: http://tts:8000/{{rID}}
+  rateLimit:
+    window: 3m
+    default: 1002
+    url: redis:6379
   prefixURL: /start
   method: POST
   cleanHeaders: tts-one,tts-two
@@ -83,6 +87,7 @@ func TestQuotaHandle(t *testing.T) {
 	assert.Contains(t, h.Info(), "FillOutHeader")
 	assert.Contains(t, h.Info(), "FillKeyHeader")
 	assert.Contains(t, h.Info(), "FillRequestIDHeader(db:test)")
+	assert.Contains(t, h.Info(), "RateLimitValidate(1002, RedisRateLimiter(redis:6379, 180))")
 	assert.Contains(t, h.Info(), "CleanHeader ([TTS-ONE TTS-TWO])")
 	assert.Contains(t, h.Info(), "SkipFirstQuota(rID)")
 }

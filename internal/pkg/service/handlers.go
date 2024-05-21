@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/audio"
 	"github.com/airenas/api-doorman/internal/pkg/handler"
 	"github.com/airenas/api-doorman/internal/pkg/integration/tts"
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
+	"github.com/airenas/api-doorman/internal/pkg/ratelimit"
 	"github.com/airenas/api-doorman/internal/pkg/text"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
@@ -16,7 +18,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-//NewHandler creates handler based on config
+// NewHandler creates handler based on config
 func NewHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (HandlerWrap, error) {
 	if name == "default" {
 		return newDefaultHandler("default", cfg)
@@ -145,7 +147,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 		h = handler.QuotaValidate(h, keysValidator)
 		// configure skip first functionality
 		sfURL := strings.TrimSpace(cfg.GetString(name + ".quota.skipFirstURL"))
-		if (sfURL != "") {
+		if sfURL != "" {
 			goapp.Log.Infof("Skip First check service %s", sfURL)
 			counter, err := tts.NewCounter(sfURL)
 			if err != nil {
@@ -203,16 +205,21 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 
 	ls, err := mongodb.NewLogSaver(dbProvider)
 	if err != nil {
-		return nil, errors.Wrap(err, "Can't init log saver")
+		return nil, errors.Wrap(err, "can't init log saver")
 	}
 	h = handler.LogDB(h, ls)
+
+	if h, err = newRateLimiter(name, cfg, h); err != nil {
+		return nil, errors.Wrap(err, "can't init rate limiter")
+	}
+
 	hKey := handler.KeyValid(h, keysValidator)
 	dl := cfg.GetFloat64(name + ".quota.default")
 	if dl > 0 {
 		goapp.Log.Infof("Default IP quota: %.f", dl)
 		is, err := mongodb.NewIPSaver(dbProvider)
 		if err != nil {
-			return nil, errors.Wrap(err, "Can't init IP saver")
+			return nil, errors.Wrap(err, "can't init IP saver")
 		}
 		hIP := handler.IPAsKey(hKey, newIPSaver(is, dl))
 		hKey = handler.KeyValidOrIP(hKey, hIP)
@@ -220,6 +227,23 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 	h = handler.KeyExtract(hKey)
 
 	return h, nil
+}
+
+func newRateLimiter(name string, cfg *viper.Viper, next http.Handler) (http.Handler, error) {
+	defaultLimit := cfg.GetInt64(name + ".rateLimit.default")
+	if defaultLimit == 0 {
+		goapp.Log.Infof("no rate limit for %s", name)
+		return next, nil
+	}
+	window := cfg.GetDuration(name + ".rateLimit.window")
+	if window < time.Second {
+		return nil, fmt.Errorf("wrong rate limit window %v for %s", window, name)
+	}
+	rl, err := ratelimit.NewRedisRateLimiter(cfg.GetString(name+".rateLimit.url"), int64(window.Seconds()))
+	if err != nil {
+		return nil, fmt.Errorf("can't init redis limiter: %w", err)
+	}
+	return handler.RateLimitValidate(next, rl, defaultLimit), nil
 }
 
 func (h *prefixHandler) Handler() http.Handler {

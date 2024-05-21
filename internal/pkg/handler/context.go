@@ -16,16 +16,17 @@ const (
 )
 
 type customData struct {
-	ResponseCode int
-	Key          string
-	KeyID        string
-	IP           string
-	Manual       bool
-	QuotaValue   float64
-	Value        string
-	Discount     *bool
-	Tags         []string
-	RequestID    string
+	ResponseCode   int
+	Key            string
+	KeyID          string
+	IP             string
+	Manual         bool
+	QuotaValue     float64
+	RateLimitValue int64
+	Value          string
+	Discount       *bool
+	Tags           []string
+	RequestID      string
 }
 
 func customContext(r *http.Request) (*http.Request, *customData) {
