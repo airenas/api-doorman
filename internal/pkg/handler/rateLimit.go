@@ -34,8 +34,6 @@ func (h *rateLimitValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if limit <= 0 {
 		limit = h.limit
 	}
-	goapp.Log.Debugf("Quota value: %f, rate limit: %d", quotaV, limit)
-
 	ok, rem, retryAfter, err := h.qv.Validate(makeRateLimitKey(ctx.Key, ctx.Manual), int64(limit), int64(quotaV))
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
@@ -43,6 +41,7 @@ func (h *rateLimitValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx.ResponseCode = http.StatusInternalServerError
 		return
 	}
+	goapp.Log.Debugf("Quota value: %.2f, rem: %d, time: %d, rate limit: %d", quotaV, rem, retryAfter, limit)
 	if rem >= 0 {
 		w.Header().Set("X-Rate-Limit-Short-Remaining", fmt.Sprintf("%d", rem))
 	}
