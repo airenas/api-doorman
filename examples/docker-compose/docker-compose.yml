@@ -16,6 +16,9 @@ services:
       PROXY_TEST_QUOTA_TYPE: "json"
       PROXY_TEST_QUOTA_FIELD: "text"
       PROXY_TEST_QUOTA_DEFAULT: 100
+      PROXY_TEST_RATELIMIT_WINDOW: 5m
+      PROXY_TEST_RATELIMIT_DEFAULT: 50
+      PROXY_TEST_RATELIMIT_URL: doorman-redis:6379
       PROXY_TEST2_TYPE: simple
       PROXY_TEST2_DB: test
       PROXY_TEST2_BACKEND: "http://test-api:8000/"
@@ -38,6 +41,7 @@ services:
       PROXY_TTS_QUOTA_TYPE: "jsonTTS"
       PROXY_TTS_QUOTA_DISCOUNT: 0.80
       PROXY_TTS_QUOTA_DEFAULT: 100
+      LOGGER_LEVEL: DEBUG
     # restart: unless-stopped
 
   doorman-admin:
@@ -49,6 +53,10 @@ services:
       PROJECTS: test,test1,tts,asr
     # restart: unless-stopped
   
+  doorman-redis:
+    image: redis:7.2.5-alpine3.19
+    # restart: unless-stopped
+
   test-api:
     image: airenas/test-api:${TEST_API_VERSION}
     ports:

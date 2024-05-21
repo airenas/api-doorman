@@ -1,5 +1,0 @@
-commit_count=$(shell git rev-list --count HEAD)
-rev_id=$(shell git rev-parse --short HEAD)
-#################################################
-admin_version?=0.6.$(commit_count)-$(rev_id)
-doorman_version?=0.10.$(commit_count)-$(rev_id)

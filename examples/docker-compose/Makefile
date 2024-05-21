@@ -32,7 +32,7 @@ test/adm/key-list:
 test/adm/add:
 	curl -i -X POST http://localhost:$(ADMIN_PORT)/$(prj)/key \
 		-H "content-type:application/json" \
-		-d '{"key":"$(key)", "limit":500, "validTo":"2030-11-24T11:07:00Z"}'
+		-d '{"key":"$(key)", "limit":500, "validTo":"2030-11-24T11:07:00Z", "tags":["x-rate-limit:1000"]}'
 ## get info about key 
 test/adm/get:
 	curl -X GET http://localhost:$(ADMIN_PORT)/$(prj)/key/$(key)?full=1 | jq

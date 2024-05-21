@@ -1,7 +1,6 @@
--include ../../version
 #####################################################################################
 service=airenas/api-doorman
-version=$(doorman_version)
+version?=dev
 ########### DOCKER ##################################################################
 tag=$(service):$(version)
 
