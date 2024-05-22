@@ -34,7 +34,7 @@ func (h *rateLimitValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if limit <= 0 {
 		limit = h.limit
 	}
-	ok, rem, retryAfter, err := h.qv.Validate(makeRateLimitKey(ctx.Key, ctx.Manual), int64(limit), int64(quotaV))
+	ok, rem, retryAfter, err := h.qv.Validate(makeRateLimitKey(idOrHash(ctx), ctx.Manual), int64(limit), int64(quotaV))
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
 		goapp.Log.Error("can't validate rate limit.", err)
@@ -56,8 +56,15 @@ func (h *rateLimitValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.next.ServeHTTP(w, rn)
 }
 
-func makeRateLimitKey(s string, b bool) string {
-	return fmt.Sprintf("%s_%t", s, b)
+func idOrHash(ctx *customData) string {
+	if ctx.KeyID != "" {	
+		return ctx.KeyID
+	}
+	return hashKey(ctx.Key)
+}
+
+func makeRateLimitKey(key string, manual bool) string {
+	return fmt.Sprintf("%s:%t", key, manual)
 }
 
 func (h *rateLimitValidate) Info(pr string) string {
