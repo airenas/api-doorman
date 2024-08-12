@@ -63,7 +63,7 @@ func (h *quotaSaveValidate) Info(pr string) string {
 }
 
 func isServiceFailure(code int) bool {
-	return code == 404 || (code >= 500 && code < 600)
+	return code >= 400 && code < 600
 }
 
 func (h *quotaSaveValidate) tryRestoreQuota(w http.ResponseWriter, rn *http.Request, ctx *customData) {

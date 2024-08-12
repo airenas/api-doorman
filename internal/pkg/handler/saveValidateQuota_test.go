@@ -144,6 +144,6 @@ func TestIsServiceFailure(t *testing.T) {
 	assert.True(t, isServiceFailure(503))
 	assert.False(t, isServiceFailure(200))
 	assert.False(t, isServiceFailure(202))
-	assert.False(t, isServiceFailure(400))
-	assert.False(t, isServiceFailure(403))
+	assert.True(t, isServiceFailure(400))
+	assert.True(t, isServiceFailure(403))
 }
