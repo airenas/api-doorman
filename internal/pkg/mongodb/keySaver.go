@@ -41,7 +41,7 @@ func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, er
 
 	err := utils.ValidateIPsCIDR(key.IPWhiteList)
 	if err != nil {
-		return nil, errors.Wrapf(adminapi.ErrWrongField, "Wrong IP CIDR format: "+key.IPWhiteList)
+		return nil, fmt.Errorf("wrong IP CIDR format: %s: %w", key.IPWhiteList, adminapi.ErrWrongField)
 	}
 
 	ctx, cancel := mongoContext()
@@ -256,7 +256,7 @@ func prepareUpdates(data map[string]interface{}) (bson.M, error) {
 			if ok {
 				err := utils.ValidateIPsCIDR(s)
 				if err != nil {
-					return nil, errors.Wrapf(adminapi.ErrWrongField, "Wrong IP CIDR format: "+s)
+					return nil, fmt.Errorf("wrong IP CIDR format: %s: %w", s, adminapi.ErrWrongField)
 				}
 				res["IPWhiteList"] = v
 			}
