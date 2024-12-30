@@ -1,5 +1,7 @@
 -include Makefile.options
 #####################################################################################
+MIGRATIONS_DIR := ./db
+#####################################################################################
 ## print usage information
 help:
 	@echo 'Usage:'
@@ -14,8 +16,7 @@ test/unit:
 #####################################################################################
 ## code vet and lint
 test/lint: 
-	go vet ./...
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint
 	golangci-lint run -v ./...
 .PHONY: test/lint
 #####################################################################################
@@ -70,7 +71,24 @@ run:
 	cd cmd/doorman/ && go run . -c config.yml	
 run-admin:
 	cd cmd/doorman-admin/ && go run . -c config.yml	
-
+#####################################################################################
+install/migrate:
+	@go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate
+.PHONY: install-migrate
+$(MIGRATIONS_DIR):
+	mkdir -p $@
+migrate/new: install/migrate | $(MIGRATIONS_DIR)
+	@$(if $(strip $(migration_name)),echo "Creating = $(migration_name)",echo No migration_name && exit 1)
+	migrate create -ext sql -dir $(MIGRATIONS_DIR) -seq $(migration_name)
+.PHONY: migrate/new
+migrate/up: install/migrate 
+	migrate -path=$(MIGRATIONS_DIR) -database="$(DB_DSN)" up
+.PHONY: migrate/up
+# rollback 1 migration
+migrate/down: install/migrate
+	migrate -path=$(MIGRATIONS_DIR) -database="$(DB_DSN)" down 1
+.PHONY: migrate/down
+#####################################################################################
 clean:
 	go clean 
 	go mod tidy -compat=1.19

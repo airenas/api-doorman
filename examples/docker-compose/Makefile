@@ -55,6 +55,8 @@ test/api/key:
 	-d '{"text": "private text data with key"}'	
 
 ########################################################################################################
+psql:
+	docker compose exec -e PGPASSWORD=postgres postgres psql -U postgres -h localhost -d doorman
 mongosh:
 	docker compose exec mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS)
 
