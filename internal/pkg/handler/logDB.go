@@ -7,7 +7,7 @@ import (
 
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/rs/zerolog/log"
 )
 
 // DBSaver logs to db
@@ -51,7 +51,7 @@ func (h *logDB) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	sf := func() {
 		err := h.dbs.Save(data)
 		if err != nil {
-			goapp.Log.Error("can't save log. ", err)
+			log.Error().Msgf("can't save log. ", err)
 		}
 	}
 	if h.sync {

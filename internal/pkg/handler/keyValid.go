@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/rs/zerolog/log"
 )
 
 // KeyValidator validator
@@ -31,7 +31,7 @@ func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ok, id, tags, err := h.kv.IsValid(ctx.Key, ctx.IP, ctx.Manual)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		goapp.Log.Error("can't check key. ", err)
+		log.Error().Msgf("can't check key. ", err)
 		return
 	}
 	if !ok {
@@ -42,7 +42,7 @@ func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx.KeyID = id
 	if ctx.RateLimitValue, err = getLimitSetting(tags); err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		goapp.Log.Error("can't check rate limit setting.", err)
+		log.Error().Msgf("can't check rate limit setting.", err)
 		return
 	}
 	h.next.ServeHTTP(w, rn)

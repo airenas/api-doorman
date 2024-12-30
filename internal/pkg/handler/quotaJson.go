@@ -9,7 +9,7 @@ type jsonAsQuota struct {
 	next http.Handler
 }
 
-//JSONAsQuota creates handler
+// JSONAsQuota creates handler
 func JSONAsQuota(next http.Handler) http.Handler {
 	res := &jsonAsQuota{}
 	res.next = next

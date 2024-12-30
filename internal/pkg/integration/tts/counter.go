@@ -13,9 +13,10 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
-//Counter gets usage count for URL
+// Counter gets usage count for URL
 type Counter struct {
 	httpclient *http.Client
 	timeOut    time.Duration
@@ -23,7 +24,7 @@ type Counter struct {
 	paramName  string
 }
 
-//NewCounter creates a new counter instance
+// NewCounter creates a new counter instance
 func NewCounter(url string) (*Counter, error) {
 	prm, err := extractParam(url)
 	if err != nil {
@@ -47,7 +48,7 @@ func extractParam(url string) (string, error) {
 	return res, nil
 }
 
-//Get return text by calling the service
+// Get return text by calling the service
 func (c *Counter) Get(prm string) (int64, error) {
 	url := prepareURL(c.url, c.paramName, prm)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -58,7 +59,7 @@ func (c *Counter) Get(prm string) (int64, error) {
 	defer cancelF()
 	req = req.WithContext(ctx)
 
-	goapp.Log.Debugf("Invoke: %s", url)
+	log.Debug().Msgf("Invoke: %s", url)
 	resp, err := c.httpclient.Do(req)
 	if err != nil {
 		return 0, err

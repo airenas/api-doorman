@@ -12,7 +12,7 @@ type cleanHeader struct {
 	headers []string
 }
 
-//CleanHeader removes header with key names starting with 'starting' from request
+// CleanHeader removes header with key names starting with 'starting' from request
 func CleanHeader(next http.Handler, starting string) (http.Handler, error) {
 	res := &cleanHeader{}
 	res.next = next

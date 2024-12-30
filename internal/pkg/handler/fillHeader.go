@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 const headerSaveTags = "x-tts-save-tags"
@@ -18,7 +18,7 @@ type fillHeader struct {
 	next http.Handler
 }
 
-//FillHeader creates handler for filling header values from tags
+// FillHeader creates handler for filling header values from tags
 func FillHeader(next http.Handler) http.Handler {
 	res := &fillHeader{}
 	res.next = next
@@ -31,7 +31,7 @@ func (h *fillHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h, v, err := headerValue(hs)
 		if err != nil {
 			http.Error(w, "Service error", http.StatusInternalServerError)
-			goapp.Log.Error("Can't parse header value from tag", err)
+			log.Error().Msgf("Can't parse header value from tag", err)
 			return
 		}
 		if h != "" {
@@ -59,7 +59,7 @@ type fillKeyHeader struct {
 	next http.Handler
 }
 
-//FillKeyHeader creates handler for adding key hash value into "x-tts-save-tags"
+// FillKeyHeader creates handler for adding key hash value into "x-tts-save-tags"
 func FillKeyHeader(next http.Handler) http.Handler {
 	res := &fillKeyHeader{}
 	res.next = next
@@ -110,7 +110,7 @@ type fillRequestIDHeader struct {
 	next http.Handler
 }
 
-//FillRequestIDHeader creates handler for adding requestID into header x-doorman-requestid"
+// FillRequestIDHeader creates handler for adding requestID into header x-doorman-requestid"
 func FillRequestIDHeader(next http.Handler, dbName string) http.Handler {
 	res := &fillRequestIDHeader{}
 	res.next = next

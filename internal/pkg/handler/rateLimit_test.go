@@ -11,8 +11,8 @@ func Test_idOrHash(t *testing.T) {
 		args args
 		want string
 	}{
-	{name: "id", args: args{ctx: &customData{KeyID: "id", Key: "olia"}}, want: "id"},
-	{name: "key", args: args{ctx: &customData{KeyID: "", Key: "olia"}}, want: "d57329cf35"},
+		{name: "id", args: args{ctx: &customData{KeyID: "id", Key: "olia"}}, want: "id"},
+		{name: "key", args: args{ctx: &customData{KeyID: "", Key: "olia"}}, want: "d57329cf35"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

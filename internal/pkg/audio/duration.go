@@ -13,6 +13,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 // Duration comunicates with duration service
@@ -65,7 +66,7 @@ func (dc *Duration) Get(name string, file io.Reader) (float64, error) {
 	defer cFunc()
 	req = req.WithContext(ctx)
 
-	goapp.Log.Debugf("Sending audio to: %s", dc.url)
+	log.Debug().Msgf("Sending audio to: %s", dc.url)
 	resp, err := dc.httpclient.Do(req)
 	if err != nil {
 		return 0, err

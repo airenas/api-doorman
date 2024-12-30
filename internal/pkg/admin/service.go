@@ -2,7 +2,7 @@ package admin
 
 import (
 	"fmt"
-	"log"
+	slog "log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,6 +17,7 @@ import (
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/net/context"
 )
 
@@ -83,7 +84,7 @@ type (
 
 // StartWebServer starts the HTTP service and listens for the admin requests
 func StartWebServer(data *Data) error {
-	goapp.Log.Infof("Starting HTTP doorman admin service at %d", data.Port)
+	log.Info().Msgf("Starting HTTP doorman admin service at %d", data.Port)
 
 	e := initRoutes(data)
 
@@ -94,9 +95,7 @@ func StartWebServer(data *Data) error {
 	e.Server.ReadTimeout = 20 * time.Second
 	e.Server.WriteTimeout = 60 * time.Second
 
-	w := goapp.Log.Writer()
-	defer w.Close()
-	gracehttp.SetLogger(log.New(w, "", 0))
+	gracehttp.SetLogger(slog.New(goapp.Log, "", 0))
 
 	return gracehttp.Serve(e.Server)
 }
@@ -123,9 +122,9 @@ func initRoutes(data *Data) *echo.Echo {
 
 	cms.InitRoutes(e, data.CmsData)
 
-	goapp.Log.Info("Routes:")
+	log.Info().Msg("Routes:")
 	for _, r := range e.Routes() {
-		goapp.Log.Infof("  %s %s", r.Method, r.Path)
+		log.Info().Msgf("  %s %s", r.Method, r.Path)
 	}
 	return e
 }
@@ -135,29 +134,29 @@ func keyAdd(data *Data) func(echo.Context) error {
 		defer goapp.Estimate("Service method: " + c.Path())()
 		project := c.Param("project")
 		if err := validateProject(project, data.ProjectValidator); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 		var input adminapi.Key
 		if err := utils.TakeJSONInput(c, &input); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return err
 		}
 
 		if input.Limit < 0.1 {
-			goapp.Log.Error("no limit")
+			log.Error().Msgf("no limit")
 			return echo.NewHTTPError(http.StatusBadRequest, "no limit")
 		}
 
 		if input.ValidTo == nil || input.ValidTo.Before(time.Now()) {
-			goapp.Log.Error("wrong valid to")
+			log.Error().Msgf("wrong valid to")
 			return echo.NewHTTPError(http.StatusBadRequest, "wrong valid to")
 		}
 
 		keyResp, err := data.KeySaver.Create(project, &input)
 
 		if err != nil {
-			goapp.Log.Error("can't create key. ", err)
+			log.Error().Msgf("can't create key. ", err)
 			if mongodb.IsDuplicate(err) {
 				return echo.NewHTTPError(http.StatusBadRequest, "duplicate key")
 			} else if errors.Is(err, adminapi.ErrWrongField) {
@@ -175,13 +174,13 @@ func keyList(data *Data) func(echo.Context) error {
 		defer goapp.Estimate("Service method: " + c.Path())()
 		project := c.Param("project")
 		if err := validateProject(project, data.ProjectValidator); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 		keyResp, err := data.KeyGetter.List(project)
 
 		if err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.JSON(http.StatusOK, keyResp)
@@ -193,7 +192,7 @@ func logList(data *Data) func(echo.Context) error {
 		defer goapp.Estimate("Service method: " + c.Path())()
 		project := c.Param("project")
 		if err := validateProject(project, data.ProjectValidator); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 		to, err := utils.ParseDateParam(c.QueryParam("to"))
@@ -206,7 +205,7 @@ func logList(data *Data) func(echo.Context) error {
 		res, err := data.LogProvider.List(project, *to)
 
 		if err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.JSON(http.StatusOK, res)
@@ -218,7 +217,7 @@ func logDelete(data *Data) func(echo.Context) error {
 		defer goapp.Estimate("Service method: " + c.Path())()
 		project := c.Param("project")
 		if err := validateProject(project, data.ProjectValidator); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 		to, err := utils.ParseDateParam(c.QueryParam("to"))
@@ -231,7 +230,7 @@ func logDelete(data *Data) func(echo.Context) error {
 
 		deleted, err := data.LogProvider.Delete(project, *to)
 		if err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.JSONBlob(http.StatusOK, []byte(fmt.Sprintf(`{"deleted":%d}`, deleted)))
@@ -243,12 +242,12 @@ func keyInfo(data *Data) func(echo.Context) error {
 		defer goapp.Estimate("Service method: " + c.Path())()
 		key := c.Param("key")
 		if key == "" {
-			goapp.Log.Error("no key")
+			log.Error().Msgf("no key")
 			return echo.NewHTTPError(http.StatusBadRequest, "no key")
 		}
 		project := c.Param("project")
 		if err := validateProject(project, data.ProjectValidator); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 
@@ -256,23 +255,23 @@ func keyInfo(data *Data) func(echo.Context) error {
 		var err error
 		res.Key, err = data.OneKeyGetter.Get(project, key)
 		if errors.Is(err, adminapi.ErrNoRecord) {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, "key not found")
 		}
 		if err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		if c.QueryParam("full") == "1" {
 			res.Logs, err = data.LogProvider.Get(project, key)
 			if err != nil {
-				goapp.Log.Error(err)
+				log.Error().Err(err).Send()
 				return echo.NewHTTPError(http.StatusInternalServerError)
 			}
 			if res.Key.KeyID != "" {
 				logsByKeyID, err := data.LogProvider.Get(project, res.Key.KeyID)
 				if err != nil {
-					goapp.Log.Error(err)
+					log.Error().Err(err).Send()
 					return echo.NewHTTPError(http.StatusInternalServerError)
 				}
 				res.Logs = append(res.Logs, logsByKeyID...)
@@ -287,30 +286,30 @@ func keyUpdate(data *Data) func(echo.Context) error {
 		defer goapp.Estimate("Service method: " + c.Path())()
 		key := c.Param("key")
 		if key == "" {
-			goapp.Log.Error("no key")
+			log.Error().Msgf("no key")
 			return echo.NewHTTPError(http.StatusBadRequest, "no key")
 		}
 		project := c.Param("project")
 		if err := validateProject(project, data.ProjectValidator); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 		input := make(map[string]interface{})
 		if err := utils.TakeJSONInput(c, &input); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return err
 		}
 
 		keyResp, err := data.OneKeyUpdater.Update(project, key, input)
 
 		if errors.Is(err, adminapi.ErrNoRecord) {
-			goapp.Log.Error("key not found. ", err)
+			log.Error().Msgf("key not found. ", err)
 			return echo.NewHTTPError(http.StatusBadRequest, "key not found")
 		} else if errors.Is(err, adminapi.ErrWrongField) {
-			goapp.Log.Error("wrong field. ", err)
+			log.Error().Msgf("wrong field. ", err)
 			return echo.NewHTTPError(http.StatusBadRequest, "wrong field. "+err.Error())
 		} else if err != nil {
-			goapp.Log.Error("can't update key. ", err)
+			log.Error().Msgf("can't update key. ", err)
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.JSON(http.StatusOK, keyResp)
@@ -326,35 +325,35 @@ func restore(data *Data) func(echo.Context) error {
 		defer goapp.Estimate("Service method: " + c.Path())()
 		rStr := c.Param("requestID")
 		if rStr == "" {
-			goapp.Log.Error("no requestID")
+			log.Error().Msgf("no requestID")
 			return echo.NewHTTPError(http.StatusBadRequest, "no requestID")
 		}
 		rID, manual, err := parseRequestID(rStr)
 		if err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, "wrong requestID format")
 		}
 		project := c.Param("project")
 		if err := validateProject(project, data.ProjectValidator); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 		input := restoreReq{}
 		if err := utils.TakeJSONInput(c, &input); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return err
 		}
 
 		err = data.UsageRestorer.RestoreUsage(project, manual, rID, input.Error)
 
 		if errors.Is(err, adminapi.ErrNoRecord) {
-			goapp.Log.Error("log not found. ", err)
+			log.Error().Msgf("log not found. ", err)
 			return echo.NewHTTPError(http.StatusBadRequest, "requestID not found")
 		} else if errors.Is(err, adminapi.ErrLogRestored) {
-			goapp.Log.Error("already restored. ", err)
+			log.Error().Msgf("already restored. ", err)
 			return echo.NewHTTPError(http.StatusConflict, "already restored")
 		} else if err != nil {
-			goapp.Log.Error("can't restore requestID usage. ", err)
+			log.Error().Msgf("can't restore requestID usage. ", err)
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.NoContent(http.StatusOK)
@@ -366,33 +365,33 @@ func reset(data *Data) func(echo.Context) error {
 		defer goapp.Estimate("Service method: " + c.Path())()
 		project := c.Param("project")
 		if err := validateProject(project, data.ProjectValidator); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 		qStr := c.Param("quota")
 		if qStr == "" {
-			goapp.Log.Error("no quota")
+			log.Error().Msgf("no quota")
 			return echo.NewHTTPError(http.StatusBadRequest, "no quota")
 		}
 		quota, err := strconv.ParseFloat(qStr, 64)
 		if err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, "wrong quota '%s'", qStr)
 		}
 		since, err := utils.ParseDateParam(c.Param("since"))
 		if err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, "wrong since '%s'", qStr)
 		}
 		if since == nil {
-			goapp.Log.Error("no since")
+			log.Error().Msgf("no since")
 			return echo.NewHTTPError(http.StatusBadRequest, "no since")
 		}
 
 		err = data.UsageReseter.Reset(c.Request().Context(), project, *since, quota)
 
 		if err != nil {
-			goapp.Log.Errorf("reset usage: %v ", err)
+			log.Error().Err(err).Msg("reset usage")
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.NoContent(http.StatusOK)

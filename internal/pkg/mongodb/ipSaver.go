@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -16,7 +16,7 @@ type IPSaver struct {
 	SessionProvider *DBProvider
 }
 
-//NewIPSaver creates IPSaver instance
+// NewIPSaver creates IPSaver instance
 func NewIPSaver(sessionProvider *DBProvider) (*IPSaver, error) {
 	f := IPSaver{SessionProvider: sessionProvider}
 	return &f, nil
@@ -24,7 +24,7 @@ func NewIPSaver(sessionProvider *DBProvider) (*IPSaver, error) {
 
 // CheckCreate new key record if no exist
 func (ss *IPSaver) CheckCreate(ip string, limit float64) error {
-	goapp.Log.Debug("Validating IP")
+	log.Debug().Msg("Validating IP")
 	ctx, cancel := mongoContext()
 	defer cancel()
 

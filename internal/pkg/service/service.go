@@ -1,7 +1,7 @@
 package service
 
 import (
-	"log"
+	slog "log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/facebookgo/grace/gracehttp"
+	"github.com/rs/zerolog/log"
 
 	"github.com/pkg/errors"
 )
@@ -40,9 +41,9 @@ type mainHandler struct {
 	data *Data
 }
 
-//StartWebServer starts the HTTP service and listens for the requests
+// StartWebServer starts the HTTP service and listens for the requests
 func StartWebServer(data *Data) error {
-	goapp.Log.Infof("Starting HTTP service at %d", data.Port)
+	log.Info().Msgf("Starting HTTP service at %d", data.Port)
 	h, err := newMainHandler(data)
 	if err != nil {
 		return errors.Wrap(err, "can't init handlers")
@@ -52,9 +53,7 @@ func StartWebServer(data *Data) error {
 
 	logHandlers(getInfo(data.Handlers))
 
-	w := goapp.Log.Writer()
-	defer w.Close()
-	gracehttp.SetLogger(log.New(w, "", 0))
+	gracehttp.SetLogger(slog.New(goapp.Log, "", 0))
 
 	return gracehttp.Serve(&http.Server{
 		Addr:        ":" + portStr,
@@ -66,7 +65,7 @@ func StartWebServer(data *Data) error {
 
 func logHandlers(info string) {
 	for _, s := range strings.Split(info, "\n") {
-		goapp.Log.Info(s)
+		log.Info().Msg(s)
 	}
 }
 
@@ -83,12 +82,12 @@ func newMainHandler(data *Data) (http.Handler, error) {
 func (h *mainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for _, hi := range h.data.Handlers {
 		if hi.Valid(r) {
-			goapp.Log.Info("Handling with " + hi.Name())
+			log.Info().Msg("Handling with " + hi.Name())
 			hi.Handler().ServeHTTP(w, r)
 			return
 		}
 	}
-	goapp.Log.Error("no handler for " + r.URL.Path)
+	log.Error().Msgf("no handler for " + r.URL.Path)
 	//serve not found
 	http.NotFound(w, r)
 }

@@ -9,9 +9,9 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -247,7 +247,7 @@ func prepareKeyUpdates(input map[string]interface{}, now time.Time) (bson.M, err
 		}
 		if !ok || err != nil {
 			if err != nil {
-				goapp.Log.Error(err)
+				log.Error().Err(err).Send()
 			}
 			return nil, &api.ErrField{Field: k, Msg: "can't parse"}
 		}
@@ -566,7 +566,7 @@ func (ss *CmsIntegrator) changeKey(sessCtx mongo.SessionContext, keyMapR *keyMap
 
 	// update map
 	c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
-	err = c.FindOneAndUpdate(sessCtx, 
+	err = c.FindOneAndUpdate(sessCtx,
 		bson.M{"externalID": keyMapR.ExternalID},
 		bson.M{"$set": bson.M{"keyHash": utils.HashKey(newKey), "updated": time.Now()},
 			"$push": bson.M{"old": bson.M{"changedOn": time.Now(), "keyHash": oldKey}}}).Err()

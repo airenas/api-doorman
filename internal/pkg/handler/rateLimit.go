@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/rs/zerolog/log"
 )
 
 // RateLimit validator
@@ -37,11 +37,11 @@ func (h *rateLimitValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ok, rem, retryAfter, err := h.qv.Validate(makeRateLimitKey(idOrHash(ctx), ctx.Manual), int64(limit), int64(quotaV))
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		goapp.Log.Error("can't validate rate limit.", err)
+		log.Error().Msgf("can't validate rate limit.", err)
 		ctx.ResponseCode = http.StatusInternalServerError
 		return
 	}
-	goapp.Log.Debugf("Quota value: %.2f, rem: %d, time: %d, rate limit: %d", quotaV, rem, retryAfter, limit)
+	log.Debug().Msgf("Quota value: %.2f, rem: %d, time: %d, rate limit: %d", quotaV, rem, retryAfter, limit)
 	if rem >= 0 {
 		w.Header().Set("X-Rate-Limit-Short-Remaining", fmt.Sprintf("%d", rem))
 	}
@@ -57,7 +57,7 @@ func (h *rateLimitValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func idOrHash(ctx *customData) string {
-	if ctx.KeyID != "" {	
+	if ctx.KeyID != "" {
 		return ctx.KeyID
 	}
 	return hashKey(ctx.Key)

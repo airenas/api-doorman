@@ -29,7 +29,7 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=sProvider.go github.com/airenas/api-doorman/internal/pkg/mongodb SProvider
 
-//AttachMockToTest register pegomock verification to be passed to testing engine
+// AttachMockToTest register pegomock verification to be passed to testing engine
 func AttachMockToTest(t *testing.T) {
 	pegomock.RegisterMockFailHandler(handleByTest(t))
 }
@@ -42,7 +42,7 @@ func handleByTest(t *testing.T) pegomock.FailHandler {
 	}
 }
 
-//ToReader convert object to string reader of JSON
+// ToReader convert object to string reader of JSON
 func ToReader(data interface{}) io.Reader {
 	bytes, _ := json.Marshal(data)
 	return strings.NewReader(string(bytes))

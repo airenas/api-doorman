@@ -7,6 +7,7 @@ import (
 
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
@@ -46,7 +47,7 @@ func (sp *SessionProvider) Close() {
 		ctx, cancel := mongoContext()
 		defer cancel()
 		if err := sp.client.Disconnect(ctx); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 		}
 	}
 }
@@ -57,7 +58,7 @@ func (sp *SessionProvider) NewSession() (mongo.Session, error) {
 	defer sp.m.Unlock()
 
 	if sp.client == nil {
-		goapp.Log.Info("Dial mongo: " + goapp.HidePass(sp.URL))
+		log.Info().Msg("Dial mongo: " + goapp.HidePass(sp.URL))
 		ctx, cancel := mongoContext()
 		defer cancel()
 		client, err := mongo.Connect(ctx, options.Client().ApplyURI(sp.URL))
@@ -95,14 +96,14 @@ func checkIndex(s mongo.Session, indexData IndexData, database string) error {
 		return err
 	}
 	if name != "" {
-		goapp.Log.Debugf("Added index %s.%s", database, name)
+		log.Debug().Msgf("Added index %s.%s", database, name)
 	}
 	return nil
 }
 
 // CheckIndexes tries to create indexes in db if not exists
 func (sp *SessionProvider) CheckIndexes(dbs []string) error {
-	goapp.Log.Infof("Check indexes for %v", dbs)
+	log.Info().Msgf("Check indexes for %v", dbs)
 	session, err := sp.NewSession()
 	if err != nil {
 		return err

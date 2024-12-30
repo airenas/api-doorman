@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/rs/zerolog/log"
 )
 
 type jsonTTSExtract struct {
@@ -35,7 +35,7 @@ func (h *jsonTTSExtract) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := json.Unmarshal(bodyBytes, &data)
 	if err != nil {
 		http.Error(w, "No field text", http.StatusBadRequest)
-		goapp.Log.Error("Can't extract json field. ", err)
+		log.Error().Msgf("Can't extract json field. ", err)
 		return
 	}
 	ctx.Value = data.Text

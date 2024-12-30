@@ -8,15 +8,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-//IPExtractor extracts IP from request
+// IPExtractor extracts IP from request
 type IPExtractor interface {
 	Get(*http.Request) string
 }
 
-//DefaultIPExtractor default implementation
+// DefaultIPExtractor default implementation
 var DefaultIPExtractor IPExtractor = &firstForwardFor{}
 
-//ExtractIP default method to return ip from request
+// ExtractIP default method to return ip from request
 func ExtractIP(r *http.Request) string {
 	if DefaultIPExtractor == nil {
 		DefaultIPExtractor = &firstForwardFor{}
@@ -24,7 +24,7 @@ func ExtractIP(r *http.Request) string {
 	return DefaultIPExtractor.Get(r)
 }
 
-//NewIPExtractor creates new extractor based on type
+// NewIPExtractor creates new extractor based on type
 func NewIPExtractor(ipType string) (IPExtractor, error) {
 	if ipType == "" {
 		return nil, errors.New("No ip extractor type ")
@@ -38,7 +38,7 @@ func NewIPExtractor(ipType string) (IPExtractor, error) {
 	return nil, errors.Errorf("Unknown ip extractor type '%s'", ipType)
 }
 
-//GetIPHeader returns ip header
+// GetIPHeader returns ip header
 func GetIPHeader(r *http.Request) string {
 	return r.Header.Get(ipHeader)
 }
@@ -80,7 +80,7 @@ func getLast(s string) string {
 	return strs[len(strs)-1]
 }
 
-//ValidateIPsCIDR check if IPs are valid comma separated CIDR format
+// ValidateIPsCIDR check if IPs are valid comma separated CIDR format
 func ValidateIPsCIDR(ip string) error {
 	for _, s := range strings.Split(ip, ",") {
 		s = strings.TrimSpace(s)
@@ -94,7 +94,7 @@ func ValidateIPsCIDR(ip string) error {
 	return nil
 }
 
-//ValidateIPInWhiteList check if IPs is in valid range of white lists
+// ValidateIPInWhiteList check if IPs is in valid range of white lists
 func ValidateIPInWhiteList(ips, ip string) (bool, error) {
 	if strings.TrimSpace(ips) == "" {
 		return true, nil

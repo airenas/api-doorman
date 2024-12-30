@@ -16,8 +16,8 @@ test/unit:
 #####################################################################################
 ## code vet and lint
 test/lint: 
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint
-	golangci-lint run -v ./...
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint
+	golangci-lint run -v --enable gofmt --enable misspell --enable zerologlint --timeout 5m  ./...
 .PHONY: test/lint
 #####################################################################################
 ## build doorman-admin

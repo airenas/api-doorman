@@ -10,11 +10,11 @@ import (
 )
 
 type logStdout struct {
-	next  http.Handler
-	log   io.Writer
+	next http.Handler
+	log  io.Writer
 }
 
-//LogStdout creates handler
+// LogStdout creates handler
 func LogStdout(next http.Handler) http.Handler {
 	res := &logStdout{}
 	res.next = next

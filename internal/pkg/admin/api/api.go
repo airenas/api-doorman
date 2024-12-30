@@ -44,11 +44,11 @@ type KeyInfoResp struct {
 	Logs []*Log `json:"logs,omitempty"`
 }
 
-//ErrNoRecord indicates no record found error
+// ErrNoRecord indicates no record found error
 var ErrNoRecord = errors.New("no record found")
 
-//ErrWrongField indicates wrong passed field on update
+// ErrWrongField indicates wrong passed field on update
 var ErrWrongField = errors.New("wrong field")
 
-//ErrLogRestored indicates conflict call for restoring usage by requestID
+// ErrLogRestored indicates conflict call for restoring usage by requestID
 var ErrLogRestored = errors.New("already restored")

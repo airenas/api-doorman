@@ -13,8 +13,8 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/ratelimit"
 	"github.com/airenas/api-doorman/internal/pkg/text"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
@@ -46,7 +46,7 @@ func newDefaultHandler(name string, cfg *viper.Viper) (HandlerWrap, error) {
 	res := &defaultHandler{}
 	res.name = name
 	res.proxyURL = cfg.GetString(name + ".backend")
-	goapp.Log.Infof("Backend: %s", res.proxyURL)
+	log.Info().Msgf("Backend: %s", res.proxyURL)
 	url, err := utils.ParseURL(res.proxyURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "Wrong backendURL")
@@ -104,7 +104,7 @@ func initPrefixes(name string, cfg *viper.Viper, res *prefixHandler) error {
 	}
 	res.proxyURL = cfg.GetString(name + ".backend")
 	res.methods = initMethods(cfg.GetString(name + ".method"))
-	goapp.Log.Infof("PrefixURL: %s", res.prefix)
+	log.Info().Msgf("PrefixURL: %s", res.prefix)
 	return nil
 }
 
@@ -112,7 +112,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 	if cfg.GetString(name+".backend") == "" {
 		return nil, errors.New("No backend")
 	}
-	goapp.Log.Infof("Backend: %s", cfg.GetString(name+".backend"))
+	log.Info().Msgf("Backend: %s", cfg.GetString(name+".backend"))
 	proxyURL := cfg.GetString(name + ".backend")
 	url, err := utils.ParseURL(proxyURL)
 	if err != nil {
@@ -137,7 +137,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 	stripURL := cfg.GetString(name + ".stripPrefix")
 	if stripURL != "" {
 		h = handler.StripPrefix(h, stripURL)
-		goapp.Log.Infof("Strip prefix: %s", stripURL)
+		log.Info().Msgf("Strip prefix: %s", stripURL)
 	}
 
 	tp := cfg.GetString(name + ".type")
@@ -152,7 +152,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 		// configure skip first functionality
 		sfURL := strings.TrimSpace(cfg.GetString(name + ".quota.skipFirstURL"))
 		if sfURL != "" {
-			goapp.Log.Infof("Skip First check service %s", sfURL)
+			log.Info().Msgf("Skip First check service %s", sfURL)
 			counter, err := tts.NewCounter(sfURL)
 			if err != nil {
 				return nil, errors.Wrap(err, "can't init tts counter")
@@ -164,10 +164,10 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 			if qf == "" {
 				return nil, errors.New("No field")
 			}
-			goapp.Log.Infof("Quota extract: %s(%s)", qt, qf)
+			log.Info().Msgf("Quota extract: %s(%s)", qt, qf)
 			h = handler.TakeJSON(handler.JSONAsQuota(h), qf)
 		} else if qt == "jsonTTS" {
-			goapp.Log.Infof("Quota extract: %s(text)", qt)
+			log.Info().Msgf("Quota extract: %s(text)", qt)
 			h, err = handler.JSONTTSAsQuota(h, cfg.GetFloat64(name+".quota.discount"))
 			if err != nil {
 				return nil, errors.Wrap(err, "Can't init jsonQuota handler")
@@ -182,8 +182,8 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 			if err != nil {
 				return nil, errors.Wrap(err, "Can't init Duration service")
 			}
-			goapp.Log.Infof("Duration service: %s", dsURL)
-			goapp.Log.Infof("Quota extract: %s(%s) using duration service", qt, qf)
+			log.Info().Msgf("Duration service: %s", dsURL)
+			log.Info().Msgf("Quota extract: %s(%s) using duration service", qt, qf)
 			h = handler.AudioLenQuota(h, qf, ds)
 		} else if qt == "toTxtFile" {
 			if qf == "" {
@@ -194,8 +194,8 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 			if err != nil {
 				return nil, errors.Wrap(err, "can't init text extraction service")
 			}
-			goapp.Log.Infof("Text extraction service: %s", dsURL)
-			goapp.Log.Infof("Quota extract: %s(%s) using text extraction service", qt, qf)
+			log.Info().Msgf("Text extraction service: %s", dsURL)
+			log.Info().Msgf("Quota extract: %s(%s) using text extraction service", qt, qf)
 			h = handler.ToTextAndQuota(h, qf, ds)
 		} else {
 			return nil, errors.Errorf("Unknown proxy quota type '%s'", qt)
@@ -204,7 +204,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 		if qt != "" {
 			return nil, errors.Errorf("Quota is not expected for type simple")
 		}
-		goapp.Log.Infof("No quota validation")
+		log.Info().Msgf("No quota validation")
 	}
 
 	ls, err := mongodb.NewLogSaver(dbProvider)
@@ -216,7 +216,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 	hKey := handler.KeyValid(h, keysValidator)
 	dl := cfg.GetFloat64(name + ".quota.default")
 	if dl > 0 {
-		goapp.Log.Infof("Default IP quota: %.f", dl)
+		log.Info().Msgf("Default IP quota: %.f", dl)
 		is, err := mongodb.NewIPSaver(dbProvider)
 		if err != nil {
 			return nil, errors.Wrap(err, "can't init IP saver")
@@ -232,7 +232,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 func newRateLimiter(name string, cfg *viper.Viper, next http.Handler) (http.Handler, error) {
 	defaultLimit := cfg.GetInt64(name + ".rateLimit.default")
 	if defaultLimit == 0 {
-		goapp.Log.Infof("no rate limit for %s", name)
+		log.Info().Msgf("no rate limit for %s", name)
 		return next, nil
 	}
 	window := cfg.GetDuration(name + ".rateLimit.window")
@@ -305,7 +305,7 @@ func newKeyHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.Ha
 	if cfg.GetString(name+".backend") == "" {
 		return nil, errors.New("No backend")
 	}
-	goapp.Log.Infof("Backend: %s", cfg.GetString(name+".backend"))
+	log.Info().Msgf("Backend: %s", cfg.GetString(name+".backend"))
 	proxyURL := cfg.GetString(name + ".backend")
 	url, err := utils.ParseURL(proxyURL)
 	if err != nil {
@@ -331,7 +331,7 @@ func newKeyHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.Ha
 	stripURL := cfg.GetString(name + ".stripPrefix")
 	if stripURL != "" {
 		h = handler.StripPrefix(h, stripURL)
-		goapp.Log.Infof("Strip prefix: %s", stripURL)
+		log.Info().Msgf("Strip prefix: %s", stripURL)
 	}
 	ls, err := mongodb.NewLogSaver(dbProvider)
 	if err != nil {

@@ -8,8 +8,8 @@ import (
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -25,8 +25,8 @@ func NewLogSaver(sessionProvider *DBProvider) (*LogSaver, error) {
 }
 
 // Save log key to DB
-func (ss *LogSaver) Save(log *adminapi.Log) error {
-	goapp.Log.Infof("Saving log - %s, ip: %s, response: %d", log.URL, log.IP, log.ResponseCode)
+func (ss *LogSaver) Save(logr *adminapi.Log) error {
+	log.Info().Msgf("Saving log - %s, ip: %s, response: %d", logr.URL, logr.IP, logr.ResponseCode)
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -37,7 +37,7 @@ func (ss *LogSaver) Save(log *adminapi.Log) error {
 	defer session.EndSession(context.Background())
 	c := db.Collection(logTable)
 
-	_, err = c.InsertOne(ctx, mapFromLog(log))
+	_, err = c.InsertOne(ctx, mapFromLog(logr))
 	return err
 }
 
@@ -54,7 +54,7 @@ func NewLogProvider(sessionProvider *SessionProvider) (*LogProvider, error) {
 
 // Get return all logs for key
 func (ss *LogProvider) Get(project, key string) ([]*adminapi.Log, error) {
-	goapp.Log.Infof("getting log list for key")
+	log.Info().Msgf("getting log list for key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -91,7 +91,7 @@ func getLogKeyField(key string) string {
 }
 
 func (ss *LogProvider) List(project string, to time.Time) ([]*adminapi.Log, error) {
-	goapp.Log.Infof("getting log list up to date")
+	log.Info().Msgf("getting log list up to date")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -121,7 +121,7 @@ func (ss *LogProvider) List(project string, to time.Time) ([]*adminapi.Log, erro
 }
 
 func (ss *LogProvider) Delete(project string, to time.Time) (int, error) {
-	goapp.Log.Infof("deleting log list")
+	log.Info().Msgf("deleting log list")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

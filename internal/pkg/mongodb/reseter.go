@@ -8,9 +8,9 @@ import (
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -29,7 +29,7 @@ func NewReseter(sessionProvider *SessionProvider) (*Reseter, error) {
 
 // Reset does monthly reset
 func (ss *Reseter) Reset(ctx context.Context, project string, since time.Time, limit float64) error {
-	goapp.Log.Infof("reset project default quotas for %s(%f), at %s", project, limit, since.Format(time.RFC3339))
+	log.Info().Msgf("reset project default quotas for %s(%f), at %s", project, limit, since.Format(time.RFC3339))
 	session, err := ss.sessionProvider.NewSession()
 	if err != nil {
 		return err
@@ -50,11 +50,11 @@ func (ss *Reseter) Reset(ctx context.Context, project string, since time.Time, l
 		return fmt.Errorf("wrong reset cfg record")
 	}
 	if since.Before(settings.NextReset) {
-		goapp.Log.Infof("skip reset %s before %s", since.Format(time.RFC3339), settings.NextReset.Format(time.RFC3339))
+		log.Info().Msgf("skip reset %s before %s", since.Format(time.RFC3339), settings.NextReset.Format(time.RFC3339))
 		return nil
 	}
 	if settings.ResetStarted.After(since.Add(time.Hour)) {
-		goapp.Log.Infof("skip reset - started at %s", settings.ResetStarted.Format(time.RFC3339))
+		log.Info().Msgf("skip reset - started at %s", settings.ResetStarted.Format(time.RFC3339))
 		return nil
 	}
 
@@ -63,7 +63,7 @@ func (ss *Reseter) Reset(ctx context.Context, project string, since time.Time, l
 		return fmt.Errorf("get items: %w", err)
 	}
 	ua, ta := 0, 0.0
-	goapp.Log.Infof("items to check %d", len(items))
+	log.Info().Msgf("items to check %d", len(items))
 	for _, it := range items {
 		if !since.After(it.ResetAt) {
 			continue
@@ -85,7 +85,7 @@ func (ss *Reseter) Reset(ctx context.Context, project string, since time.Time, l
 			return fmt.Errorf("reset: %w", err)
 		}
 	}
-	goapp.Log.Infof("updated %d, total quota added %f", ua, ta)
+	log.Info().Msgf("updated %d, total quota added %f", ua, ta)
 	_, err = sessCtx.WithTransaction(sessCtx, func(sessCtx mongo.SessionContext) (interface{}, error) {
 		return nil, updateResetConfig(sessCtx, project, utils.StartOfMonth(since, 1))
 	})
@@ -107,7 +107,7 @@ func getUpdateResetConfig(sessCtx mongo.SessionContext, project string, since ti
 		if err != mongo.ErrNoDocuments {
 			return nil, err
 		}
-		goapp.Log.Warnf("no %s.setting", project)
+		log.Warn().Msgf("no %s.setting", project)
 		settings.NextReset = utils.StartOfMonth(since, 0)
 	}
 	err = c.FindOneAndUpdate(sessCtx,
@@ -133,7 +133,7 @@ func updateResetConfig(sessCtx mongo.SessionContext, project string, next time.T
 }
 
 func reset(sessCtx mongo.SessionContext, keyMapRecord *keyMapRecord, at time.Time, quota float64) error {
-	goapp.Log.Debugf("updating %s(%s), quota: +%f (%s)", start(keyMapRecord.KeyID), keyMapRecord.Project, quota, at.Format(time.RFC3339))
+	log.Debug().Msgf("updating %s(%s), quota: +%f (%s)", start(keyMapRecord.KeyID), keyMapRecord.Project, quota, at.Format(time.RFC3339))
 	_, err := addQuotaForIP(sessCtx, keyMapRecord, &api.CreditsInput{OperationID: uuid.NewString(), Credits: quota, Msg: "monthly reset"}, at)
 	if err != nil {
 		return fmt.Errorf("addQuota: %v", err)

@@ -6,10 +6,10 @@ import (
 	"net/http"
 
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/rs/zerolog/log"
 )
 
-//QuotaValidator validator
+// QuotaValidator validator
 type QuotaValidator interface {
 	SaveValidate(string, string, bool, float64) (bool, float64, float64, error)
 	Restore(string, bool, float64) (float64, float64, error)
@@ -20,7 +20,7 @@ type quotaSaveValidate struct {
 	qv   QuotaValidator
 }
 
-//QuotaValidate creates handler
+// QuotaValidate creates handler
 func QuotaValidate(next http.Handler, qv QuotaValidator) http.Handler {
 	res := &quotaSaveValidate{}
 	res.qv = qv
@@ -31,12 +31,12 @@ func QuotaValidate(next http.Handler, qv QuotaValidator) http.Handler {
 func (h *quotaSaveValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
 	quotaV := ctx.QuotaValue
-	goapp.Log.Debugf("Quota value: %f", quotaV)
+	log.Debug().Msgf("Quota value: %f", quotaV)
 
 	ok, rem, tot, err := h.qv.SaveValidate(ctx.Key, utils.ExtractIP(rn), ctx.Manual, quotaV)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		goapp.Log.Error("Can't save quota/validate key. ", err)
+		log.Error().Msgf("Can't save quota/validate key. ", err)
 		ctx.ResponseCode = http.StatusInternalServerError
 		return
 	}
@@ -68,11 +68,11 @@ func isServiceFailure(code int) bool {
 
 func (h *quotaSaveValidate) tryRestoreQuota(w http.ResponseWriter, rn *http.Request, ctx *customData) {
 	quotaV := ctx.QuotaValue
-	goapp.Log.Debugf("Try restore quota value: %f", quotaV)
+	log.Debug().Msgf("Try restore quota value: %f", quotaV)
 
 	rem, tot, err := h.qv.Restore(ctx.Key, ctx.Manual, quotaV)
 	if err != nil {
-		goapp.Log.Error("Can't restore quota. ", err)
+		log.Error().Msgf("Can't restore quota. ", err)
 		return
 	}
 	w.Header().Set("X-Rate-Limit-Remaining", fmt.Sprintf("%.0f", math.Max(0, rem)))

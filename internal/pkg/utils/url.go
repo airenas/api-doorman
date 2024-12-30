@@ -5,7 +5,7 @@ import (
 	"net/url"
 )
 
-//ParseURL parse url and checks host is not empty
+// ParseURL parse url and checks host is not empty
 func ParseURL(str string) (*url.URL, error) {
 	u, err := url.Parse(str)
 	if err != nil {

@@ -5,9 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/labstack/echo/v4"
-	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 // ParseDateParam parse query param or returns echo error
@@ -17,7 +16,7 @@ func ParseDateParam(s string) (*time.Time, error) {
 	}
 	res, err := time.Parse(time.RFC3339, s)
 	if err != nil {
-		goapp.Log.Error(errors.Wrapf(err, "can't parse as date '%s'", s))
+		log.Error().Err(err).Str("str", s).Msg("can't parse as date")
 		return nil, echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("can't parse as date '%s'", s))
 	}
 	return &res, nil

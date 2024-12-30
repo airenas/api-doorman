@@ -4,14 +4,14 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/rs/zerolog/log"
 )
 
 type fillOutHeader struct {
 	next http.Handler
 }
 
-//FillOutHeader creates handler for filling header out values from tags
+// FillOutHeader creates handler for filling header out values from tags
 // starting with x-header-out:
 func FillOutHeader(next http.Handler) http.Handler {
 	res := &fillOutHeader{}
@@ -25,7 +25,7 @@ func (h *fillOutHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h, v, err := headerOutValue(hs)
 		if err != nil {
 			http.Error(w, "Service error", http.StatusInternalServerError)
-			goapp.Log.Error("Can't parse header value from tag", err)
+			log.Error().Msgf("Can't parse header value from tag", err)
 			return
 		}
 		if h != "" {

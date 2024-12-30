@@ -15,7 +15,6 @@ func TestIsDuplicate(t *testing.T) {
 	assert.True(t, IsDuplicate(mongo.WriteException{WriteErrors: []mongo.WriteError{{Code: 11000}}}))
 }
 
-
 func TestSanitize(t *testing.T) {
 	assert.Equal(t, "olia", Sanitize("olia"))
 	assert.Equal(t, "olia", Sanitize("$^olia$"))

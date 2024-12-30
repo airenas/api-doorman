@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/rs/zerolog/log"
 )
 
 // CountGetter get usage count from external system
@@ -18,7 +18,7 @@ type skipFirstQuota struct {
 	counter CountGetter
 }
 
-//SkipFirstQuota creates handler
+// SkipFirstQuota creates handler
 func SkipFirstQuota(next http.Handler, cg CountGetter) http.Handler {
 	res := &skipFirstQuota{counter: cg}
 	res.next = next
@@ -31,18 +31,18 @@ func (h *skipFirstQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Query().Get(pName)
 	if param == "" {
 		http.Error(w, fmt.Sprintf("No param '%s'", pName), http.StatusBadRequest)
-		goapp.Log.Error(fmt.Sprintf("no param '%s'", pName))
+		log.Error().Msgf(fmt.Sprintf("no param '%s'", pName))
 		return
 	}
 
 	count, err := h.counter.Get(param)
 	if err != nil {
 		http.Error(w, "Can't extract previous count", http.StatusBadRequest)
-		goapp.Log.Error(err)
+		log.Error().Err(err).Send()
 		return
 	}
 	if count == 0 {
-		goapp.Log.Infof("drop quota value - first call")
+		log.Info().Msgf("drop quota value - first call")
 		ctx.QuotaValue = 0
 	}
 

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/rs/zerolog/log"
 )
 
 // AudioLenGetter get duration
@@ -35,7 +35,7 @@ func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tmpFileName, closeF, err := saveTempData(rn.Body)
 	if err != nil {
 		ctx.ResponseCode = writeBadRequestOrInternalError(w, "")
-		goapp.Log.Error(err)
+		log.Error().Err(err).Send()
 		return
 	}
 	defer closeF()
@@ -43,7 +43,7 @@ func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	dur, badReqMsg, err := h.getDuration(rn, tmpFileName)
 	if err != nil {
 		ctx.ResponseCode = writeBadRequestOrInternalError(w, badReqMsg)
-		goapp.Log.Error(err)
+		log.Error().Err(err).Send()
 		return
 	}
 	ctx.QuotaValue = dur
@@ -51,7 +51,7 @@ func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tmpFile, err := os.Open(tmpFileName)
 	if err != nil {
 		ctx.ResponseCode = writeBadRequestOrInternalError(w, "")
-		goapp.Log.Error(err)
+		log.Error().Err(err).Send()
 		return
 	}
 	defer tmpFile.Close()
@@ -109,7 +109,7 @@ func saveTempData(reader io.Reader) (string, func(), error) {
 
 	delF := func() {
 		if err := os.Remove(tempFile.Name()); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 		}
 	}
 	if _, err := io.Copy(tempFile, reader); err != nil {
@@ -122,7 +122,7 @@ func saveTempData(reader io.Reader) (string, func(), error) {
 func cleanFiles(f *multipart.Form) {
 	if f != nil {
 		if err := f.RemoveAll(); err != nil {
-			goapp.Log.Error(err)
+			log.Error().Err(err).Send()
 		}
 	}
 }

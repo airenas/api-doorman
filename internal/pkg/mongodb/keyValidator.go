@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -25,7 +25,7 @@ func NewKeyValidator(sessionProvider *DBProvider) (*KeyValidator, error) {
 
 // IsValid validates key
 func (ss *KeyValidator) IsValid(key string, IP string, manual bool) (bool, string, []string, error) {
-	goapp.Log.Debugf("Validating key")
+	log.Debug().Msgf("Validating key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -40,7 +40,7 @@ func (ss *KeyValidator) IsValid(key string, IP string, manual bool) (bool, strin
 	err = c.FindOne(ctx, bson.M{"key": Sanitize(key), "manual": manual}).Decode(&res)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			goapp.Log.Infof("No key")
+			log.Info().Msgf("No key")
 			return false, "", nil, nil
 		}
 		return false, "", nil, errors.Wrap(err, "Can't get key")
@@ -54,18 +54,18 @@ func (ss *KeyValidator) IsValid(key string, IP string, manual bool) (bool, strin
 
 func validateKey(key *keyRecord, IP string) (bool, error) {
 	if key.Disabled {
-		goapp.Log.Infof("Key disabled")
+		log.Info().Msgf("Key disabled")
 		return false, nil
 	}
 	if !key.ValidTo.After(time.Now()) {
-		goapp.Log.Infof("Key expired")
+		log.Info().Msgf("Key expired")
 		return false, nil
 	}
 	res, err := utils.ValidateIPInWhiteList(key.IPWhiteList, IP)
 	if !res {
-		goapp.Log.Infof("IP white list '%s' does not allow IP '%s'", key.IPWhiteList, IP)
+		log.Info().Msgf("IP white list '%s' does not allow IP '%s'", key.IPWhiteList, IP)
 		if err != nil {
-			goapp.Log.Error("Error: ", err)
+			log.Error().Msgf("Error: ", err)
 		}
 	}
 	return res, err
@@ -73,7 +73,7 @@ func validateKey(key *keyRecord, IP string) (bool, error) {
 
 // SaveValidate add qv to quota and validates with quota limit
 func (ss *KeyValidator) SaveValidate(key string, ip string, manual bool, qv float64) (bool, float64, float64, error) {
-	goapp.Log.Debugf("Validating key")
+	log.Debug().Msgf("Validating key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -114,7 +114,7 @@ func (ss *KeyValidator) SaveValidate(key string, ip string, manual bool, qv floa
 
 // Restore restores quota value after failed service call
 func (ss *KeyValidator) Restore(key string, manual bool, qv float64) (float64, float64, error) {
-	goapp.Log.Debugf("Restoring quota for key")
+	log.Debug().Msgf("Restoring quota for key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 

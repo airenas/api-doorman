@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/airenas/api-doorman/internal/pkg/mongodb"
-	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 const authHeader = "Authorization"
@@ -29,7 +29,7 @@ func (h *keyExtract) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	key, err := extractKey(r.Header.Get(authHeader))
 	if err != nil {
 		http.Error(w, "Wrong auth header", http.StatusUnauthorized)
-		goapp.Log.Error(errors.Wrap(err, "can't extract key from header"))
+		log.Error().Err(err).Msg("can't extract key from header")
 		return
 	}
 	rn, ctx := customContext(r)

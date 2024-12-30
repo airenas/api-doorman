@@ -28,6 +28,3 @@ func TestInitFromConfig_Fail(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, 0, len(res))
 }
-
-
-

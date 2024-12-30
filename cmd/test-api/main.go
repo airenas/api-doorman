@@ -9,6 +9,8 @@ import (
 
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/pkg/errors"
 )
@@ -16,15 +18,16 @@ import (
 func main() {
 	port := flag.Int("p", 8000, "Port")
 	goapp.StartWithDefault()
+	log.Logger = goapp.Log
+	zerolog.DefaultContextLogger = &goapp.Log
 
-	err := startWebServer(*port)
-	if err != nil {
-		goapp.Log.Fatal(errors.Wrap(err, "Can't start the service"))
+	if err := startWebServer(*port); err != nil {
+		log.Fatal().Err(err).Msg("Can't start the service")
 	}
 }
 
 func startWebServer(port int) error {
-	goapp.Log.Infof("Starting test service on %d", port)
+	log.Info().Msgf("Starting test service on %d", port)
 	http.Handle("/", newRouter())
 	portStr := strconv.Itoa(port)
 	err := http.ListenAndServe(":"+portStr, nil)
@@ -53,7 +56,7 @@ type response struct {
 }
 
 func (h *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	goapp.Log.Infof("Request from %s", r.RemoteAddr)
+	log.Info().Msgf("Request from %s", r.RemoteAddr)
 
 	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
@@ -64,6 +67,6 @@ func (h *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := encoder.Encode(&result)
 	if err != nil {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
-		goapp.Log.Error(err)
+		log.Error().Err(err).Send()
 	}
 }

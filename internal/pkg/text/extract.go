@@ -14,6 +14,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 // Extractor extract txt from file
@@ -71,7 +72,7 @@ func (dc *Extractor) Get(name string, file io.Reader) (string, error) {
 	defer cancelF()
 	req = req.WithContext(ctx)
 
-	goapp.Log.Debugf("Sending file to: %s", dc.url)
+	log.Debug().Msgf("Sending file to: %s", dc.url)
 	resp, err := dc.httpclient.Do(req)
 	if err != nil {
 		return "", err

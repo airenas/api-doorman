@@ -10,11 +10,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
-//TextGetter get duration
+// TextGetter get duration
 type TextGetter interface {
 	Get(name string, file io.Reader) (string, error)
 }
@@ -25,7 +25,7 @@ type toTextAndQuota struct {
 	getTextService TextGetter
 }
 
-//ToTextAndQuota creates handler. The handler:
+// ToTextAndQuota creates handler. The handler:
 // - extracts file from form field,
 // - converts file to txt,
 // - packs text as file into new request
@@ -42,7 +42,7 @@ func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(rn.Body)
 	if err != nil {
 		http.Error(w, "Can't read request", http.StatusBadRequest)
-		goapp.Log.Error(err)
+		log.Error().Err(err).Send()
 		return
 	}
 	rn.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
@@ -53,7 +53,7 @@ func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = req2.ParseMultipartForm(32 << 20)
 	if err != nil {
 		http.Error(w, "Can't parse form data", http.StatusBadRequest)
-		goapp.Log.Error(err)
+		log.Error().Err(err).Send()
 		return
 	}
 	defer cleanFiles(req2.MultipartForm)
@@ -61,7 +61,7 @@ func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "No file", http.StatusBadRequest)
 		ctx.ResponseCode = http.StatusBadRequest
-		goapp.Log.Error(err)
+		log.Error().Err(err).Send()
 		return
 	}
 	defer file.Close()
@@ -70,7 +70,7 @@ func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Can't extract text", http.StatusInternalServerError)
 		ctx.ResponseCode = http.StatusInternalServerError
-		goapp.Log.Error(err)
+		log.Error().Err(err).Send()
 		return
 	}
 
@@ -80,7 +80,7 @@ func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Can't prepare new body", http.StatusInternalServerError)
 		ctx.ResponseCode = http.StatusInternalServerError
-		goapp.Log.Error(err)
+		log.Error().Err(err).Send()
 		return
 	}
 	rn.Body = io.NopCloser(newBytes)

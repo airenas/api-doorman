@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/rs/zerolog/log"
 )
 
 type jsonField struct {
@@ -32,20 +32,20 @@ func (h *jsonField) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := json.Unmarshal(bodyBytes, &data)
 	if err != nil {
 		http.Error(w, "No field "+h.field, http.StatusBadRequest)
-		goapp.Log.Error("Can't extract json field. ", err)
+		log.Error().Msgf("Can't extract json field. ", err)
 		return
 	}
 	f := data[h.field]
 	if f == nil {
 		http.Error(w, "No field "+h.field, http.StatusBadRequest)
-		goapp.Log.Error("No json field. ")
+		log.Error().Msgf("No json field. ")
 		return
 	}
 	var ok bool
 	ctx.Value, ok = f.(string)
 	if !ok {
 		http.Error(w, "Field is not string type "+h.field, http.StatusBadRequest)
-		goapp.Log.Errorf("Field is not a string %v", f)
+		log.Error().Msgf("Field is not a string %v", f)
 		return
 	}
 	rn.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))

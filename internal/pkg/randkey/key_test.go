@@ -13,7 +13,7 @@ func TestGenerate(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		wantLen    int
+		wantLen int
 		wantErr bool
 	}{
 		{name: "Simple", args: args{n: 10}, wantErr: false, wantLen: 10},

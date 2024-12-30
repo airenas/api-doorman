@@ -18,7 +18,7 @@ type jsonTTSAsQuota struct {
 	discount float64
 }
 
-//JSONTTSAsQuota creates handler
+// JSONTTSAsQuota creates handler
 func JSONTTSAsQuota(next http.Handler, discount float64) (http.Handler, error) {
 	res := &jsonTTSAsQuota{}
 	res.next = next

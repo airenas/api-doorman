@@ -8,9 +8,9 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
-	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
@@ -37,7 +37,7 @@ func NewKeySaver(sessionProvider *SessionProvider, keySize int) (*KeySaver, erro
 
 // Create key to DB
 func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, error) {
-	goapp.Log.Infof("Saving key - valid to: %v, limit: %f", key.ValidTo, key.Limit)
+	log.Info().Msgf("Saving key - valid to: %v, limit: %f", key.ValidTo, key.Limit)
 
 	err := utils.ValidateIPsCIDR(key.IPWhiteList)
 	if err != nil {
@@ -78,7 +78,7 @@ func (ss *KeySaver) Create(project string, key *adminapi.Key) (*adminapi.Key, er
 
 // List return all keys
 func (ss *KeySaver) List(project string) ([]*adminapi.Key, error) {
-	goapp.Log.Infof("getting list")
+	log.Info().Msgf("getting list")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -109,7 +109,7 @@ func (ss *KeySaver) List(project string) ([]*adminapi.Key, error) {
 
 // Get return one key record
 func (ss *KeySaver) Get(project string, key string) (*adminapi.Key, error) {
-	goapp.Log.Debug("Getting key")
+	log.Debug().Msg("Getting key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -132,7 +132,7 @@ func (ss *KeySaver) Get(project string, key string) (*adminapi.Key, error) {
 
 // Update update key record
 func (ss *KeySaver) Update(project string, key string, data map[string]interface{}) (*adminapi.Key, error) {
-	goapp.Log.Debug("Updating key")
+	log.Debug().Msg("Updating key")
 	ctx, cancel := mongoContext()
 	defer cancel()
 
@@ -181,7 +181,7 @@ func (ss *KeySaver) Update(project string, key string, data map[string]interface
 
 // RestoreUsage erstores usage by requestID
 func (ss *KeySaver) RestoreUsage(project string, manual bool, requestID string, errMsg string) error {
-	goapp.Log.Debugf("Restoring quota for requestID %s", requestID)
+	log.Debug().Msgf("Restoring quota for requestID %s", requestID)
 	sessCtx, cancel, err := newSessionWithContext(ss.SessionProvider)
 	if err != nil {
 		return err

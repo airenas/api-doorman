@@ -150,7 +150,7 @@ tts:
   method: POST
 `), newTestProvider(t))
 	assert.NotNil(t, err)
-	
+
 	_, err = NewHandler("tts", newTestC(t, `
 tts:
   backend: http://olia.lt

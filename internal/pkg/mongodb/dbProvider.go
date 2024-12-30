@@ -7,19 +7,19 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-//SProvider session provider wrapper
-type SProvider interface{
+// SProvider session provider wrapper
+type SProvider interface {
 	NewSession() (mongo.Session, error)
 	CheckIndexes(dbs []string) error
 }
 
-//DBProvider keeps SessionProvider and database for mongo DB
+// DBProvider keeps SessionProvider and database for mongo DB
 type DBProvider struct {
 	sessionP SProvider
 	db       string
 }
 
-//NewDBProvider creates Mongo session provider and opens client with selected db
+// NewDBProvider creates Mongo session provider and opens client with selected db
 func NewDBProvider(sessionP SProvider, db string) (*DBProvider, error) {
 	if sessionP == nil {
 		return nil, errors.New("no SessionProvider provided")
@@ -34,7 +34,7 @@ func NewDBProvider(sessionP SProvider, db string) (*DBProvider, error) {
 	return &DBProvider{sessionP: sessionP, db: db}, nil
 }
 
-//NewSesionDatabase creates mongo session and databse
+// NewSesionDatabase creates mongo session and databse
 func (sdp *DBProvider) NewSesionDatabase() (mongo.Session, *mongo.Database, error) {
 	session, err := sdp.sessionP.NewSession()
 	if err != nil {
