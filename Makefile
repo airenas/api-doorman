@@ -1,6 +1,6 @@
 -include Makefile.options
 #####################################################################################
-MIGRATIONS_DIR := ./db
+MIGRATIONS_DIR := ./db/migrations
 #####################################################################################
 ## print usage information
 help:

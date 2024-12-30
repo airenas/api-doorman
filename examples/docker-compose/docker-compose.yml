@@ -65,9 +65,34 @@ services:
     container_name: postgres
     ports:
       - "5432:5432"
+    volumes:  
+    - doorman_postgres_data:/var/lib/postgresql/data:r  
     environment:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=doorman
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s     
+      timeout: 5s       
+      retries: 5        
+      start_period: 1s 
+
+  dbmigration:
+    build:
+      context: ../../
+      dockerfile: ./build/api-doorman-dbmigration/Dockerfile
+    command:
+      [
+        '-path',
+        '/db/migrations',
+        '-database',
+        'postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable',
+        'up',
+      ]
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy    
 
   mongo:
     image: mongo:4.4.1
@@ -83,3 +108,6 @@ services:
       - ./.mongo:/data/db
     # restart: unless-stopped     
     command: mongod --replSet rs0 --logpath=/dev/null --bind_ip mongo,localhost 
+
+volumes:
+  doorman_postgres_data:    
