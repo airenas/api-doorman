@@ -35,7 +35,7 @@ func (h *jsonTTSExtract) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := json.Unmarshal(bodyBytes, &data)
 	if err != nil {
 		http.Error(w, "No field text", http.StatusBadRequest)
-		log.Error().Msgf("Can't extract json field. ", err)
+		log.Error().Err(err).Msg("Can't extract json field")
 		return
 	}
 	ctx.Value = data.Text

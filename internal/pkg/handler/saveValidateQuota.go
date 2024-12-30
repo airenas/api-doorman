@@ -36,7 +36,7 @@ func (h *quotaSaveValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ok, rem, tot, err := h.qv.SaveValidate(ctx.Key, utils.ExtractIP(rn), ctx.Manual, quotaV)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		log.Error().Msgf("Can't save quota/validate key. ", err)
+		log.Error().Err(err).Msg("Can't save quota/validate key")
 		ctx.ResponseCode = http.StatusInternalServerError
 		return
 	}
@@ -72,7 +72,7 @@ func (h *quotaSaveValidate) tryRestoreQuota(w http.ResponseWriter, rn *http.Requ
 
 	rem, tot, err := h.qv.Restore(ctx.Key, ctx.Manual, quotaV)
 	if err != nil {
-		log.Error().Msgf("Can't restore quota. ", err)
+		log.Error().Err(err).Msg("Can't restore quota")
 		return
 	}
 	w.Header().Set("X-Rate-Limit-Remaining", fmt.Sprintf("%.0f", math.Max(0, rem)))

@@ -33,7 +33,7 @@ func (h *ipAsKey) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := h.ipSaver.Save(key)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		log.Error().Msgf("Can't save ip as key. ", err)
+		log.Error().Err(err).Msg("Can't save ip as key")
 		return
 	}
 	h.next.ServeHTTP(w, rn)

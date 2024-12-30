@@ -65,7 +65,7 @@ func validateKey(key *keyRecord, IP string) (bool, error) {
 	if !res {
 		log.Info().Msgf("IP white list '%s' does not allow IP '%s'", key.IPWhiteList, IP)
 		if err != nil {
-			log.Error().Msgf("Error: ", err)
+			log.Error().Err(err).Send()
 		}
 	}
 	return res, err

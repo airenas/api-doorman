@@ -25,7 +25,7 @@ func (h *fillOutHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h, v, err := headerOutValue(hs)
 		if err != nil {
 			http.Error(w, "Service error", http.StatusInternalServerError)
-			log.Error().Msgf("Can't parse header value from tag", err)
+			log.Error().Err(err).Msg("Can't parse header value from tag")
 			return
 		}
 		if h != "" {

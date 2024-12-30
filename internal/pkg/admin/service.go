@@ -156,7 +156,7 @@ func keyAdd(data *Data) func(echo.Context) error {
 		keyResp, err := data.KeySaver.Create(project, &input)
 
 		if err != nil {
-			log.Error().Msgf("can't create key. ", err)
+			log.Error().Err(err).Msg("can't create key")
 			if mongodb.IsDuplicate(err) {
 				return echo.NewHTTPError(http.StatusBadRequest, "duplicate key")
 			} else if errors.Is(err, adminapi.ErrWrongField) {
@@ -303,13 +303,13 @@ func keyUpdate(data *Data) func(echo.Context) error {
 		keyResp, err := data.OneKeyUpdater.Update(project, key, input)
 
 		if errors.Is(err, adminapi.ErrNoRecord) {
-			log.Error().Msgf("key not found. ", err)
+			log.Error().Err(err).Msg("key not found")
 			return echo.NewHTTPError(http.StatusBadRequest, "key not found")
 		} else if errors.Is(err, adminapi.ErrWrongField) {
-			log.Error().Msgf("wrong field. ", err)
+			log.Error().Err(err).Msg("wrong field")
 			return echo.NewHTTPError(http.StatusBadRequest, "wrong field. "+err.Error())
 		} else if err != nil {
-			log.Error().Msgf("can't update key. ", err)
+			log.Error().Err(err).Msg("can't update key")
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.JSON(http.StatusOK, keyResp)
@@ -347,13 +347,13 @@ func restore(data *Data) func(echo.Context) error {
 		err = data.UsageRestorer.RestoreUsage(project, manual, rID, input.Error)
 
 		if errors.Is(err, adminapi.ErrNoRecord) {
-			log.Error().Msgf("log not found. ", err)
+			log.Error().Err(err).Msg("log not found")
 			return echo.NewHTTPError(http.StatusBadRequest, "requestID not found")
 		} else if errors.Is(err, adminapi.ErrLogRestored) {
-			log.Error().Msgf("already restored. ", err)
+			log.Error().Err(err).Msg("already restored")
 			return echo.NewHTTPError(http.StatusConflict, "already restored")
 		} else if err != nil {
-			log.Error().Msgf("can't restore requestID usage. ", err)
+			log.Error().Err(err).Msg("can't restore requestID usage")
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.NoContent(http.StatusOK)
@@ -416,7 +416,7 @@ func validateProject(project string, prV PrValidator) error {
 	return nil
 }
 
-func live(data *Data) func(echo.Context) error {
+func live(_data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
 		return c.JSONBlob(http.StatusOK, []byte(`{"service":"OK"}`))
 	}

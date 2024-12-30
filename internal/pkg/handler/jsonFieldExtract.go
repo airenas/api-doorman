@@ -32,7 +32,7 @@ func (h *jsonField) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := json.Unmarshal(bodyBytes, &data)
 	if err != nil {
 		http.Error(w, "No field "+h.field, http.StatusBadRequest)
-		log.Error().Msgf("Can't extract json field. ", err)
+		log.Error().Err(err).Msg("Can't extract json field")
 		return
 	}
 	f := data[h.field]

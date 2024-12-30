@@ -67,7 +67,7 @@ func keyCreate(data *Data) func(echo.Context) error {
 		keyResp, created, err := data.Integrator.Create(&input)
 
 		if err != nil {
-			log.Error().Msgf("can't create key. ", err)
+			log.Error().Err(err).Msg("can't create key")
 			if mongodb.IsDuplicate(err) {
 				return echo.NewHTTPError(http.StatusBadRequest, "duplicate key")
 			}
@@ -95,7 +95,7 @@ func keyGet(data *Data) func(echo.Context) error {
 		keyResp, err := data.Integrator.GetKey(keyID)
 
 		if err != nil {
-			log.Error().Msgf("can't get key. ", err)
+			log.Error().Err(err).Msg("can't get key")
 			if errors.Is(err, api.ErrNoRecord) {
 				return echo.NewHTTPError(http.StatusBadRequest, "no record by ID "+keyID)
 			}
@@ -124,7 +124,7 @@ func keyUpdate(data *Data) func(echo.Context) error {
 		keyResp, err := data.Integrator.Update(keyID, input)
 
 		if err != nil {
-			log.Error().Msgf("can't update key. ", err)
+			log.Error().Err(err).Msg("can't update key")
 			var errF *api.ErrField
 			if errors.As(err, &errF) {
 				return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
@@ -154,7 +154,7 @@ func keyAddCredits(data *Data) func(echo.Context) error {
 		keyResp, err := data.Integrator.AddCredits(keyID, &input)
 
 		if err != nil {
-			log.Error().Msgf("can't add credits. ", err)
+			log.Error().Err(err).Msg("can't add credits")
 			var errF *api.ErrField
 			if errors.As(err, &errF) {
 				return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
@@ -176,14 +176,14 @@ func keyChange(data *Data) func(echo.Context) error {
 		defer goapp.Estimate("Service method: " + c.Path())()
 		keyID := c.Param("keyID")
 		if keyID == "" {
-			log.Error().Msgf("no key ID")
+			log.Error().Msg("no key ID")
 			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
 		}
 
 		keyResp, err := data.Integrator.Change(keyID)
 
 		if err != nil {
-			log.Error().Msgf("can't change key. ", err)
+			log.Error().Err(err).Msg("can't change key")
 			if errors.Is(err, api.ErrNoRecord) {
 				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ID")
 			}
@@ -206,13 +206,13 @@ func keyGetID(data *Data) func(echo.Context) error {
 			return err
 		}
 		if input.Key == "" {
-			log.Error().Msgf("no key")
+			log.Error().Msg("no key")
 			return echo.NewHTTPError(http.StatusBadRequest, "no key")
 		}
 		keyResp, err := data.Integrator.GetKeyID(input.Key)
 
 		if err != nil {
-			log.Error().Msgf("can't get key by ID. ", err)
+			log.Error().Err(err).Msg("can't get key by ID")
 			if errors.Is(err, api.ErrNoRecord) {
 				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ")
 			}
@@ -241,7 +241,7 @@ func keyUsage(data *Data) func(echo.Context) error {
 		usageResp, err := data.Integrator.Usage(keyID, from, to, c.QueryParam("full") == "1")
 
 		if err != nil {
-			log.Error().Msgf("can't get usage. ", err)
+			log.Error().Err(err).Msg("can't get usage")
 			if errors.Is(err, api.ErrNoRecord) {
 				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ID")
 			}
@@ -261,7 +261,7 @@ func keysChanges(data *Data) func(echo.Context) error {
 		changesResp, err := data.Integrator.Changes(from, data.ProjectValidator.Projects())
 
 		if err != nil {
-			log.Error().Msgf("can't get changes. ", err)
+			log.Error().Err(err).Msg("can't get changes")
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		return c.JSON(http.StatusOK, changesResp)

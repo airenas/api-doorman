@@ -87,7 +87,7 @@ func (h *mainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	log.Error().Msgf("no handler for " + r.URL.Path)
+	log.Error().Str("path", r.URL.Path).Msg("no handler")
 	//serve not found
 	http.NotFound(w, r)
 }

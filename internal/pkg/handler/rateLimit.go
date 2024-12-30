@@ -37,7 +37,7 @@ func (h *rateLimitValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ok, rem, retryAfter, err := h.qv.Validate(makeRateLimitKey(idOrHash(ctx), ctx.Manual), int64(limit), int64(quotaV))
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		log.Error().Msgf("can't validate rate limit.", err)
+		log.Error().Err(err).Msg("can't validate rate limit")
 		ctx.ResponseCode = http.StatusInternalServerError
 		return
 	}

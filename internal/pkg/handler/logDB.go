@@ -51,7 +51,7 @@ func (h *logDB) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	sf := func() {
 		err := h.dbs.Save(data)
 		if err != nil {
-			log.Error().Msgf("can't save log. ", err)
+			log.Error().Err(err).Msg("can't save log")
 		}
 	}
 	if h.sync {
