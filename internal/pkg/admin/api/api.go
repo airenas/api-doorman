@@ -7,8 +7,8 @@ import (
 
 // Key structure for key data
 type Key struct {
+	ID          string     `json:"ID,omitempty"`
 	Key         string     `json:"key,omitempty"`
-	KeyID       string     `json:"keyID,omitempty"`
 	Manual      bool       `json:"manual,omitempty"`
 	ValidTo     *time.Time `json:"validTo,omitempty"`
 	Limit       float64    `json:"limit,omitempty"`
@@ -26,7 +26,7 @@ type Key struct {
 
 // Log structure for log data
 type Log struct {
-	Key          string    `json:"key,omitempty"`
+	KeyID        string    `json:"keyID,omitempty"`
 	URL          string    `json:"url,omitempty"`
 	QuotaValue   float64   `json:"quotaValue,omitempty"`
 	Date         time.Time `json:"date,omitempty"`

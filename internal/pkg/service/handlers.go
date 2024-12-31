@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -9,29 +10,34 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/audio"
 	"github.com/airenas/api-doorman/internal/pkg/handler"
 	"github.com/airenas/api-doorman/internal/pkg/integration/tts"
-	"github.com/airenas/api-doorman/internal/pkg/mongodb"
+	"github.com/airenas/api-doorman/internal/pkg/postgres"
 	"github.com/airenas/api-doorman/internal/pkg/ratelimit"
 	"github.com/airenas/api-doorman/internal/pkg/text"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
+type HandlerData struct {
+	DB *sqlx.DB
+}
+
 // NewHandler creates handler based on config
-func NewHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (HandlerWrap, error) {
+func NewHandler(name string, cfg *viper.Viper, hd *HandlerData) (HandlerWrap, error) {
 	if name == "default" {
 		return newDefaultHandler("default", cfg)
 	}
 	sType := cfg.GetString(name + ".type")
 	if sType == "quota" {
-		return newPrQuotaHandler(name, cfg, ms)
+		return newPrQuotaHandler(name, cfg, hd)
 	}
 	if sType == "simple" {
-		return newPrQuotaHandler(name, cfg, ms)
+		return newPrQuotaHandler(name, cfg, hd)
 	}
 	if sType == "key" {
-		return newPrKeyHandler(name, cfg, ms)
+		return newPrKeyHandler(name, cfg, hd)
 	}
 	return nil, errors.Errorf("Unknown handler type '%s'", sType)
 }
@@ -83,13 +89,13 @@ type prefixHandler struct {
 	h        http.Handler
 }
 
-func newPrQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (HandlerWrap, error) {
+func newPrQuotaHandler(name string, cfg *viper.Viper, hd *HandlerData) (HandlerWrap, error) {
 	res := &prefixHandler{}
 	err := initPrefixes(name, cfg, res)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Can't init prefix for %s", name)
 	}
-	res.h, err = newQuotaHandler(name, cfg, ms)
+	res.h, err = newQuotaHandler(name, cfg, hd)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't init handler")
 	}
@@ -108,7 +114,7 @@ func initPrefixes(name string, cfg *viper.Viper, res *prefixHandler) error {
 	return nil
 }
 
-func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.Handler, error) {
+func newQuotaHandler(name string, cfg *viper.Viper, hd *HandlerData) (http.Handler, error) {
 	if cfg.GetString(name+".backend") == "" {
 		return nil, errors.New("No backend")
 	}
@@ -119,13 +125,10 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 		return nil, errors.Wrap(err, "Wrong backend")
 	}
 
-	dbProvider, err := mongodb.NewDBProvider(ms, cfg.GetString(name+".db"))
+	project := cfg.GetString(name + ".db")
+	repo, err := postgres.NewRepository(context.Background(), hd.DB, project)
 	if err != nil {
-		return nil, errors.Wrap(err, "No db")
-	}
-	keysValidator, err := mongodb.NewKeyValidator(dbProvider)
-	if err != nil {
-		return nil, errors.Wrap(err, "Can't init validator")
+		return nil, fmt.Errorf("can't init validator: %w", err)
 	}
 
 	h := handler.FillOutHeader(handler.Proxy(url))
@@ -144,7 +147,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 	qt := cfg.GetString(name + ".quota.type")
 
 	if tp == "quota" {
-		h = handler.QuotaValidate(h, keysValidator)
+		h = handler.QuotaValidate(h, repo)
 		if h, err = newRateLimiter(name, cfg, h); err != nil {
 			return nil, errors.Wrap(err, "can't init rate limiter")
 		}
@@ -207,21 +210,13 @@ func newQuotaHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.
 		log.Info().Msgf("No quota validation")
 	}
 
-	ls, err := mongodb.NewLogSaver(dbProvider)
-	if err != nil {
-		return nil, errors.Wrap(err, "can't init log saver")
-	}
-	h = handler.LogDB(h, ls)
+	h = handler.LogDB(h, repo)
 
-	hKey := handler.KeyValid(h, keysValidator)
+	hKey := handler.KeyValid(h, repo)
 	dl := cfg.GetFloat64(name + ".quota.default")
 	if dl > 0 {
 		log.Info().Msgf("Default IP quota: %.f", dl)
-		is, err := mongodb.NewIPSaver(dbProvider)
-		if err != nil {
-			return nil, errors.Wrap(err, "can't init IP saver")
-		}
-		hIP := handler.IPAsKey(hKey, newIPSaver(is, dl))
+		hIP := handler.IPAsKey(hKey, newIPSaver(repo, dl))
 		hKey = handler.KeyValidOrIP(hKey, hIP)
 	}
 	h = handler.KeyExtract(hKey)
@@ -288,20 +283,20 @@ func (h *prefixHandler) Name() string {
 	return h.name
 }
 
-func newPrKeyHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (HandlerWrap, error) {
+func newPrKeyHandler(name string, cfg *viper.Viper, hd *HandlerData) (HandlerWrap, error) {
 	res := &prefixHandler{}
 	err := initPrefixes(name, cfg, res)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Can't init prefix for %s", name)
 	}
-	res.h, err = newKeyHandler(name, cfg, ms)
+	res.h, err = newKeyHandler(name, cfg, hd)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't init handler")
 	}
 	return res, nil
 }
 
-func newKeyHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.Handler, error) {
+func newKeyHandler(name string, cfg *viper.Viper, hd *HandlerData) (http.Handler, error) {
 	if cfg.GetString(name+".backend") == "" {
 		return nil, errors.New("No backend")
 	}
@@ -312,13 +307,10 @@ func newKeyHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.Ha
 		return nil, errors.Wrap(err, "Wrong backend")
 	}
 
-	dbProvider, err := mongodb.NewDBProvider(ms, cfg.GetString(name+".db"))
+	project := cfg.GetString(name + ".db")
+	repo, err := postgres.NewRepository(context.Background(), hd.DB, project)
 	if err != nil {
-		return nil, errors.Wrap(err, "No db")
-	}
-	keysValidator, err := mongodb.NewKeyValidator(dbProvider)
-	if err != nil {
-		return nil, errors.Wrap(err, "Can't init validator")
+		return nil, fmt.Errorf("can't init validator: %w", err)
 	}
 
 	h := handler.FillOutHeader(handler.Proxy(url))
@@ -333,12 +325,8 @@ func newKeyHandler(name string, cfg *viper.Viper, ms mongodb.SProvider) (http.Ha
 		h = handler.StripPrefix(h, stripURL)
 		log.Info().Msgf("Strip prefix: %s", stripURL)
 	}
-	ls, err := mongodb.NewLogSaver(dbProvider)
-	if err != nil {
-		return nil, errors.Wrap(err, "Can't init log saver")
-	}
-	h = handler.LogDB(h, ls)
-	hKey := handler.KeyValid(h, keysValidator)
+	h = handler.LogDB(h, repo)
+	hKey := handler.KeyValid(h, repo)
 	h = handler.KeyExtract(hKey)
 
 	return h, nil

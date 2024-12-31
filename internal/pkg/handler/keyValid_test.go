@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http/httptest"
 	"testing"
@@ -24,12 +25,12 @@ func TestKeyValid(t *testing.T) {
 	ctx.IP = "1.2.3.4"
 	ctx.Manual = true
 	resp := httptest.NewRecorder()
-	pegomock.When(keyValidatorMock.IsValid(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool]())).
+	pegomock.When(keyValidatorMock.IsValid(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool]())).
 		ThenReturn(true, "id1", []string{"olia"}, nil)
 	KeyValid(newTestHandler(), keyValidatorMock).ServeHTTP(resp, req)
 	assert.Equal(t, testCode, resp.Code)
 	assert.Equal(t, []string{"olia"}, ctx.Tags)
-	cKey, cIP, cM := keyValidatorMock.VerifyWasCalledOnce().IsValid(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool]()).GetCapturedArguments()
+	_, cKey, cIP, cM := keyValidatorMock.VerifyWasCalledOnce().IsValid(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool]()).GetCapturedArguments()
 	assert.Equal(t, "kkk", cKey)
 	assert.Equal(t, "1.2.3.4", cIP)
 	assert.True(t, cM)
@@ -43,7 +44,7 @@ func TestKeyValid_Unauthorized(t *testing.T) {
 	ctx.Key = "kkk"
 	ctx.Manual = true
 	resp := httptest.NewRecorder()
-	pegomock.When(keyValidatorMock.IsValid(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool]())).
+	pegomock.When(keyValidatorMock.IsValid(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool]())).
 		ThenReturn(false, "", nil, nil)
 	KeyValid(newTestHandler(), keyValidatorMock).ServeHTTP(resp, req)
 	assert.Equal(t, 401, resp.Code)
@@ -55,7 +56,7 @@ func TestKeyValid_Fail(t *testing.T) {
 	ctx.Key = "kkk"
 	ctx.Manual = true
 	resp := httptest.NewRecorder()
-	pegomock.When(keyValidatorMock.IsValid(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool]())).
+	pegomock.When(keyValidatorMock.IsValid(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[bool]())).
 		ThenReturn(false, "", nil, errors.New("olia"))
 	KeyValid(newTestHandler(), keyValidatorMock).ServeHTTP(resp, req)
 	assert.Equal(t, 500, resp.Code)

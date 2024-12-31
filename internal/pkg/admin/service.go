@@ -268,8 +268,8 @@ func keyInfo(data *Data) func(echo.Context) error {
 				log.Error().Err(err).Send()
 				return echo.NewHTTPError(http.StatusInternalServerError)
 			}
-			if res.Key.KeyID != "" {
-				logsByKeyID, err := data.LogProvider.Get(project, res.Key.KeyID)
+			if res.Key.ID != "" {
+				logsByKeyID, err := data.LogProvider.Get(project, res.Key.ID)
 				if err != nil {
 					log.Error().Err(err).Send()
 					return echo.NewHTTPError(http.StatusInternalServerError)

@@ -1,14 +1,18 @@
 package service
 
-import "github.com/airenas/api-doorman/internal/pkg/handler"
+import (
+	"context"
+
+	"github.com/airenas/api-doorman/internal/pkg/handler"
+)
 
 type ipSaver struct {
 	saver IPManager
 	limit float64
 }
 
-func (is *ipSaver) Save(ip string) error {
-	return is.saver.CheckCreate(ip, is.limit)
+func (is *ipSaver) Save(ctx context.Context, ip string) (string, error) {
+	return is.saver.CheckCreateIPKey(ctx, ip, is.limit)
 }
 
 func newIPSaver(saver IPManager, limit float64) handler.IPSaver {

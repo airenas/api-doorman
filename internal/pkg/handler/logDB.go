@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -12,7 +13,7 @@ import (
 
 // DBSaver logs to db
 type DBSaver interface {
-	Save(*api.Log) error
+	SaveLog(ctx context.Context, data *api.Log) error
 }
 
 type logDB struct {
@@ -38,18 +39,16 @@ func (h *logDB) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// data.Value = ctx.Value
 	data.Date = time.Now()
 	data.QuotaValue = ctx.QuotaValue
-	if ctx.KeyID != "" {
-		data.Key = strings.TrimSpace(ctx.KeyID)
-	} else {
-		data.Key = strings.TrimSpace(ctx.Key)
-	}
+	data.KeyID = strings.TrimSpace(ctx.KeyID)
 	data.RequestID = ctx.RequestID
 	data.IP = utils.ExtractIP(r)
 	data.URL = rn.URL.String()
 	data.ResponseCode = ctx.ResponseCode
 	data.Fail = responseCodeIsFail(data.ResponseCode)
 	sf := func() {
-		err := h.dbs.Save(data)
+		ctx, cf := context.WithTimeout(context.Background(), 5*time.Second) // use another context, request context can be canceled
+		defer cf()
+		err := h.dbs.SaveLog(ctx, data)
 		if err != nil {
 			log.Error().Err(err).Msg("can't save log")
 		}

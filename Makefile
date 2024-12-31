@@ -54,7 +54,7 @@ test/load:
 #####################################################################################
 ## generate mock objects for test
 generate:
-	go install github.com/petergtz/pegomock/v4/pegomock@latest
+	go install github.com/petergtz/pegomock/v4/pegomock
 	go generate ./...
 .PHONY: generate	
 #####################################################################################

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -101,14 +102,14 @@ func ValidateIPInWhiteList(ips, ip string) (bool, error) {
 	}
 	ipParsed := net.ParseIP(ip)
 	if ipParsed == nil {
-		return false, errors.Errorf("Wrong IP: %s", ip)
+		return false, fmt.Errorf("wrong IP: %s", ip)
 	}
 	for _, s := range strings.Split(ips, ",") {
 		s = strings.TrimSpace(s)
 		if s != "" {
 			_, net, err := net.ParseCIDR(s)
 			if err != nil {
-				return false, errors.Wrapf(err, "Wrong IP CIDR: %s", s)
+				return false, fmt.Errorf("wrong IP CIDR %s: %w", s, err)
 			}
 			if net.Contains(ipParsed) {
 				return true, nil

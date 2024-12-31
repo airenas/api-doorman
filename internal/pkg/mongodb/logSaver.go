@@ -140,11 +140,11 @@ func (ss *LogProvider) Delete(project string, to time.Time) (int, error) {
 
 func mapFromLog(v *adminapi.Log) *logRecord {
 	res := &logRecord{}
-	if getLogKeyField(v.Key) == "key" {
-		res.Key = v.Key
-	} else {
-		res.KeyID = v.Key
-	}
+	// if getLogKeyField(v.Key) == "key" {
+	// 	res.Key = v.Key
+	// } else {
+	// 	res.KeyID = v.Key
+	// }
 	res.Date = v.Date
 	res.Fail = v.Fail
 	res.IP = v.IP
@@ -159,7 +159,7 @@ func mapFromLog(v *adminapi.Log) *logRecord {
 
 func mapToLog(v *logRecord) *adminapi.Log {
 	res := &adminapi.Log{}
-	res.Key = getKey(v.KeyID, v.Key)
+	// res.Key = getKey(v.KeyID, v.Key)
 	res.Date = v.Date
 	res.Fail = v.Fail
 	res.IP = v.IP

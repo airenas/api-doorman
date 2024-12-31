@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/airenas/api-doorman/internal/pkg/utils"
@@ -9,7 +10,7 @@ import (
 
 // IPSaver saves ip a=as key into DB
 type IPSaver interface {
-	Save(string) error
+	Save(ctx context.Context, ip string) (string, error)
 }
 
 type ipAsKey struct {
@@ -30,12 +31,13 @@ func (h *ipAsKey) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	key := utils.ExtractIP(r)
 	log.Debug().Msgf("IP: %s, IP header: '%s'", key, utils.GetIPHeader(r))
 	ctx.Key = key
-	err := h.ipSaver.Save(key)
+	id, err := h.ipSaver.Save(rn.Context(), key)
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		log.Error().Err(err).Msg("Can't save ip as key")
+		log.Error().Err(err).Msg("can't save ip as key")
 		return
 	}
+	ctx.KeyID = id
 	h.next.ServeHTTP(w, rn)
 }
 

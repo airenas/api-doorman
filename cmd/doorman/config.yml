@@ -1,7 +1,10 @@
-port: 8000 
+port: 8000
+logger:
+    level: TRACE
+    out: CONSOLE
 proxy:
     handlers: tts,asr,default
-    tts: 
+    tts:
         type: quota
         db: tts
         backend: http://localhost:8002
@@ -12,7 +15,7 @@ proxy:
             type: json
             field: text
             default: 100
-    asr: 
+    asr:
         type: quota
         db: asr
         backend: http://localhost:8002
@@ -23,10 +26,9 @@ proxy:
             field: text
             default: 100
     default:
-        backend: http://localhost:8002                     
+        backend: http://localhost:8002
 
-# overwrite with env variable MONGO_URL
-mongo: 
-    url: mongodb://xxx:xxx@localhost:27017    
+db:
+    dsn: postgres://postgres:postgres@localhost:5432/doorman?sslmode=disable
 
-ipExtractType: lastForwardFor    
+ipExtractType: lastForwardFor

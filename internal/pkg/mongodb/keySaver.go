@@ -286,7 +286,7 @@ func prepareUpdates(data map[string]interface{}) (bson.M, error) {
 func mapTo(v *keyRecord) *adminapi.Key {
 	res := &adminapi.Key{}
 	res.Key = v.Key
-	res.KeyID = v.KeyID
+	// res.KeyID = v.KeyID
 	res.Manual = v.Manual
 	res.ValidTo = toTime(&v.ValidTo)
 	res.Limit = v.Limit

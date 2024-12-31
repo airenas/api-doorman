@@ -9,7 +9,6 @@ import (
 
 	"github.com/airenas/go-app/pkg/goapp"
 
-	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 
 	"github.com/spf13/viper"
@@ -423,8 +422,10 @@ func TestPriority(t *testing.T) {
 	assert.Equal(t, 7, (&prefixHandler{prefix: "/olia/3"}).Priority())
 }
 
-func newTestProvider(t *testing.T) mongodb.SProvider {
-	return mocks.NewMockSProvider()
+func newTestProvider(t *testing.T) *HandlerData {
+	t.Helper()
+
+	return &HandlerData{MongoProvider: mocks.NewMockSProvider()}
 }
 
 func newTestC(t *testing.T, configStr string) *viper.Viper {

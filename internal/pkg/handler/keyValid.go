@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,7 +11,7 @@ import (
 
 // KeyValidator validator
 type KeyValidator interface {
-	IsValid(string, string, bool) (bool, string, []string, error)
+	IsValid(context.Context, string, string, bool) (bool, string, []string, error)
 }
 
 type keyValid struct {
@@ -28,7 +29,7 @@ func KeyValid(next http.Handler, kv KeyValidator) http.Handler {
 
 func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
-	ok, id, tags, err := h.kv.IsValid(ctx.Key, ctx.IP, ctx.Manual)
+	ok, id, tags, err := h.kv.IsValid(r.Context(), ctx.Key, ctx.IP, ctx.Manual)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		log.Error().Err(err).Msg("can't check key")

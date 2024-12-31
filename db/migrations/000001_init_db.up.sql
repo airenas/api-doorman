@@ -5,6 +5,7 @@ BEGIN;
 -- Table for keys
 CREATE TABLE keys (
     id TEXT NOT NULL PRIMARY KEY,
+    project TEXT NOT NULL,
     manual BOOLEAN NOT NULL,
     key TEXT NOT NULL,
     valid_to TIMESTAMPTZ,
@@ -24,7 +25,7 @@ CREATE TABLE keys (
     updated TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX uidx_keys_id_manual ON keys (id, manual);
+CREATE UNIQUE INDEX uidx_keys_project_key_manual ON keys (project, key, manual);
 
 -- Table for logs
 CREATE TABLE logs (

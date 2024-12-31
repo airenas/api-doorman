@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	slog "log"
 	"net/http"
 	"sort"
@@ -18,7 +19,7 @@ import (
 type (
 	//IPManager manages IP in DB
 	IPManager interface {
-		CheckCreate(string, float64) error
+		CheckCreateIPKey(ctx context.Context, ip string, limit float64) (string /*key ID*/, error)
 	}
 
 	//HandlerWrap for check if handler valid

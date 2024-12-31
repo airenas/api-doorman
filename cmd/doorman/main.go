@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/airenas/api-doorman/internal/pkg/postgres"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/api-doorman/internal/pkg/service"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/labstack/gommon/color"
@@ -18,7 +19,6 @@ import (
 )
 
 func main() {
-	goapp.StartWithDefault()
 	goapp.StartWithDefault()
 	log.Logger = goapp.Log
 	zerolog.DefaultContextLogger = &goapp.Log
@@ -29,15 +29,14 @@ func main() {
 }
 
 func mainInt(ctx context.Context) error {
-
-	mongoSessionProvider, err := mongodb.NewSessionProvider(goapp.Config.GetString("mongo.url"))
+	db, err := postgres.NewDB(ctx, goapp.Config.GetString("db.dsn"))
 	if err != nil {
-		return fmt.Errorf("init mongo provider: %w", err)
+		return fmt.Errorf("init db: %w", err)
 	}
-	defer mongoSessionProvider.Close()
+	defer db.Close()
 
 	data := service.Data{}
-	data.Handlers, err = initFromConfig(goapp.Sub(goapp.Config, "proxy"), mongoSessionProvider)
+	data.Handlers, err = initFromConfig(goapp.Sub(goapp.Config, "proxy"), db)
 	if err != nil {
 		return fmt.Errorf("init handlers: %w", err)
 	}
@@ -57,7 +56,7 @@ func mainInt(ctx context.Context) error {
 	return nil
 }
 
-func initFromConfig(cfg *viper.Viper, ms *mongodb.SessionProvider) ([]service.HandlerWrap, error) {
+func initFromConfig(cfg *viper.Viper, db *sqlx.DB) ([]service.HandlerWrap, error) {
 	res := make([]service.HandlerWrap, 0)
 	if cfg == nil {
 		return nil, errors.New("Can't init handlers - names are not provided")
@@ -66,7 +65,7 @@ func initFromConfig(cfg *viper.Viper, ms *mongodb.SessionProvider) ([]service.Ha
 	for _, sh := range strings.Split(strHand, ",") {
 		sh = strings.TrimSpace(sh)
 		if sh != "" {
-			h, err := service.NewHandler(sh, cfg, ms)
+			h, err := service.NewHandler(sh, cfg, &service.HandlerData{DB: db})
 			if err != nil {
 				return nil, errors.Wrapf(err, "Can't init handler '%s'", sh)
 			}
