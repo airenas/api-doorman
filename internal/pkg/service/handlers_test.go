@@ -7,12 +7,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/airenas/go-app/pkg/goapp"
-
-	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newTestDefH(h http.Handler) *defaultHandler {
@@ -424,8 +425,16 @@ func TestPriority(t *testing.T) {
 
 func newTestProvider(t *testing.T) *HandlerData {
 	t.Helper()
+	db, _, err := sqlmock.New()
+	require.Nil(t, err)
 
-	return &HandlerData{MongoProvider: mocks.NewMockSProvider()}
+	t.Cleanup(func() {
+		db.Close()
+	})
+
+	sqlxDB := sqlx.NewDb(db, "sqlmock")
+
+	return &HandlerData{DB: sqlxDB}
 }
 
 func newTestC(t *testing.T, configStr string) *viper.Viper {

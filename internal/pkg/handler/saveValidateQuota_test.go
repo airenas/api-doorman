@@ -19,6 +19,8 @@ func inituotaValidateTest(t *testing.T) {
 }
 
 func TestQuotaValidate(t *testing.T) {
+	t.Parallel()
+
 	inituotaValidateTest(t)
 	req, ctx := customContext(httptest.NewRequest("POST", "/duration", nil))
 	ctx.Key = "kkk"
@@ -32,7 +34,7 @@ func TestQuotaValidate(t *testing.T) {
 
 	assert.Equal(t, testCode, resp.Code)
 	assert.Equal(t, testCode, ctx.ResponseCode)
-	_, cKey, _, cManual, cQuota := quotaValidatorMock.VerifyWasCalledOnce().SaveValidate(context.TODO(), pegomock.Any[string](), pegomock.Any[string](),
+	_, cKey, _, cManual, cQuota := quotaValidatorMock.VerifyWasCalledOnce().SaveValidate(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[string](),
 		pegomock.Any[bool](), pegomock.Any[float64]()).GetCapturedArguments()
 	assert.Equal(t, "kkk", cKey)
 	assert.Equal(t, 100.0, cQuota)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
@@ -20,13 +21,14 @@ type Repository struct {
 }
 
 func NewRepository(ctx context.Context, db *sqlx.DB, project string) (*Repository, error) {
-	if project == "" {
+	pr := strings.TrimSpace(project)
+	if pr == "" {
 		return nil, fmt.Errorf("project is empty")
 	}
 	if db == nil {
 		return nil, fmt.Errorf("db is nil")
 	}
-	f := Repository{db: db, project: project}
+	f := Repository{db: db, project: pr}
 	return &f, nil
 }
 

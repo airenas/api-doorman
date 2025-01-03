@@ -18,7 +18,6 @@ import (
 
 func main() {
 	goapp.StartWithDefault()
-	goapp.StartWithDefault()
 	log.Logger = goapp.Log
 	zerolog.DefaultContextLogger = &goapp.Log
 

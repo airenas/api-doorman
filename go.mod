@@ -5,6 +5,7 @@ go 1.22.1
 toolchain go1.22.5
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/airenas/go-app v1.1.2
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/facebookgo/grace v0.0.0-20180706040059-75cf19382434

@@ -113,7 +113,7 @@ func TestKey_ReturnsFull(t *testing.T) {
 
 func TestKey_ReturnsFullNyKeyID(t *testing.T) {
 	initTest(t)
-	pegomock.When(oneKeyRetrieverMock.Get(pegomock.Any[string](), pegomock.Eq("kkk"))).ThenReturn(&adminapi.Key{Key: "kkk", KeyID: "olia"}, nil)
+	pegomock.When(oneKeyRetrieverMock.Get(pegomock.Any[string](), pegomock.Eq("kkk"))).ThenReturn(&adminapi.Key{Key: "kkk", ID: "olia"}, nil)
 	pegomock.When(logRetrieverMock.Get(pegomock.Any[string](), pegomock.Eq("kkk"))).ThenReturn([]*adminapi.Log{{IP: "101010"}}, nil)
 	pegomock.When(logRetrieverMock.Get(pegomock.Any[string](), pegomock.Eq("olia"))).ThenReturn([]*adminapi.Log{{IP: "101011"}}, nil)
 	req := httptest.NewRequest("GET", "/pr/key/kkk?full=1", nil)
@@ -132,7 +132,7 @@ func TestKey_Fail(t *testing.T) {
 
 func TestKey_FailIDCall(t *testing.T) {
 	initTest(t)
-	pegomock.When(oneKeyRetrieverMock.Get(pegomock.Any[string](), pegomock.Eq("kkk"))).ThenReturn(&adminapi.Key{Key: "kkk", KeyID: "olia"}, nil)
+	pegomock.When(oneKeyRetrieverMock.Get(pegomock.Any[string](), pegomock.Eq("kkk"))).ThenReturn(&adminapi.Key{Key: "kkk", ID: "olia"}, nil)
 	pegomock.When(logRetrieverMock.Get(pegomock.Any[string](), pegomock.Eq("kkk"))).ThenReturn([]*adminapi.Log{{IP: "101010"}}, nil)
 	pegomock.When(logRetrieverMock.Get(pegomock.Any[string](), pegomock.Eq("olia"))).ThenReturn(nil, errors.New("fail"))
 	req := httptest.NewRequest("GET", "/pr/key/kkk?full=1", nil)
@@ -350,12 +350,12 @@ func TestRestore_Fail(t *testing.T) {
 func TestLogList(t *testing.T) {
 	initTest(t)
 	pegomock.When(logRetrieverMock.List(pegomock.Any[string](), pegomock.Any[time.Time]())).
-		ThenReturn([]*adminapi.Log{{Key: "1", ResponseCode: 200}, {Key: "2", ResponseCode: 400}}, nil)
+		ThenReturn([]*adminapi.Log{{KeyID: "1", ResponseCode: 200}, {KeyID: "2", ResponseCode: 400}}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/pr/log?to=2023-01-02T15:04:05Z", nil)
 	resp := testCode(t, req, http.StatusOK)
 	bytes, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(bytes), `"key":"1"`)
-	assert.Contains(t, string(bytes), `"key":"2"`)
+	assert.Contains(t, string(bytes), `"keyID":"1"`)
+	assert.Contains(t, string(bytes), `"keyID":"2"`)
 	assert.Contains(t, string(bytes), `"response":400`)
 	cPr, cTime := logRetrieverMock.VerifyWasCalled(pegomock.Once()).
 		List(pegomock.Any[string](), pegomock.Any[time.Time]()).
@@ -367,7 +367,7 @@ func TestLogList(t *testing.T) {
 func TestLogList_FailDate(t *testing.T) {
 	initTest(t)
 	pegomock.When(logRetrieverMock.List(pegomock.Any[string](), pegomock.Any[time.Time]())).
-		ThenReturn([]*adminapi.Log{{Key: "1", ResponseCode: 200}, {Key: "2", ResponseCode: 400}}, nil)
+		ThenReturn([]*adminapi.Log{{KeyID: "1", ResponseCode: 200}, {KeyID: "2", ResponseCode: 400}}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/pr/log", nil)
 	testCode(t, req, http.StatusBadRequest)
 }
