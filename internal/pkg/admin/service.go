@@ -10,7 +10,6 @@ import (
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms"
-	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/facebookgo/grace/gracehttp"
@@ -24,34 +23,34 @@ import (
 type (
 	// KeyCreator creates key
 	KeyCreator interface {
-		Create(string, *adminapi.Key) (*adminapi.Key, error)
+		Create(ctx context.Context, project string, data *adminapi.Key) (*adminapi.Key, error)
 	}
 
 	// KeyUpdater creates key
 	KeyUpdater interface {
-		Update(string, string, map[string]interface{}) (*adminapi.Key, error)
+		Update(ctx context.Context, project string, id string, data map[string]interface{}) (*adminapi.Key, error)
 	}
 
 	// UsageRestorer restores key usage by requestID
 	UsageRestorer interface {
-		RestoreUsage(project string, manual bool, request string, errorMsg string) error
+		RestoreUsage(ctx context.Context, project string, manual bool, request string, errorMsg string) error
 	}
 
 	// KeyRetriever gets keys list from db
 	KeyRetriever interface {
-		List(string) ([]*adminapi.Key, error)
+		List(ctx context.Context, project string) ([]*adminapi.Key, error)
 	}
 
 	// OneKeyRetriever retrieves one list from db
 	OneKeyRetriever interface {
-		Get(string, string) (*adminapi.Key, error)
+		Get(ctx context.Context, project string, id string) (*adminapi.Key, error)
 	}
 
 	// LogRetriever retrieves one list from db
 	LogProvider interface {
-		Get(string, string) ([]*adminapi.Log, error)
-		List(string, time.Time) ([]*adminapi.Log, error)
-		Delete(string, time.Time) (int, error)
+		GetLogs(ctx context.Context, project string, keyID string) ([]*adminapi.Log, error)
+		ListLogs(ctx context.Context, project string, to time.Time) ([]*adminapi.Log, error)
+		DeleteLogs(ctx context.Context, project string, to time.Time) (int /* count of deleted items*/, error)
 	}
 
 	// UsageReseter resets montly usage
@@ -84,7 +83,7 @@ type (
 
 // StartWebServer starts the HTTP service and listens for the admin requests
 func StartWebServer(data *Data) error {
-	log.Info().Msgf("Starting HTTP doorman admin service at %d", data.Port)
+	log.Info().Int("port", data.Port).Msg("Starting HTTP doorman admin service")
 
 	e := initRoutes(data)
 
@@ -153,14 +152,15 @@ func keyAdd(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, "wrong valid to")
 		}
 
-		keyResp, err := data.KeySaver.Create(project, &input)
+		keyResp, err := data.KeySaver.Create(c.Request().Context(), project, &input)
 
 		if err != nil {
 			log.Error().Err(err).Msg("can't create key")
-			if mongodb.IsDuplicate(err) {
+			var wfErr utils.WrongFieldError
+			if errors.Is(err, utils.ErrDuplicate) {
 				return echo.NewHTTPError(http.StatusBadRequest, "duplicate key")
-			} else if errors.Is(err, adminapi.ErrWrongField) {
-				return echo.NewHTTPError(http.StatusBadRequest, "wrong field. "+err.Error())
+			} else if errors.Is(err, &wfErr) {
+				return echo.NewHTTPError(http.StatusBadRequest, wfErr.Error())
 			} else {
 				return echo.NewHTTPError(http.StatusInternalServerError)
 			}
@@ -177,7 +177,7 @@ func keyList(data *Data) func(echo.Context) error {
 			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
-		keyResp, err := data.KeyGetter.List(project)
+		keyResp, err := data.KeyGetter.List(c.Request().Context(), project)
 
 		if err != nil {
 			log.Error().Err(err).Send()
@@ -202,7 +202,7 @@ func logList(data *Data) func(echo.Context) error {
 		if to == nil {
 			return echo.NewHTTPError(http.StatusBadRequest, "no 'to' query param")
 		}
-		res, err := data.LogProvider.List(project, *to)
+		res, err := data.LogProvider.ListLogs(c.Request().Context(), project, *to)
 
 		if err != nil {
 			log.Error().Err(err).Send()
@@ -228,7 +228,7 @@ func logDelete(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, "no 'to' query param")
 		}
 
-		deleted, err := data.LogProvider.Delete(project, *to)
+		deleted, err := data.LogProvider.DeleteLogs(c.Request().Context(), project, *to)
 		if err != nil {
 			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusInternalServerError)
@@ -253,8 +253,8 @@ func keyInfo(data *Data) func(echo.Context) error {
 
 		res := &adminapi.KeyInfoResp{}
 		var err error
-		res.Key, err = data.OneKeyGetter.Get(project, key)
-		if errors.Is(err, adminapi.ErrNoRecord) {
+		res.Key, err = data.OneKeyGetter.Get(c.Request().Context(), project, key)
+		if errors.Is(err, utils.ErrNoRecord) {
 			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, "key not found")
 		}
@@ -263,18 +263,10 @@ func keyInfo(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError)
 		}
 		if c.QueryParam("full") == "1" {
-			res.Logs, err = data.LogProvider.Get(project, key)
+			res.Logs, err = data.LogProvider.GetLogs(c.Request().Context(), project, key)
 			if err != nil {
 				log.Error().Err(err).Send()
 				return echo.NewHTTPError(http.StatusInternalServerError)
-			}
-			if res.Key.ID != "" {
-				logsByKeyID, err := data.LogProvider.Get(project, res.Key.ID)
-				if err != nil {
-					log.Error().Err(err).Send()
-					return echo.NewHTTPError(http.StatusInternalServerError)
-				}
-				res.Logs = append(res.Logs, logsByKeyID...)
 			}
 		}
 		return c.JSON(http.StatusOK, res)
@@ -300,12 +292,13 @@ func keyUpdate(data *Data) func(echo.Context) error {
 			return err
 		}
 
-		keyResp, err := data.OneKeyUpdater.Update(project, key, input)
+		keyResp, err := data.OneKeyUpdater.Update(c.Request().Context(), project, key, input)
 
-		if errors.Is(err, adminapi.ErrNoRecord) {
+		var wfErr utils.WrongFieldError
+		if errors.Is(err, utils.ErrNoRecord) {
 			log.Error().Err(err).Msg("key not found")
 			return echo.NewHTTPError(http.StatusBadRequest, "key not found")
-		} else if errors.Is(err, adminapi.ErrWrongField) {
+		} else if errors.As(err, &wfErr) {
 			log.Error().Err(err).Msg("wrong field")
 			return echo.NewHTTPError(http.StatusBadRequest, "wrong field. "+err.Error())
 		} else if err != nil {
@@ -344,12 +337,12 @@ func restore(data *Data) func(echo.Context) error {
 			return err
 		}
 
-		err = data.UsageRestorer.RestoreUsage(project, manual, rID, input.Error)
+		err = data.UsageRestorer.RestoreUsage(c.Request().Context(), project, manual, rID, input.Error)
 
-		if errors.Is(err, adminapi.ErrNoRecord) {
+		if errors.Is(err, utils.ErrNoRecord) {
 			log.Error().Err(err).Msg("log not found")
 			return echo.NewHTTPError(http.StatusBadRequest, "requestID not found")
-		} else if errors.Is(err, adminapi.ErrLogRestored) {
+		} else if errors.Is(err, utils.ErrLogRestored) {
 			log.Error().Err(err).Msg("already restored")
 			return echo.NewHTTPError(http.StatusConflict, "already restored")
 		} else if err != nil {

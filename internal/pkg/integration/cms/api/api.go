@@ -1,7 +1,6 @@
 package api
 
 import (
-	"errors"
 	"fmt"
 	"time"
 )
@@ -72,12 +71,6 @@ type Log struct {
 	Fail        bool       `json:"fail,omitempty"`
 	Response    int        `json:"response,omitempty"`
 }
-
-// ErrNoRecord indicates no record found error
-var ErrNoRecord = errors.New("no record found")
-
-// ErrOperationExists indicates existing operation for the record
-var ErrOperationExists = errors.New("operation exists")
 
 // ErrField error indicating input field problem
 type ErrField struct {

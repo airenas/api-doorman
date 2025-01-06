@@ -23,10 +23,11 @@ type logDB struct {
 }
 
 // LogDB creates handler
-func LogDB(next http.Handler, dbs DBSaver) http.Handler {
+func LogDB(next http.Handler, dbs DBSaver, syncLog bool) http.Handler {
 	res := &logDB{}
 	res.next = next
 	res.dbs = dbs
+	res.sync = syncLog
 	return res
 }
 

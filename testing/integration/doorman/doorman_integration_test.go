@@ -1,6 +1,3 @@
-//go:build integration
-// +build integration
-
 package doorman
 
 import (
@@ -20,6 +17,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,6 +32,7 @@ type config struct {
 var cfg config
 
 func TestMain(m *testing.M) {
+	_ = godotenv.Load("../../../.env")
 	cfg.url = os.Getenv("ADMIN_URL")
 	if cfg.url == "" {
 		log.Fatal("FAIL: no ADMIN_URL set")
@@ -42,9 +41,9 @@ func TestMain(m *testing.M) {
 	if cfg.doormanUrl == "" {
 		log.Fatal("FAIL: no DOORMAN_URL set")
 	}
-	cfg.httpClient = &http.Client{Timeout: time.Second}
+	cfg.httpClient = &http.Client{Timeout: time.Second * 60} // use bigger for debug
 
-	tCtx, cf := context.WithTimeout(context.Background(), time.Second*20)
+	tCtx, cf := context.WithTimeout(context.Background(), time.Second*10)
 	defer cf()
 	waitForOpenOrFail(tCtx, cfg.url)
 	waitForOpenOrFail(tCtx, cfg.doormanUrl)
@@ -97,11 +96,28 @@ func TestAccessCreate(t *testing.T) {
 	decode(t, resp, &res)
 	assert.NotEmpty(t, res.Key)
 
-	resp = invoke(t, newAdminRequest(t, http.MethodGet, fmt.Sprintf("/key/%s?returnKey=1", id), in))
+	resp = invoke(t, newAdminRequest(t, http.MethodGet, fmt.Sprintf("/key/%s", id), in))
 	checkCode(t, resp, http.StatusOK)
 	res = api.Key{}
 	decode(t, resp, &res)
 	assert.Equal(t, 100.0, res.TotalCredits)
+}
+
+func TestAccessCreate_FailDuplicate(t *testing.T) {
+	t.Parallel()
+	id := uuid.NewString()
+	in := api.CreateInput{ID: id, OperationID: uuid.NewString(), Service: "test", Credits: 100}
+	resp := invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusCreated)
+	res := api.Key{}
+	decode(t, resp, &res)
+	assert.NotEmpty(t, res.Key)
+
+	resp = invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusBadRequest)
+	in.ID = uuid.NewString()
+	resp = invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusBadRequest)
 }
 
 type testReq struct {
@@ -149,11 +165,12 @@ func TestAccessCreate_UsedRestore(t *testing.T) {
 	resp = invoke(t, addAuth(newRequest(t, http.MethodPost, "/private", inTest), res.Key))
 	checkCode(t, resp, http.StatusOK)
 
-	resp = invoke(t, newAdminRequest(t, http.MethodGet, fmt.Sprintf("/%s/key/%s?full=1", "test", res.Key), nil))
+	resp = invoke(t, newAdminRequest(t, http.MethodGet, fmt.Sprintf("/%s/key/%s?full=1", "test", res.ID), nil))
 	checkCode(t, resp, http.StatusOK)
 	logs := adminapi.KeyInfoResp{}
 	decode(t, resp, &logs)
 	require.Equal(t, 1, len(logs.Logs))
+	assert.Equal(t, 10.0, logs.Key.QuotaValue)
 
 	resp = invoke(t, newAdminRequest(t, http.MethodPost,
 		fmt.Sprintf("/%s/restore/m:%s", "test", logs.Logs[0].RequestID), errReq{Error: "err"}))

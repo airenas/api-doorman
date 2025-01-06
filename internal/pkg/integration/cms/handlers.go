@@ -1,11 +1,11 @@
 package cms
 
 import (
+	"context"
 	"net/http"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
-	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/labstack/echo/v4"
@@ -16,14 +16,14 @@ import (
 type (
 	// Integrator wraps integratoin functionality
 	Integrator interface {
-		Create(*api.CreateInput) (*api.Key, bool, error)
-		GetKey(keyID string) (*api.Key, error)
-		AddCredits(string, *api.CreditsInput) (*api.Key, error)
-		GetKeyID(string) (*api.KeyID, error)
-		Usage(string, *time.Time, *time.Time, bool) (*api.Usage, error)
-		Update(string, map[string]interface{}) (*api.Key, error)
-		Change(string) (*api.Key, error)
-		Changes(*time.Time, []string) (*api.Changes, error)
+		Create(ctx context.Context, in *api.CreateInput) (*api.Key, bool /*created*/, error)
+		GetKey(ctx context.Context, id string) (*api.Key, error)
+		AddCredits(ctx context.Context, id string, in *api.CreditsInput) (*api.Key, error)
+		GetKeyID(ctx context.Context, id string) (*api.KeyID, error)
+		Usage(ctx context.Context, id string, from *time.Time, to *time.Time, full bool) (*api.Usage, error)
+		Update(ctx context.Context, id string, in map[string]interface{}) (*api.Key, error)
+		Change(ctx context.Context, id string) (*api.Key, error)
+		Changes(ctx context.Context, from *time.Time, projects []string) (*api.Changes, error)
 	}
 
 	// PrValidator validates if project is available
@@ -64,12 +64,15 @@ func keyCreate(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 
-		keyResp, created, err := data.Integrator.Create(&input)
+		keyResp, created, err := data.Integrator.Create(c.Request().Context(), &input)
 
 		if err != nil {
 			log.Error().Err(err).Msg("can't create key")
-			if mongodb.IsDuplicate(err) {
-				return echo.NewHTTPError(http.StatusBadRequest, "duplicate key")
+			if errors.Is(err, utils.ErrDuplicate) {
+				return echo.NewHTTPError(http.StatusBadRequest, "duplicate record")
+			}
+			if errors.Is(err, utils.ErrOperationExists) {
+				return echo.NewHTTPError(http.StatusBadRequest, "duplicate operation")
 			}
 			var errF *api.ErrField
 			if errors.As(err, &errF) {
@@ -92,11 +95,11 @@ func keyGet(data *Data) func(echo.Context) error {
 			log.Error().Msgf("no key ID")
 			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
 		}
-		keyResp, err := data.Integrator.GetKey(keyID)
+		keyResp, err := data.Integrator.GetKey(c.Request().Context(), keyID)
 
 		if err != nil {
 			log.Error().Err(err).Msg("can't get key")
-			if errors.Is(err, api.ErrNoRecord) {
+			if errors.Is(err, utils.ErrNoRecord) {
 				return echo.NewHTTPError(http.StatusBadRequest, "no record by ID "+keyID)
 			}
 			return echo.NewHTTPError(http.StatusInternalServerError)
@@ -121,7 +124,7 @@ func keyUpdate(data *Data) func(echo.Context) error {
 			log.Error().Err(err).Send()
 			return err
 		}
-		keyResp, err := data.Integrator.Update(keyID, input)
+		keyResp, err := data.Integrator.Update(c.Request().Context(), keyID, input)
 
 		if err != nil {
 			log.Error().Err(err).Msg("can't update key")
@@ -129,7 +132,7 @@ func keyUpdate(data *Data) func(echo.Context) error {
 			if errors.As(err, &errF) {
 				return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
 			}
-			if errors.Is(err, api.ErrNoRecord) {
+			if errors.Is(err, utils.ErrNoRecord) {
 				return echo.NewHTTPError(http.StatusBadRequest, "no record by ID "+keyID)
 			}
 			return echo.NewHTTPError(http.StatusInternalServerError)
@@ -151,7 +154,7 @@ func keyAddCredits(data *Data) func(echo.Context) error {
 			log.Error().Err(err).Send()
 			return err
 		}
-		keyResp, err := data.Integrator.AddCredits(keyID, &input)
+		keyResp, err := data.Integrator.AddCredits(c.Request().Context(), keyID, &input)
 
 		if err != nil {
 			log.Error().Err(err).Msg("can't add credits")
@@ -159,10 +162,10 @@ func keyAddCredits(data *Data) func(echo.Context) error {
 			if errors.As(err, &errF) {
 				return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
 			}
-			if errors.Is(err, api.ErrNoRecord) {
+			if errors.Is(err, utils.ErrNoRecord) {
 				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ID")
 			}
-			if errors.Is(err, api.ErrOperationExists) {
+			if errors.Is(err, utils.ErrOperationExists) {
 				return c.JSON(http.StatusConflict, keyResp)
 			}
 			return echo.NewHTTPError(http.StatusInternalServerError)
@@ -180,11 +183,11 @@ func keyChange(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
 		}
 
-		keyResp, err := data.Integrator.Change(keyID)
+		keyResp, err := data.Integrator.Change(c.Request().Context(), keyID)
 
 		if err != nil {
 			log.Error().Err(err).Msg("can't change key")
-			if errors.Is(err, api.ErrNoRecord) {
+			if errors.Is(err, utils.ErrNoRecord) {
 				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ID")
 			}
 			return echo.NewHTTPError(http.StatusInternalServerError)
@@ -209,11 +212,11 @@ func keyGetID(data *Data) func(echo.Context) error {
 			log.Error().Msg("no key")
 			return echo.NewHTTPError(http.StatusBadRequest, "no key")
 		}
-		keyResp, err := data.Integrator.GetKeyID(input.Key)
+		keyResp, err := data.Integrator.GetKeyID(c.Request().Context(), input.Key)
 
 		if err != nil {
 			log.Error().Err(err).Msg("can't get key by ID")
-			if errors.Is(err, api.ErrNoRecord) {
+			if errors.Is(err, utils.ErrNoRecord) {
 				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ")
 			}
 			return echo.NewHTTPError(http.StatusInternalServerError)
@@ -238,11 +241,11 @@ func keyUsage(data *Data) func(echo.Context) error {
 		if err != nil {
 			return err
 		}
-		usageResp, err := data.Integrator.Usage(keyID, from, to, c.QueryParam("full") == "1")
+		usageResp, err := data.Integrator.Usage(c.Request().Context(), keyID, from, to, c.QueryParam("full") == "1")
 
 		if err != nil {
 			log.Error().Err(err).Msg("can't get usage")
-			if errors.Is(err, api.ErrNoRecord) {
+			if errors.Is(err, utils.ErrNoRecord) {
 				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ID")
 			}
 			return echo.NewHTTPError(http.StatusInternalServerError)
@@ -258,7 +261,7 @@ func keysChanges(data *Data) func(echo.Context) error {
 		if err != nil {
 			return err
 		}
-		changesResp, err := data.Integrator.Changes(from, data.ProjectValidator.Projects())
+		changesResp, err := data.Integrator.Changes(c.Request().Context(), from, data.ProjectValidator.Projects())
 
 		if err != nil {
 			log.Error().Err(err).Msg("can't get changes")

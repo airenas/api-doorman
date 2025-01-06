@@ -156,7 +156,7 @@ func addQuotaForIP(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *a
 		if operation.KeyID != keyMapR.KeyID {
 			return nil, &api.ErrField{Field: "operationID", Msg: "exists for other key"}
 		}
-		return nil, api.ErrOperationExists
+		return nil, utils.ErrOperationExists
 	}
 	if err != mongo.ErrNoDocuments {
 		return nil, fmt.Errorf("find operations: %v", err)
@@ -179,7 +179,7 @@ func addQuotaForIP(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *a
 		update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&keyR)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, api.ErrNoRecord
+			return nil, utils.ErrNoRecord
 		}
 		return nil, errors.Wrapf(err, "can't update %s.key", keyMapR.Project)
 	}

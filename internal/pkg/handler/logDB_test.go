@@ -29,7 +29,7 @@ func TestLogDB(t *testing.T) {
 	ctx.Value = "value"
 	ctx.RequestID = "reqID"
 	resp := httptest.NewRecorder()
-	h := LogDB(newTestHandler(), dbSaverMock).(*logDB)
+	h := LogDB(newTestHandler(), dbSaverMock, true).(*logDB)
 	h.sync = true
 
 	h.ServeHTTP(resp, req)
@@ -48,7 +48,7 @@ func TestLogDB_NoFail(t *testing.T) {
 	initLogDBTest(t)
 	req, _ := customContext(httptest.NewRequest("POST", "/duration", nil))
 	resp := httptest.NewRecorder()
-	h := LogDB(newTestHandler(), dbSaverMock).(*logDB)
+	h := LogDB(newTestHandler(), dbSaverMock, true).(*logDB)
 	h.sync = true
 	pegomock.When(dbSaverMock.SaveLog(pegomock.Any[context.Context](), pegomock.Any[*api.Log]())).ThenReturn(errors.New("olia"))
 

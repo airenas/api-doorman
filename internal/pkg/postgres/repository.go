@@ -32,6 +32,14 @@ func NewRepository(ctx context.Context, db *sqlx.DB, project string) (*Repositor
 	return &f, nil
 }
 
+
+func (r *Repository) hash(key string, manual bool) (string) {
+	if manual {
+		return utils.HashKey(key)
+	}
+	return key
+}
+
 // IsValid validates key
 func (r *Repository) IsValid(ctx context.Context, key string, IP string, manual bool) (bool, string, []string, error) {
 	log.Debug().Msg("Validating key")
@@ -41,27 +49,20 @@ func (r *Repository) IsValid(ctx context.Context, key string, IP string, manual 
 		SELECT id, disabled, valid_to, ip_white_list, tags 
 		FROM keys 
 		WHERE project = $1 AND 
-			key = $2 AND 
-			manual = $3`, r.project, key, manual)
+			key_hash = $2 AND 
+			manual = $3`, r.project, r.hash(key, manual), manual)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			log.Info().Msg("No key")
 			return false, "", nil, nil
 		}
-		return false, "", nil, fmt.Errorf("can't get key: %w", err)
+		return false, "", nil, fmt.Errorf("can't get key: %w", mapErr(err))
 	}
 	ok, err := validateKey(&res, IP)
 	if err != nil {
 		return ok, "", nil, err
 	}
 	return ok, res.ID, toStrArray(res.Tags), nil
-}
-
-func toStrArray(in *[]string) []string {
-	if in == nil {
-		return nil
-	}
-	return *in
 }
 
 func validateKey(key *keyRecord, IP string) (bool, error) {
@@ -98,8 +99,8 @@ func (r *Repository) SaveValidate(ctx context.Context, key string, ip string, ma
 		SELECT id, project, manual, quota_limit, quota_value 
 		FROM keys 
 		WHERE project = $1 AND 
-			key = $2 AND 
-			manual = $3 LIMIT 1`, r.project, key, manual)
+			key_hash = $2 AND 
+			manual = $3 LIMIT 1`, r.project, r.hash(key, manual), manual)
 	if err != nil {
 		return false, 0, 0, err
 	}
@@ -150,12 +151,12 @@ func (r *Repository) Restore(ctx context.Context, key string, manual bool, qv fl
 			quota_value = quota_value - $2
 		WHERE 
 			project = $3 AND
-			key = $4 AND 
+			key_hash = $4 AND 
 			manual = $5
 		RETURNING quota_limit, quota_value
 	`
 	var limit, quotaValue float64
-	err := r.db.QueryRowContext(ctx, updateQuery, now, qv, r.project, key, manual).Scan(&limit, &quotaValue)
+	err := r.db.QueryRowContext(ctx, updateQuery, now, qv, r.project, r.hash(key, manual), manual).Scan(&limit, &quotaValue)
 	if err != nil {
 		return 0, 0, fmt.Errorf("update quota: %w", err)
 	}

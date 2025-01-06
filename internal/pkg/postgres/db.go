@@ -2,8 +2,13 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
+	"time"
 
+	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog/log"
@@ -26,4 +31,39 @@ func NewDB(ctx context.Context, dsn string) (*sqlx.DB, error) {
 	}
 	log.Ctx(ctx).Debug().Msg("Connected to DB")
 	return sqlxDB, nil
+}
+
+func mapErr(err error) error {
+	if err == nil {
+		return nil
+	}
+	if err == sql.ErrNoRows {
+		return fmt.Errorf("%w: %w", utils.ErrNoRecord, err)
+	}
+	if isDuplicate(err) {
+		return fmt.Errorf("%w: %w", utils.ErrDuplicate, err)
+	}
+	return err
+}
+
+func isDuplicate(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23505"
+	}
+	return false
+}
+
+func toStrArray(in *[]string) []string {
+	if in == nil {
+		return nil
+	}
+	return *in
+}
+
+func toTimePtr(time *time.Time) *time.Time {
+	if time == nil || time.IsZero() {
+		return nil
+	}
+	return time
 }

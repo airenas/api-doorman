@@ -210,7 +210,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, hd *HandlerData) (http.Handl
 		log.Info().Msgf("No quota validation")
 	}
 
-	h = handler.LogDB(h, repo)
+	h = handler.LogDB(h, repo, cfg.GetBool(name+".syncLog"))
 
 	hKey := handler.KeyValid(h, repo)
 	dl := cfg.GetFloat64(name + ".quota.default")
@@ -325,7 +325,7 @@ func newKeyHandler(name string, cfg *viper.Viper, hd *HandlerData) (http.Handler
 		h = handler.StripPrefix(h, stripURL)
 		log.Info().Msgf("Strip prefix: %s", stripURL)
 	}
-	h = handler.LogDB(h, repo)
+	h = handler.LogDB(h, repo, cfg.GetBool(name+".syncLog"))
 	hKey := handler.KeyValid(h, repo)
 	h = handler.KeyExtract(hKey)
 

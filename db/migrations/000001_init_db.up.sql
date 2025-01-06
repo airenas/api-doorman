@@ -7,7 +7,7 @@ CREATE TABLE keys (
     id TEXT NOT NULL PRIMARY KEY,
     project TEXT NOT NULL,
     manual BOOLEAN NOT NULL,
-    key TEXT NOT NULL,
+    key_hash TEXT NOT NULL,
     valid_to TIMESTAMPTZ,
     quota_limit DOUBLE PRECISION NOT NULL DEFAULT 0,
     quota_value DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -25,7 +25,7 @@ CREATE TABLE keys (
     updated TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX uidx_keys_project_key_manual ON keys (project, key, manual);
+CREATE UNIQUE INDEX uidx_keys_project_key_manual ON keys (project, key_hash, manual);
 
 -- Table for logs
 CREATE TABLE logs (
@@ -61,14 +61,15 @@ CREATE INDEX idx_logs_request_id ON logs (request_id);
 --     changed_on TIMESTAMPTZ
 -- );
 
--- -- Table for operationRecord
--- CREATE TABLE operation_record (
---     key_id TEXT NOT NULL,
---     operation_id TEXT NOT NULL,
---     date TIMESTAMPTZ,
---     quota_value FLOAT8,
---     msg TEXT
--- );
+-- Table for operations
+CREATE TABLE operations (
+    id TEXT NOT NULL PRIMARY KEY,
+    key_id TEXT NOT NULL,
+    date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    quota_value DOUBLE PRECISION NOT NULL DEFAULT 0,
+    msg TEXT NOT NULL,
+    FOREIGN KEY (key_id) REFERENCES keys (id)
+);
 
 -- -- Table for settingsRecord
 -- CREATE TABLE settings_record (
@@ -77,61 +78,10 @@ CREATE INDEX idx_logs_request_id ON logs (request_id);
 --     updated TIMESTAMPTZ
 -- );
 
--- type keyRecord struct {
--- 	Key              string    `bson:"key"`
--- 	KeyID            string    `bson:"keyID,omitempty"`
--- 	Manual           bool      `bson:"manual"`
--- 	ValidTo          time.Time `bson:"validTo,omitempty"`
--- 	Limit            float64   `bson:"limit,omitempty"`
--- 	QuotaValue       float64   `bson:"quotaValue"`
--- 	QuotaValueFailed float64   `bson:"quotaValueFailed,omitempty"`
--- 	Created          time.Time `bson:"created,omitempty"`
--- 	Updated          time.Time `bson:"updated,omitempty"`
--- 	LastUsed         time.Time `bson:"lastUsed,omitempty"`
--- 	ResetAt          time.Time `bson:"resetAt,omitempty"`
--- 	LastIP           string    `bson:"lastIP,omitempty"`
--- 	Disabled         bool      `bson:"disabled,omitempty"`
--- 	IPWhiteList      string    `bson:"IPWhiteList,omitempty"`
--- 	Description      string    `bson:"description,omitempty"`
--- 	Tags             []string  `bson:"tags,omitempty"`
--- 	ExternalID       string    `bson:"externalID,omitempty"`
--- }
-
--- type logRecord struct {
--- 	Key          string    `bson:"key,omitempty"`
--- 	KeyID        string    `bson:"keyID,omitempty"`
--- 	URL          string    `bson:"url,omitempty"`
--- 	QuotaValue   float64   `bson:"quotaValue,omitempty"`
--- 	Date         time.Time `bson:"date,omitempty"`
--- 	IP           string    `bson:"ip,omitempty"`
--- 	Value        string    `bson:"value,omitempty"`
--- 	Fail         bool      `bson:"fail,omitempty"`
--- 	ResponseCode int       `bson:"responseCode,omitempty"`
-
--- 	RequestID string `bson:"requestID,omitempty"`
--- 	ErrorMsg  string `bson:"errorMsg,omitempty"`
--- }
-
--- type keyMapRecord struct {
--- 	KeyID      string    `bson:"keyID"`
--- 	KeyHash    string    `bson:"keyHash"`
--- 	ExternalID string    `bson:"externalID"`
--- 	Project    string    `bson:"project"`
--- 	Created    time.Time `bson:"created,omitempty"`
--- 	Old        []oldKey  `bson:"old,omitempty"`
--- }
 
 -- type oldKey struct {
 -- 	KeyHash   string    `bson:"keyHash"`
 -- 	ChangedOn time.Time `bson:"changedOn,omitempty"`
--- }
-
--- type operationRecord struct {
--- 	KeyID       string    `bson:"keyID"`
--- 	OperationID string    `bson:"operationID"`
--- 	Date        time.Time `bson:"date,omitempty"`
--- 	QuotaValue  float64   `bson:"quotaValue,omitempty"`
--- 	Msg         string    `bson:"msg,omitempty"`
 -- }
 
 -- type settingsRecord struct {

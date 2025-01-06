@@ -2,17 +2,18 @@ services:
 
   doorman-admin:
     image: airenas/api-doorman-admin:dev
-    depends_on:
-      - mongo  
     environment:
-      MONGO_URL: "${MONGO_URL}"  
+      DB_DSN: "postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable"  
       PROJECTS: test,tts
     restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   doorman:
     image: airenas/api-doorman:dev
     environment:
-      MONGO_URL: "${MONGO_URL}"  
+      DB_DSN: "postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable"
       PROJECTS: test,tts,changes
       PROXY_HANDLERS: "test,tts,default"
       PROXY_DEFAULT_BACKEND: "http://test-api:8000/"
@@ -23,30 +24,49 @@ services:
       PROXY_TEST_QUOTA_TYPE: "json"
       PROXY_TEST_QUOTA_FIELD: "text"
       PROXY_TEST_QUOTA_DEFAULT: 100
+      PROXY_TEST_SYNCLOG: true
       PROXY_TTS_TYPE: quota
       PROXY_TTS_DB: tts
       PROXY_TTS_BACKEND: "http://test-api:8000/"
       PROXY_TTS_PREFIXURL: "/quotatts/private"
       PROXY_TTS_STRIPPREFIX: "/quotatts"
+      PROXY_TTS_SYNCLOG: true
       PROXY_TTS_QUOTA_TYPE: "jsonTTS"
       PROXY_TTS_QUOTA_DEFAULT: 100
     depends_on:
-      - mongo  
+      postgres:
+        condition: service_healthy 
     restart: on-failure
   
   test-api:
     image: airenas/test-api:0.9.85
 
-  mongo:
-    image: mongo:4.4.1
-    hostname: mongo
+  postgres:
+    image:   postgres:17-alpine3.21
     environment:
-      MONGO_DATA_DIR: "/data/db"
-      MONGO_LOG_DIR: "/dev/null"
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
-    restart: on-failure    
-    command: mongod --replSet rs0 --logpath=/dev/null --bind_ip mongo,localhost 
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=doorman
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s     
+      timeout: 1s       
+      retries: 5        
+      start_period: 1s 
+
+  dbmigration:
+    image: airenas/api-doorman-dbmigration:dev
+    command:
+      [
+        '-path',
+        '/db/migrations',
+        '-database',
+        'postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable',
+        'up',
+      ]
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy      
 
   integration-tests:
     build:

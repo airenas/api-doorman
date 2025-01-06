@@ -11,7 +11,7 @@ help:
 #####################################################################################
 ## invoke unit tests
 test/unit: 
-	go test -race ./...
+	go test -race ./internal/... ./cmd/...
 .PHONY: test/unit
 #####################################################################################
 ## code vet and lint
@@ -23,6 +23,10 @@ test/lint:
 ## build doorman-admin
 docker/doorman-admin/build: 
 	cd build/doorman-admin && $(MAKE) dbuild
+.PHONY: docker/doorman-admin/build
+## build doorman-admin-migration
+docker/api-doorman-dbmigration/build: 
+	cd build/api-doorman-dbmigration && $(MAKE) dbuild
 .PHONY: docker/doorman-admin/build
 ## build doorman
 docker/doorman/build: 
@@ -36,6 +40,10 @@ docker/doorman-admin/scan:
 docker/doorman/scan:
 	cd build/doorman && $(MAKE) dscan		
 .PHONY: docker/doorman/scan
+## build all docker images
+docker/build/all: docker/doorman-admin/build docker/doorman/build docker/api-doorman-dbmigration/build
+.PHONY: docker/build/all
+#####################################################################################
 ## run integration tests
 test/integration: test/integration/cms test/integration/doorman 
 .PHONY: test/integration

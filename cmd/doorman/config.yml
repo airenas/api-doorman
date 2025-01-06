@@ -10,6 +10,7 @@ proxy:
         backend: http://localhost:8002
         prefixURL: /private/test
         stripPrefix: /private
+        syncLog: true
         method: POST
         quota:
             type: json
@@ -17,10 +18,11 @@ proxy:
             default: 100
     asr:
         type: quota
-        db: asr
+        db: test
         backend: http://localhost:8002
         prefixURL: /private
         method: POST
+        syncLog: true
         quota:
             type: json
             field: text

@@ -7,7 +7,7 @@ import (
 
 	"github.com/airenas/api-doorman/internal/pkg/admin"
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms"
-	"github.com/airenas/api-doorman/internal/pkg/mongodb"
+	"github.com/airenas/api-doorman/internal/pkg/postgres"
 	"github.com/airenas/api-doorman/internal/pkg/reset"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/labstack/gommon/color"
@@ -30,26 +30,23 @@ func main() {
 
 func mainInt(ctx context.Context) error {
 	config := goapp.Config
-	mongoSessionProvider, err := mongodb.NewSessionProvider(config.GetString("mongo.url"))
+
+	db, err := postgres.NewDB(ctx, goapp.Config.GetString("db.dsn"))
 	if err != nil {
-		return fmt.Errorf("init mongo provider: %w", err)
+		return fmt.Errorf("init db: %w", err)
 	}
-	defer mongoSessionProvider.Close()
+	defer db.Close()
+
+	repo, err := postgres.NewAdmimRepository(ctx, db)
+	if err != nil {
+		return fmt.Errorf("init repository: %w", err)
+	}
 
 	data := admin.Data{}
 	data.Port = goapp.Config.GetInt("port")
-	keysManager, err := mongodb.NewKeySaver(mongoSessionProvider, goapp.Config.GetInt("keySize"))
-	if err != nil {
-		return fmt.Errorf("init saver: %w", err)
-	}
-	data.KeyGetter, data.KeySaver, data.OneKeyUpdater = keysManager, keysManager, keysManager
-	data.OneKeyGetter, data.UsageRestorer = keysManager, keysManager
-
-	logManager, err := mongodb.NewLogProvider(mongoSessionProvider)
-	if err != nil {
-		return fmt.Errorf("init log saver: %w", err)
-	}
-	data.LogProvider = logManager
+	data.KeyGetter, data.KeySaver, data.OneKeyUpdater = repo, repo, repo
+	data.OneKeyGetter, data.UsageRestorer = repo, repo
+	data.LogProvider = repo
 
 	prStr := goapp.Config.GetString("projects")
 	log.Info().Msgf("Projects: %s", prStr)
@@ -58,24 +55,19 @@ func mainInt(ctx context.Context) error {
 		return fmt.Errorf("init project validator: %w", err)
 	}
 	data.ProjectValidator = pv
-	if err := mongoSessionProvider.CheckIndexes(pv.Projects()); err != nil {
-		return fmt.Errorf("check indexes: %w", err)
-	}
 
 	data.CmsData = &cms.Data{}
 	data.CmsData.ProjectValidator = pv
-	data.CmsData.Integrator, err = mongodb.NewCmsIntegrator(mongoSessionProvider, goapp.Config.GetInt("keySize"))
+	cms, err := postgres.NewCMSRepository(ctx, db, goapp.Config.GetInt("keySize"))
 	if err != nil {
 		return fmt.Errorf("init integrator: %w", err)
 	}
+	data.CmsData.Integrator = cms
 
 	printBanner()
 
 	tData := reset.TimerData{}
-	tData.Reseter, err = mongodb.NewReseter(mongoSessionProvider)
-	if err != nil {
-		return fmt.Errorf("init reseter: %w", err)
-	}
+	tData.Reseter = repo
 	tData.Projects, err = initProjectReset(pv.Projects(), config)
 	if err != nil {
 		return fmt.Errorf("init project rest config: %w", err)
