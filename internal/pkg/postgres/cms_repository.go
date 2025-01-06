@@ -741,15 +741,15 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx *sqlx.Tx, in 
 // }
 
 func validateInput(input *api.CreateInput) error {
-	if input == nil {
-		return &api.ErrField{Field: "id", Msg: "missing"}
-	}
-	if strings.TrimSpace(input.ID) == "" {
-		return &api.ErrField{Field: "id", Msg: "missing"}
-	}
-	if strings.TrimSpace(input.OperationID) == "" {
-		return &api.ErrField{Field: "operationID", Msg: "missing"}
-	}
+	// if input == nil {
+	// 	return &api.ErrField{Field: "id", Msg: "missing"}
+	// }
+	// if strings.TrimSpace(input.ID) == "" {
+	// 	return &api.ErrField{Field: "id", Msg: "missing"}
+	// }
+	// if strings.TrimSpace(input.OperationID) == "" {
+	// 	return &api.ErrField{Field: "operationID", Msg: "missing"}
+	// }
 	if strings.TrimSpace(input.Service) == "" {
 		return &api.ErrField{Field: "service", Msg: "missing"}
 	}

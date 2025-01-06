@@ -32,8 +32,7 @@ func NewRepository(ctx context.Context, db *sqlx.DB, project string) (*Repositor
 	return &f, nil
 }
 
-
-func (r *Repository) hash(key string, manual bool) (string) {
+func (r *Repository) hash(key string, manual bool) string {
 	if manual {
 		return utils.HashKey(key)
 	}
@@ -107,7 +106,14 @@ func (r *Repository) SaveValidate(ctx context.Context, key string, ip string, ma
 
 	remRequired := res.Limit - res.QuotaValue - qv
 	if remRequired < 0 {
-		return false, res.Limit - res.QuotaValue, res.Limit, r.updateFailed(ctx, tx, res.ID, ip, qv)
+		err := r.updateFailed(ctx, tx, res.ID, ip, qv)
+		if err != nil {
+			return false, 0, 0, err
+		}
+		if err := tx.Commit(); err != nil {
+			return false, 0, 0, fmt.Errorf("commit transaction: %w", err)
+		}
+		return false, res.Limit - res.QuotaValue, res.Limit, nil
 	}
 	now := time.Now()
 	var limit, quotaValue float64

@@ -57,18 +57,6 @@ test/api/key:
 ########################################################################################################
 psql:
 	docker compose exec -e PGPASSWORD=postgres postgres psql -U postgres -h localhost -d doorman
-mongosh:
-	docker compose exec mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS)
-
-mongo-prepare:
-	@echo wait until mongo ready
-	@docker compose exec -T mongo timeout 20 bash -c "until echo > /dev/tcp/mongo/27017; do sleep 1; done"
-	docker compose exec -T mongo /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS) --eval "rs.initiate()"
-
-mongo-update-script:
-	docker compose exec mongo sh -c \
-	'printf "use test\ndb.log.update({}, {\$$rename:{\"quotavalue\":\"quotaValue\", \"responsecode\":\"responseCode\"}}, false, true)" | /usr/bin/mongo -u $(MONGO_USER) -p $(MONGO_PASS)'
-
 #####################################################################################
 ## test cms integration - add new key
 test/cms/add-key:
