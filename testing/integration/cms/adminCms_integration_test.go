@@ -95,6 +95,19 @@ func TestCreate(t *testing.T) {
 	checkCode(t, resp, http.StatusBadRequest)
 }
 
+func TestCreate_OKSaveRequests(t *testing.T) {
+	t.Parallel()
+
+	in := &api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100, SaveRequests: true}
+	key := newKeyInput(t, in)
+	assert.NotEmpty(t, key.Key)
+
+	res := getKeyInfo(t, in.ID)
+	assert.Equal(t, in.Credits, res.TotalCredits)
+	assert.Equal(t, "", res.Key)
+	assert.True(t, res.SaveRequests)
+}
+
 func TestAddCredits(t *testing.T) {
 	t.Parallel()
 

@@ -13,6 +13,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	"github.com/rs/zerolog/log"
 )
 
@@ -390,7 +391,7 @@ func (r *CMSRepository) addQuota(ctx context.Context, db dbTx, id string, in *ap
 		return nil, fmt.Errorf("load key: %w", mapErr(err))
 	}
 
-	if in.Credits < 0 && key.Limit - in.Credits < key.QuotaValue {
+	if in.Credits < 0 && key.Limit+in.Credits < key.QuotaValue {
 		return nil, &api.ErrField{Field: "credits", Msg: "(limit - change) is less than used"}
 	}
 
@@ -440,11 +441,8 @@ func mapToKey(keyR *keyRecord, key string) *api.Key {
 	return res
 }
 
-func mapToSaveRequests(tags *[]string) bool {
-	if tags == nil {
-		return false
-	}
-	for _, s := range *tags {
+func mapToSaveRequests(tags []string) bool {
+	for _, s := range tags {
 		if s == _saveRequestTag {
 			return true
 		}
@@ -455,13 +453,18 @@ func mapToSaveRequests(tags *[]string) bool {
 func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api.CreateInput, key string) (*keyRecord, error) {
 	log.Ctx(ctx).Trace().Str("id", in.ID).Str("operationID", in.OperationID).Str("service", in.Service).Msg("Create operation record")
 
+	var tags []string
+	if in.SaveRequests {
+		tags = append(tags, _saveRequestTag)
+	}
+
 	now := time.Now()
 	hash := utils.HashKey(key)
 	log.Ctx(ctx).Trace().Str("id", in.ID).Str("key", key).Msg("Create key record")
 	_, err := tx.ExecContext(ctx, `
-	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated, disabled)
-	VALUES ($1, $2, $3, TRUE, $4, $5, $6, $6, FALSE)
-	`, in.ID, in.Service, hash, in.Credits, now.Add(r.defaultValidToDuration), now)
+	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated, disabled, tags)
+	VALUES ($1, $2, $3, TRUE, $4, $5, $6, $6, FALSE, $7)
+	`, in.ID, in.Service, hash, in.Credits, now.Add(r.defaultValidToDuration), now, tags)
 	if err != nil {
 		return nil, fmt.Errorf("create key: %w", mapErr(err))
 	}
@@ -481,6 +484,7 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 		ValidTo: now.Add(r.defaultValidToDuration),
 		Created: now,
 		Updated: now,
+		Tags:    pq.StringArray(tags),
 	}, nil
 }
 

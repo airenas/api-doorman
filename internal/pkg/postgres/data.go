@@ -3,6 +3,8 @@ package postgres
 import (
 	"database/sql"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type keyRecord struct {
@@ -22,7 +24,7 @@ type keyRecord struct {
 	Disabled         bool
 	IPWhiteList      sql.NullString `db:"ip_white_list"`
 	Description      sql.NullString
-	Tags             *[]string      `db:"tags,omitempty"`
+	Tags             pq.StringArray `db:"tags,omitempty"`
 	ExternalID       sql.NullString `db:"external_id"`
 }
 

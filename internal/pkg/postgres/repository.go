@@ -61,7 +61,7 @@ func (r *Repository) IsValid(ctx context.Context, key string, IP string, manual 
 	if err != nil {
 		return ok, "", nil, err
 	}
-	return ok, res.ID, toStrArray(res.Tags), nil
+	return ok, res.ID, res.Tags, nil
 }
 
 func validateKey(key *keyRecord, IP string) (bool, error) {

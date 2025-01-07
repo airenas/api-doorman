@@ -45,22 +45,6 @@ CREATE TABLE logs (
 CREATE INDEX idx_logs_date ON logs (date);
 CREATE INDEX idx_logs_request_id ON logs (request_id);
 
--- -- Table for keyMapRecord
--- CREATE TABLE key_map_record (
---     key_id TEXT NOT NULL,
---     key_hash TEXT NOT NULL,
---     external_id TEXT,
---     project TEXT NOT NULL,
---     created TIMESTAMPTZ
--- );
-
--- -- Table for oldKey (used as a separate table to model the array of old keys)
--- CREATE TABLE old_key (
---     key_map_record_id SERIAL PRIMARY KEY, -- Links to key_map_record
---     key_hash TEXT NOT NULL,
---     changed_on TIMESTAMPTZ
--- );
-
 -- Table for operations
 CREATE TABLE operations (
     id TEXT NOT NULL PRIMARY KEY,
@@ -77,17 +61,5 @@ CREATE TABLE operations (
 --     next_reset TIMESTAMPTZ,
 --     updated TIMESTAMPTZ
 -- );
-
-
--- type oldKey struct {
--- 	KeyHash   string    `bson:"keyHash"`
--- 	ChangedOn time.Time `bson:"changedOn,omitempty"`
--- }
-
--- type settingsRecord struct {
--- 	ResetStarted time.Time `bson:"resetStarted,omitempty"`
--- 	NextReset    time.Time `bson:"nextReset,omitempty"`
--- 	Updated      time.Time `bson:"updated,omitempty"`
--- }
 
 END;

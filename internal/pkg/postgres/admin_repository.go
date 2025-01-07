@@ -166,7 +166,7 @@ func mapToAdminKey(keyR *keyRecord, key string) *api.Key {
 		Created:     toTimePtr(&keyR.Created),
 		Updated:     toTimePtr(&keyR.Updated),
 		IPWhiteList: keyR.IPWhiteList.String,
-		Tags:        toStrArray(keyR.Tags),
+		Tags:        keyR.Tags,
 		Key:         key,
 	}
 	return res
