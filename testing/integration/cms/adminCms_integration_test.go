@@ -1,6 +1,3 @@
-//go:build integration
-// +build integration
-
 package cms
 
 import (
@@ -19,6 +16,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,11 +30,12 @@ type config struct {
 var cfg config
 
 func TestMain(m *testing.M) {
+	_ = godotenv.Load("../../../.env")
 	cfg.url = os.Getenv("ADMIN_URL")
 	if cfg.url == "" {
 		log.Fatal("FAIL: no ADMIN_URL set")
 	}
-	cfg.httpClient = &http.Client{Timeout: time.Second}
+	cfg.httpClient = &http.Client{Timeout: time.Second * 60} // use bigger for debug
 
 	tCtx, cf := context.WithTimeout(context.Background(), time.Second*20)
 	defer cf()
@@ -82,18 +81,13 @@ func TestLive(t *testing.T) {
 
 func TestCreate(t *testing.T) {
 	t.Parallel()
-	in := api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100}
-	resp := invoke(t, newRequest(t, http.MethodPost, "/key", in))
-	checkCode(t, resp, http.StatusCreated)
-	res := api.Key{}
-	decode(t, resp, &res)
-	assert.NotEmpty(t, res.Key)
 
-	resp = invoke(t, newRequest(t, http.MethodPost, "/key", in))
-	checkCode(t, resp, http.StatusConflict)
-	resN := api.Key{}
-	decode(t, resp, &resN)
-	assert.Equal(t, "", resN.Key)
+	in := &api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100}
+	key := newKeyInput(t, in)
+	assert.NotEmpty(t, key.Key)
+
+	resp := invoke(t, newRequest(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusBadRequest)
 
 	resp = invoke(t, newRequest(t, http.MethodPost, "/key",
 		api.CreateInput{ID: uuid.NewString(), OperationID: in.OperationID,
@@ -101,46 +95,92 @@ func TestCreate(t *testing.T) {
 	checkCode(t, resp, http.StatusBadRequest)
 }
 
+func TestAddCredits(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	resG := getKeyInfo(t, key.ID)
+	assert.Equal(t, 100.0, resG.TotalCredits)
+
+	addCredits(t, key, 1000)
+	resG = getKeyInfo(t, key.ID)
+	assert.Equal(t, 1100.0, resG.TotalCredits)
+
+	addCredits(t, key, -200)
+	resG = getKeyInfo(t, key.ID)
+	assert.Equal(t, 900.0, resG.TotalCredits)
+}
+
+func TestAddCredits_FailLimit(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	resp := addCreditsResp(t, key, -1000, "")
+	checkCode(t, resp, http.StatusBadRequest)
+}
+
+func TestAddCredits_OKSameOpID(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	id := uuid.NewString()
+	resp := addCreditsResp(t, key, 1000, id)
+	checkCode(t, resp, http.StatusOK)
+
+	resp = addCreditsResp(t, key, 1000, id)
+	checkCode(t, resp, http.StatusOK)
+
+	resp = addCreditsResp(t, key, 1000, id)
+	checkCode(t, resp, http.StatusOK)
+
+	resG := getKeyInfo(t, key.ID)
+	assert.Equal(t, 1100.0, resG.TotalCredits)
+}
+
 func TestGet(t *testing.T) {
 	t.Parallel()
 	in := api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100}
 	checkCode(t, invoke(t, newRequest(t, http.MethodPost, "/key", in)), http.StatusCreated)
 
-	resp := invoke(t, newRequest(t, http.MethodGet, "/key/"+in.ID, nil))
-	checkCode(t, resp, http.StatusOK)
-	res := api.Key{}
-	decode(t, resp, &res)
+	res := getKeyInfo(t, in.ID)
 	assert.Equal(t, in.Credits, res.TotalCredits)
 	assert.Equal(t, "", res.Key)
 }
 
-func TestGet_ReturnsKey(t *testing.T) {
-	t.Parallel()
-	in := api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100}
-	checkCode(t, invoke(t, newRequest(t, http.MethodPost, "/key", in)), http.StatusCreated)
+func getKeyInfo(t *testing.T, s string) *api.Key {
+	t.Helper()
 
-	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s?returnKey=1", in.ID), nil))
+	resp := invoke(t, newRequest(t, http.MethodGet, "/key/"+s, nil))
 	checkCode(t, resp, http.StatusOK)
 	res := api.Key{}
 	decode(t, resp, &res)
-	assert.NotEmpty(t, res.Key)
+	return &res
+}
+
+func TestGet_ReturnsKey(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	res := getKeyInfo(t, key.ID)
+	assert.Empty(t, res.Key)
 }
 
 func TestGet_ReturnsKeyID(t *testing.T) {
 	t.Parallel()
-	in := api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100}
-	resp := invoke(t, newRequest(t, http.MethodPost, "/key", in))
-	checkCode(t, resp, http.StatusCreated)
-	res := api.Key{}
-	decode(t, resp, &res)
 
-	resp = invoke(t, newRequest(t, http.MethodPost, "/keyID", api.Key{Key: res.Key}))
+	key := newKey(t)
+
+	resp := invoke(t, newRequest(t, http.MethodPost, "/keyID", api.Key{Key: key.Key}))
 	checkCode(t, resp, http.StatusOK)
 	resKey := api.KeyID{}
 	decode(t, resp, &resKey)
 
-	assert.Equal(t, in.ID, resKey.ID)
-	assert.Equal(t, in.Service, resKey.Service)
+	assert.Equal(t, key.ID, resKey.ID)
+	assert.Equal(t, key.Service, resKey.Service)
 }
 
 func TestKey_NotFound(t *testing.T) {
@@ -241,4 +281,42 @@ func checkCode(t *testing.T, resp *http.Response, expected int) {
 func decode(t *testing.T, resp *http.Response, to interface{}) {
 	t.Helper()
 	require.Nil(t, json.NewDecoder(resp.Body).Decode(to))
+}
+
+func addCredits(t *testing.T, key *api.Key, quota float64) *api.Key {
+	t.Helper()
+
+	resp := addCreditsResp(t, key, quota, uuid.NewString())
+	checkCode(t, resp, http.StatusOK)
+	res := api.Key{}
+	decode(t, resp, &res)
+	return &res
+}
+
+func addCreditsResp(t *testing.T, key *api.Key, quota float64, opID string) *http.Response {
+	t.Helper()
+
+	if opID == "" {
+		opID = uuid.NewString()
+	}
+
+	in := api.CreditsInput{OperationID: opID, Credits: quota, Msg: "test"}
+	return invoke(t, newRequest(t, http.MethodPatch, fmt.Sprintf("/key/%s/credits", key.ID), in))
+}
+
+func newKey(t *testing.T) *api.Key {
+	t.Helper()
+
+	return newKeyInput(t, &api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100})
+}
+
+func newKeyInput(t *testing.T, in *api.CreateInput) *api.Key {
+	t.Helper()
+
+	resp := invoke(t, newRequest(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusCreated)
+	res := api.Key{}
+	decode(t, resp, &res)
+	assert.NotEmpty(t, res.Key)
+	return &res
 }

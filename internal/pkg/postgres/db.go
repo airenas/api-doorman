@@ -14,6 +14,14 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type dbTx interface {
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+	GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
+	SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
+}
+
 // NewKeyValidator creates KeyValidator instance
 func NewDB(ctx context.Context, dsn string) (*sqlx.DB, error) {
 	if dsn == "" {
