@@ -12,7 +12,7 @@ help:
 #####################################################################################
 ## start all containers
 start: 
-	docker compose up -d dbmigration doorman-admin
+	docker compose up -d dbmigration doorman-admin doorman test-api doorman-redis
 	docker compose up -d doorman-admin --wait doorman-admin --timeout 10
 .PHONY: start
 ## invoke integration tests

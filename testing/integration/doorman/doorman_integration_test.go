@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"testing"
 	"time"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
+	"github.com/airenas/api-doorman/internal/pkg/test"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -45,40 +44,10 @@ func TestMain(m *testing.M) {
 
 	tCtx, cf := context.WithTimeout(context.Background(), time.Second*10)
 	defer cf()
-	waitForOpenOrFail(tCtx, cfg.url)
-	waitForOpenOrFail(tCtx, cfg.doormanUrl)
+	test.WaitForOpenOrFail(tCtx, cfg.url)
+	test.WaitForOpenOrFail(tCtx, cfg.doormanUrl)
 
 	os.Exit(m.Run())
-}
-
-func waitForOpenOrFail(ctx context.Context, urlWait string) {
-	u, err := url.Parse(urlWait)
-	if err != nil {
-		log.Fatalf("FAIL: can't parse %s", urlWait)
-	}
-	for {
-		if err := listen(net.JoinHostPort(u.Hostname(), u.Port())); err != nil {
-			log.Printf("waiting for %s ...", urlWait)
-		} else {
-			return
-		}
-		select {
-		case <-ctx.Done():
-			log.Fatalf("FAIL: can't access %s", urlWait)
-			break
-		case <-time.After(500 * time.Millisecond):
-		}
-	}
-}
-
-func listen(urlStr string) error {
-	log.Printf("dial %s", urlStr)
-	conn, err := net.DialTimeout("tcp", urlStr, time.Second)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	return err
 }
 
 func TestLiveAdmin(t *testing.T) {
@@ -230,5 +199,6 @@ func checkCode(t *testing.T, resp *http.Response, expected int) {
 
 func decode(t *testing.T, resp *http.Response, to interface{}) {
 	t.Helper()
+
 	require.Nil(t, json.NewDecoder(resp.Body).Decode(to))
 }

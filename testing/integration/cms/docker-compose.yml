@@ -1,5 +1,42 @@
 services:
 
+  doorman:
+    image: airenas/api-doorman:dev
+    environment:
+      DB_DSN: "postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable"
+      PROJECTS: test,tts,changes
+      PROXY_HANDLERS: "test,tts,default"
+      PROXY_DEFAULT_BACKEND: "http://test-api:8000/"
+      PROXY_TEST_TYPE: quota
+      PROXY_TEST_DB: test
+      PROXY_TEST_BACKEND: "http://test-api:8000/"
+      PROXY_TEST_PREFIXURL: "/private"
+      PROXY_TEST_QUOTA_TYPE: "json"
+      PROXY_TEST_QUOTA_FIELD: "text"
+      PROXY_TEST_QUOTA_DEFAULT: 100
+      PROXY_TEST_RATELIMIT_WINDOW: 5m
+      PROXY_TEST_RATELIMIT_DEFAULT: 5000
+      PROXY_TEST_RATELIMIT_URL: doorman-redis:6379
+      PROXY_TEST_SYNCLOG: true
+      PROXY_TTS_TYPE: quota
+      PROXY_TTS_DB: tts
+      PROXY_TTS_BACKEND: "http://test-api:8000/"
+      PROXY_TTS_PREFIXURL: "/quotatts/private"
+      PROXY_TTS_STRIPPREFIX: "/quotatts"
+      PROXY_TTS_SYNCLOG: true
+      PROXY_TTS_QUOTA_TYPE: "jsonTTS"
+      PROXY_TTS_QUOTA_DEFAULT: 100
+    depends_on:
+      postgres:
+        condition: service_healthy 
+    restart: on-failure
+
+  doorman-redis:
+    image: redis:7.2-alpine3.19  
+  
+  test-api:
+    image: airenas/test-api:0.9.85
+
   doorman-admin:
     image: airenas/api-doorman-admin:dev
     #   - "${ADMIN_PORT}:8000"

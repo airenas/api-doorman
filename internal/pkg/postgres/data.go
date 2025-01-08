@@ -42,28 +42,6 @@ type logRecord struct {
 	ErrorMsg  string `db:"error_msg"`
 }
 
-// type keyMapRecord struct {
-// 	KeyID      string    `bson:"keyID"`
-// 	KeyHash    string    `bson:"keyHash"`
-// 	ExternalID string    `bson:"externalID"`
-// 	Project    string    `bson:"project"`
-// 	Created    time.Time `bson:"created,omitempty"`
-// 	Old        []oldKey  `bson:"old,omitempty"`
-// }
-
-// type oldKey struct {
-// 	KeyHash   string    `bson:"keyHash"`
-// 	ChangedOn time.Time `bson:"changedOn,omitempty"`
-// }
-
-// type operationRecord struct {
-// 	KeyID       string    `bson:"keyID"`
-// 	OperationID string    `bson:"operationID"`
-// 	Date        time.Time `bson:"date,omitempty"`
-// 	QuotaValue  float64   `bson:"quotaValue,omitempty"`
-// 	Msg         string    `bson:"msg,omitempty"`
-// }
-
 // type settingsRecord struct {
 // 	ResetStarted time.Time `bson:"resetStarted,omitempty"`
 // 	NextReset    time.Time `bson:"nextReset,omitempty"`

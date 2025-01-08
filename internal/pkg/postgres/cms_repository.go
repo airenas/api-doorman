@@ -28,11 +28,6 @@ func (c *CMSRepository) Changes(ctx context.Context, from *time.Time, projects [
 	panic("unimplemented")
 }
 
-// Usage implements cms.Integrator.
-func (c *CMSRepository) Usage(ctx context.Context, id string, from *time.Time, to *time.Time, full bool) (*api.Usage, error) {
-	panic("unimplemented")
-}
-
 func NewCMSRepository(ctx context.Context, db *sqlx.DB, keySize int) (*CMSRepository, error) {
 	if db == nil {
 		return nil, fmt.Errorf("db is nil")
@@ -156,6 +151,56 @@ func (r *CMSRepository) Change(ctx context.Context, id string) (*api.Key, error)
 	return mapToKey(res, key), nil
 }
 
+func (r *CMSRepository) Usage(ctx context.Context, id string, from *time.Time, to *time.Time, full bool) (*api.Usage, error) {
+	log.Ctx(ctx).Debug().Str("id", id).Msg("Get logs")
+
+	where, values := makeDatesFilter(from, to)
+	sValues := make([]interface{}, 0, len(values)+1)
+	sValues = append(sValues, id)
+	sValues = append(sValues, values...)
+
+	var res []*logRecord
+	err := r.db.SelectContext(ctx, &res, `
+		SELECT * 
+		FROM logs 
+		WHERE 
+			key_id = $1 `+where+`			
+		`, sValues...)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	log.Ctx(ctx).Debug().Int("count", len(res)).Msg("Got logs")
+	apiRes := &api.Usage{
+		Logs: make([]*api.Log, 0, len(res)),
+	}
+	for _, r := range res {
+		if r.Fail {
+			apiRes.FailedCredits += r.QuotaValue
+		} else {
+			apiRes.UsedCredits += r.QuotaValue
+		}
+		apiRes.RequestCount++
+		if full {
+			apiRes.Logs = append(apiRes.Logs, mapLog(r))
+		}
+	}
+	return apiRes, nil
+}
+
+func makeDatesFilter(from *time.Time, to *time.Time) (string, []interface{}) {
+	var values []interface{}
+	var res string
+	if from != nil {
+		res += " AND date >= $2"
+		values = append(values, *from)
+	}
+	if to != nil {
+		res += " AND date < $3"
+		values = append(values, *to)
+	}
+	return res, values
+}
+
 func loadKeyRecord(ctx context.Context, db dbTx, id string) (*keyRecord, error) {
 	var res keyRecord
 	err := db.GetContext(ctx, &res, `
@@ -189,34 +234,6 @@ func loadKeyRecordByHash(ctx context.Context, db dbTx, hash string) (*keyRecord,
 const (
 	_saveRequestTag = "x-tts-collect-data:always"
 )
-
-// Change generates new key for keyID, disables the old one, returns new key
-// func (ss *CmsIntegrator) Change(keyID string) (*api.Key, error) {
-// 	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer cancel()
-
-// 	keyMapR, err := loadKeyMapRecord(sessCtx, keyID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	resInt, err := sessCtx.WithTransaction(sessCtx, func(sessCtx mongo.SessionContext) (interface{}, error) {
-// 		key, err := ss.changeKey(sessCtx, keyMapR)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		return key, nil
-// 	})
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	keyR := resInt.(*keyRecord)
-// 	return &api.Key{Key: keyR.Key}, nil
-// }
 
 func prepareKeyUpdates(input map[string]interface{}, now time.Time) (string, []interface{}, error) {
 	var values []interface{}
@@ -284,9 +301,6 @@ func makeUpdateSQL(updates []string) string {
 	}
 	return strings.Join(res, ", ")
 }
-
-// Usage returns usage information for the key
-// //}
 
 // Changes returns changed keys information
 // func (ss *CmsIntegrator) Changes(from *time.Time, services []string) (*api.Changes, error) {
@@ -467,6 +481,16 @@ func mapToKey(keyR *keyRecord, key string) *api.Key {
 	return res
 }
 
+func mapLog(log *logRecord) *api.Log {
+	res := &api.Log{}
+	res.Date = toTimePtr(&log.Date)
+	res.Fail = log.Fail
+	res.Response = log.ResponseCode
+	res.IP = log.IP
+	res.UsedCredits = log.QuotaValue
+	return res
+}
+
 func mapToSaveRequests(tags []string) bool {
 	for _, s := range tags {
 		if s == _saveRequestTag {
@@ -536,7 +560,7 @@ func (r *CMSRepository) changeKey(ctx context.Context, tx dbTx, id string, key s
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return loadKeyRecord(ctx, tx, id)
 }
 
@@ -562,69 +586,7 @@ func newOperation(ctx context.Context, tx sqlx.ExecerContext, in *createOperatio
 	return false, nil
 }
 
-// func (ss *CmsIntegrator) changeKey(sessCtx mongo.SessionContext, keyMapR *keyMapRecord) (*keyRecord, error) {
-// 	oldKey := keyMapR.KeyHash
-// 	newKey, err := randkey.Generate(ss.newKeySize)
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "can't generate key")
-// 	}
-
-// 	// update map
-// 	c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
-// 	err = c.FindOneAndUpdate(sessCtx,
-// 		bson.M{"externalID": keyMapR.ExternalID},
-// 		bson.M{"$set": bson.M{"keyHash": utils.HashKey(newKey), "updated": time.Now()},
-// 			"$push": bson.M{"old": bson.M{"changedOn": time.Now(), "keyHash": oldKey}}}).Err()
-
-// 	if err != nil {
-// 		if err == mongo.ErrNoDocuments {
-// 			return nil, api.ErrNoRecord
-// 		}
-// 		return nil, errors.Wrap(err, "can't update keymap")
-// 	}
-
-// 	//update key
-// 	c = sessCtx.Client().Database(keyMapR.Project).Collection(keyTable)
-// 	res := &keyRecord{}
-// 	err = c.FindOneAndUpdate(sessCtx,
-// 		keyFilter(keyMapR.KeyID),
-// 		bson.M{"$set": bson.M{"key": newKey, "updated": time.Now()}},
-// 		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&res)
-
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "can't update key")
-// 	}
-// 	return res, err
-// }
-
-// func initNewKey(input *api.CreateInput, defDuration time.Duration, now time.Time) *keyRecord {
-// 	res := &keyRecord{}
-// 	res.Limit = input.Credits
-// 	if input.ValidTo != nil {
-// 		res.ValidTo = *input.ValidTo
-// 	} else {
-// 		res.ValidTo = now.Add(defDuration)
-// 	}
-// 	res.Created = now
-// 	res.Updated = now
-// 	res.Manual = true
-// 	res.ExternalID = input.ID
-// 	if input.SaveRequests {
-// 		res.Tags = []string{saveRequestTag}
-// 	}
-// 	return res
-// }
-
 func validateInput(input *api.CreateInput) error {
-	// if input == nil {
-	// 	return &api.ErrField{Field: "id", Msg: "missing"}
-	// }
-	// if strings.TrimSpace(input.ID) == "" {
-	// 	return &api.ErrField{Field: "id", Msg: "missing"}
-	// }
-	// if strings.TrimSpace(input.OperationID) == "" {
-	// 	return &api.ErrField{Field: "operationID", Msg: "missing"}
-	// }
 	if strings.TrimSpace(input.Service) == "" {
 		return utils.NewWrongFieldError("service", "missing")
 	}

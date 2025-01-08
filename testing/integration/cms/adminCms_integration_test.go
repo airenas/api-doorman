@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
+	"github.com/airenas/api-doorman/internal/pkg/test"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -24,6 +25,7 @@ import (
 
 type config struct {
 	url        string
+	doormanURL string
 	httpClient *http.Client
 }
 
@@ -35,43 +37,17 @@ func TestMain(m *testing.M) {
 	if cfg.url == "" {
 		log.Fatal("FAIL: no ADMIN_URL set")
 	}
+	cfg.doormanURL = os.Getenv("DOORMAN_URL")
+	if cfg.doormanURL == "" {
+		log.Fatal("FAIL: no DOORMAN_URL set")
+	}
 	cfg.httpClient = &http.Client{Timeout: time.Second * 60} // use bigger for debug
 
 	tCtx, cf := context.WithTimeout(context.Background(), time.Second*20)
 	defer cf()
-	waitForOpenOrFail(tCtx, cfg.url)
+	test.WaitForOpenOrFail(tCtx, cfg.url)
 
 	os.Exit(m.Run())
-}
-
-func waitForOpenOrFail(ctx context.Context, urlWait string) {
-	u, err := url.Parse(urlWait)
-	if err != nil {
-		log.Fatalf("FAIL: can't parse %s", urlWait)
-	}
-	for {
-		if err := listen(net.JoinHostPort(u.Hostname(), u.Port())); err != nil {
-			log.Printf("waiting for %s ...", urlWait)
-		} else {
-			return
-		}
-		select {
-		case <-ctx.Done():
-			log.Fatalf("FAIL: can't access %s", urlWait)
-			break
-		case <-time.After(500 * time.Millisecond):
-		}
-	}
-}
-
-func listen(urlStr string) error {
-	log.Printf("dial %s", urlStr)
-	conn, err := net.DialTimeout("tcp", urlStr, time.Second)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	return err
 }
 
 func TestLive(t *testing.T) {
@@ -281,7 +257,7 @@ func TestChangeKey_OK(t *testing.T) {
 
 	key := newKey(t)
 	old := key.Key
-	
+
 	resp := invoke(t, newRequest(t, http.MethodPost, fmt.Sprintf("/key/%s/change", key.ID), nil))
 	checkCode(t, resp, http.StatusOK)
 	nKey := api.Key{}
@@ -314,14 +290,102 @@ func TestKey_NotFound(t *testing.T) {
 		fmt.Sprintf("/key/%s", uuid.NewString()), nil)), http.StatusBadRequest)
 }
 
-func newRequest(t *testing.T, method string, urlSuffix string, body interface{}) *http.Request {
-	t.Helper()
-	req, err := http.NewRequest(method, cfg.url+urlSuffix, mocks.ToReader(body))
-	require.Nil(t, err, "not nil error = %v", err)
-	if body != nil {
-		req.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
+func TestUsage_Empty(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	now := time.Now()
+
+	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=1", key.ID,
+		url.QueryEscape(now.Add(-time.Hour).Format(time.RFC3339)), url.QueryEscape(now.Format(time.RFC3339))), nil))
+	checkCode(t, resp, http.StatusOK)
+	res := api.Usage{}
+	decode(t, resp, &res)
+	assert.Equal(t, 0, res.RequestCount)
+	assert.Equal(t, 0.0, res.FailedCredits)
+	assert.Equal(t, 0.0, res.UsedCredits)
+	assert.Len(t, res.Logs, 0)
+}
+
+func TestUsage_OK(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	addCredits(t, key, 1000)
+	now := time.Now()
+
+	for i := 0; i < 10; i++ {
+		newCallService(t, key.Key, 50, http.StatusOK)
 	}
-	return req
+
+	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=1", key.ID,
+		url.QueryEscape(now.Add(-time.Hour).Format(time.RFC3339)), url.QueryEscape(now.Add(time.Second).Format(time.RFC3339))), nil))
+	checkCode(t, resp, http.StatusOK)
+	res := api.Usage{}
+	decode(t, resp, &res)
+	assert.Equal(t, 10, res.RequestCount)
+	assert.Equal(t, 0.0, res.FailedCredits)
+	assert.Equal(t, 500.0, res.UsedCredits)
+	assert.Len(t, res.Logs, 10)
+}
+
+func TestUsage_OKWithFailures(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	addCredits(t, key, 400)
+	now := time.Now()
+
+	for i := 0; i < 10; i++ {
+		newCallService(t, key.Key, 50, http.StatusOK)
+	}
+
+	for i := 0; i < 20; i++ {
+		newCallService(t, key.Key, 10, http.StatusForbidden)
+	}
+
+	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=1", key.ID,
+		url.QueryEscape(now.Add(-time.Hour).Format(time.RFC3339)), url.QueryEscape(now.Add(time.Second).Format(time.RFC3339))), nil))
+	checkCode(t, resp, http.StatusOK)
+	res := api.Usage{}
+	decode(t, resp, &res)
+	assert.Equal(t, 30, res.RequestCount)
+	assert.Equal(t, 200.0, res.FailedCredits)
+	assert.Equal(t, 500.0, res.UsedCredits)
+	assert.Len(t, res.Logs, 30)
+}
+
+func TestUsage_OKNoLog(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	now := time.Now()
+
+	for i := 0; i < 5; i++ {
+		newCallService(t, key.Key, 10, http.StatusOK)
+	}
+
+	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=0", key.ID,
+		url.QueryEscape(now.Add(-time.Hour).Format(time.RFC3339)), url.QueryEscape(now.Add(time.Second).Format(time.RFC3339))), nil))
+	checkCode(t, resp, http.StatusOK)
+	res := api.Usage{}
+	decode(t, resp, &res)
+	assert.Equal(t, 5, res.RequestCount)
+	assert.Equal(t, 0.0, res.FailedCredits)
+	assert.Equal(t, 50.0, res.UsedCredits)
+	assert.Len(t, res.Logs, 0)
+}
+
+type testReq struct {
+	Text string `json:"text"`
+}
+
+func newCallService(t *testing.T, key string, size int, code int) {
+	t.Helper()
+
+	inTest := testReq{Text: strings.Repeat("a", size)}
+	resp := invoke(t, addAuth(newDRequest(t, http.MethodPost, "/private", inTest), key))
+	checkCode(t, resp, code)
 }
 
 func TestKeysChanges(t *testing.T) {
@@ -473,4 +537,35 @@ func newKeyInput(t *testing.T, in *api.CreateInput) *api.Key {
 	decode(t, resp, &res)
 	assert.NotEmpty(t, res.Key)
 	return &res
+}
+
+func newRequest(t *testing.T, method string, urlSuffix string, body interface{}) *http.Request {
+	t.Helper()
+
+	return newRequestFull(t, method, cfg.url+urlSuffix, body)
+}
+
+func newRequestFull(t *testing.T, method string, url string, body interface{}) *http.Request {
+	t.Helper()
+
+	ctx, cf := context.WithTimeout(context.Background(), time.Second*60)
+	t.Cleanup(cf)
+
+	req, err := http.NewRequestWithContext(ctx, method, url, mocks.ToReader(body))
+	require.Nil(t, err, "not nil error = %v", err)
+	if body != nil {
+		req.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	}
+	return req
+}
+
+func newDRequest(t *testing.T, method string, urlSuffix string, body interface{}) *http.Request {
+	t.Helper()
+
+	return newRequestFull(t, method, cfg.doormanURL+urlSuffix, body)
+}
+
+func addAuth(req *http.Request, s string) *http.Request {
+	req.Header.Add(echo.HeaderAuthorization, "Key "+s)
+	return req
 }
