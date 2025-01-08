@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -297,7 +296,7 @@ func TestUsage_Empty(t *testing.T) {
 	now := time.Now()
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=1", key.ID,
-		toQueryStr(now.Add(-time.Hour)), toQueryStr(now.Add(time.Second))), nil))
+		test.TimeToQueryStr(now.Add(-time.Hour)), test.TimeToQueryStr(now.Add(time.Second))), nil))
 	checkCode(t, resp, http.StatusOK)
 	res := api.Usage{}
 	decode(t, resp, &res)
@@ -319,7 +318,7 @@ func TestUsage_OK(t *testing.T) {
 	}
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=1", key.ID,
-		toQueryStr(now.Add(-time.Hour)), toQueryStr(now.Add(time.Second))), nil))
+		test.TimeToQueryStr(now.Add(-time.Hour)), test.TimeToQueryStr(now.Add(time.Second))), nil))
 	checkCode(t, resp, http.StatusOK)
 	res := api.Usage{}
 	decode(t, resp, &res)
@@ -345,7 +344,7 @@ func TestUsage_OKWithFailures(t *testing.T) {
 	}
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=1", key.ID,
-		toQueryStr(now.Add(-time.Hour)), toQueryStr(now.Add(time.Second))), nil))
+		test.TimeToQueryStr(now.Add(-time.Hour)), test.TimeToQueryStr(now.Add(time.Second))), nil))
 	checkCode(t, resp, http.StatusOK)
 	res := api.Usage{}
 	decode(t, resp, &res)
@@ -366,7 +365,7 @@ func TestUsage_OKNoLog(t *testing.T) {
 	}
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=0", key.ID,
-		toQueryStr(now.Add(-time.Hour)), toQueryStr(now.Add(time.Second))), nil))
+		test.TimeToQueryStr(now.Add(-time.Hour)), test.TimeToQueryStr(now.Add(time.Second))), nil))
 	checkCode(t, resp, http.StatusOK)
 	res := api.Usage{}
 	decode(t, resp, &res)
@@ -413,7 +412,7 @@ func TestKeysChanges(t *testing.T) {
 	decode(t, resp, &res)
 	assert.Equal(t, 2, len(filterByDescription(res.Data, tDescr)))
 
-	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s", toQueryStr(from)), nil))
+	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s", test.TimeToQueryStr(from)), nil))
 	checkCode(t, resp, http.StatusOK)
 	res = api.Changes{}
 	decode(t, resp, &res)
@@ -421,7 +420,7 @@ func TestKeysChanges(t *testing.T) {
 	assert.Equal(t, from.Unix(), res.From.Unix())
 
 	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s",
-		toQueryStr(res.Till.Add(time.Millisecond))), nil))
+		test.TimeToQueryStr(res.Till.Add(time.Millisecond))), nil))
 	checkCode(t, resp, http.StatusOK)
 	res = api.Changes{}
 	decode(t, resp, &res)
@@ -430,15 +429,11 @@ func TestKeysChanges(t *testing.T) {
 	_ = newKey(t)
 	checkCode(t, resp, http.StatusOK)
 	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s",
-		toQueryStr(res.Till.Add(time.Millisecond))), nil))
+		test.TimeToQueryStr(res.Till.Add(time.Millisecond))), nil))
 	checkCode(t, resp, http.StatusOK)
 	res = api.Changes{}
 	decode(t, resp, &res)
 	assert.Equal(t, 1, len(filterByDescription(res.Data, tDescr)))
-}
-
-func toQueryStr(from time.Time) string {
-	return url.QueryEscape(from.Format(time.RFC3339))
 }
 
 func getKeyInfo(t *testing.T, s string) *api.Key {

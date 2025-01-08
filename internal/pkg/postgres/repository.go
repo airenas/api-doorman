@@ -185,7 +185,7 @@ func (r *Repository) CheckCreateIPKey(ctx context.Context, ip string, limit floa
 		SELECT id 
 		FROM keys 
 		WHERE project = $1 AND 
-			key = $2 AND 
+			key_hash = $2 AND 
 			manual = $3 LIMIT 1`, r.project, ip, false)
 	if err == nil {
 		return res.ID, nil
@@ -197,7 +197,7 @@ func (r *Repository) CheckCreateIPKey(ctx context.Context, ip string, limit floa
 	id := uuid.NewString()
 	log.Ctx(ctx).Debug().Str("ip", ip).Msg("insert new key for IP")
 	_, err = tx.ExecContext(ctx, `
-	INSERT INTO keys (id, project, key, manual, quota_limit, valid_to, created, updated)
+	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated)
 	VALUES ($1, $2, $3, FALSE, $4, $5, $6, $6)
 	`, id, r.project, ip, limit, time.Date(2100, time.Month(1), 1, 01, 0, 0, 0, time.UTC), time.Now())
 	if err != nil {

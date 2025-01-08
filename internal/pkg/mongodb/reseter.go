@@ -154,7 +154,7 @@ func addQuotaForIP(sessCtx mongo.SessionContext, keyMapR *keyMapRecord, input *a
 	err := c.FindOne(sessCtx, bson.M{"operationID": Sanitize(input.OperationID)}).Decode(&operation)
 	if err == nil {
 		if operation.KeyID != keyMapR.KeyID {
-			return nil, &api.ErrField{Field: "operationID", Msg: "exists for other key"}
+			return nil,utils.NewWrongFieldError("operationID", "exists for other key")
 		}
 		return nil, utils.ErrOperationExists
 	}

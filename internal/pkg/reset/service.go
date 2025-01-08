@@ -48,7 +48,7 @@ func serviceLoop(ctx context.Context, data *TimerData) {
 	}
 
 	for {
-		log.Info().Msgf("next reset run at %s", nextRun.Format(time.RFC3339))
+		log.Info().Str("at", nextRun.Format(time.RFC3339)).Msg("next reset run")
 		select {
 		case <-time.After(time.Until(nextRun)):
 			now := time.Now()

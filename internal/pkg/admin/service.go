@@ -361,7 +361,7 @@ func reset(data *Data) func(echo.Context) error {
 			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
-		qStr := c.Param("quota")
+		qStr := c.QueryParam("quota")
 		if qStr == "" {
 			log.Error().Msgf("no quota")
 			return echo.NewHTTPError(http.StatusBadRequest, "no quota")
@@ -371,7 +371,7 @@ func reset(data *Data) func(echo.Context) error {
 			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, "wrong quota '%s'", qStr)
 		}
-		since, err := utils.ParseDateParam(c.Param("since"))
+		since, err := utils.ParseDateParam(c.QueryParam("since"))
 		if err != nil {
 			log.Error().Err(err).Send()
 			return echo.NewHTTPError(http.StatusBadRequest, "wrong since '%s'", qStr)

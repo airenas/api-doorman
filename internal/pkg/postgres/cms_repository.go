@@ -512,6 +512,7 @@ type createOperationInput struct {
 }
 
 func newOperation(ctx context.Context, tx sqlx.ExecerContext, in *createOperationInput) (bool /*exists operation*/, error) {
+	log.Ctx(ctx).Trace().Any("data", in).Msg("Create operation record")
 	_, err := tx.ExecContext(ctx, `
 	INSERT INTO operations (id, key_id, date, quota_value, msg)
 	VALUES ($1, $2, $3, $4, $5)

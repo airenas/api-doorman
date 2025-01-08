@@ -15,7 +15,9 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/test"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
+	"github.com/airenas/api-doorman/testing/integration"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
@@ -26,6 +28,7 @@ type config struct {
 	url        string
 	doormanUrl string
 	httpClient *http.Client
+	db         *sqlx.DB
 }
 
 var cfg config
@@ -46,6 +49,12 @@ func TestMain(m *testing.M) {
 	defer cf()
 	test.WaitForOpenOrFail(tCtx, cfg.url)
 	test.WaitForOpenOrFail(tCtx, cfg.doormanUrl)
+	db, err := integration.NewDB()
+	if err != nil {
+		log.Fatal("FAIL: no DB")
+	}
+	defer db.Close()
+	cfg.db = db
 
 	os.Exit(m.Run())
 }
@@ -156,6 +165,34 @@ func TestAccessCreate_UsedRestore(t *testing.T) {
 	assert.Equal(t, 10.0, res.FailedCredits)
 }
 
+func TestDefaultUsage(t *testing.T) {
+	t.Parallel()
+
+	inTest := testReq{Text: "olia olia "}
+	resp := invoke(t, newRequest(t, http.MethodPost, "/private", inTest))
+	checkCode(t, resp, http.StatusOK)
+}
+
+func TestReset(t *testing.T) {
+	t.Parallel()
+
+	inTest := testReq{Text: "olia olia "}
+	resp := invoke(t, newRequest(t, http.MethodPost, "/private", inTest))
+	checkCode(t, resp, http.StatusOK)
+
+	integration.ResetSettings(t, cfg.db, "reset-test")
+	id := integration.FindKeyByIP(t, cfg.db, "test", "127.0.0.1")
+	integration.ResetKey(t, cfg.db, id)
+
+	since := time.Now().Add(time.Second)
+	resp = invoke(t, newAdminRequest(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=50000&since=%s", test.TimeToQueryStr(since)), nil))
+	checkCode(t, resp, http.StatusOK)
+
+	key := getKeyInfo(t, id)
+	assert.Equal(t, 50000.0, key.TotalCredits-key.UsedCredits)
+	assert.Greater(t, key.UsedCredits, 9.0)
+}
+
 func addAuth(req *http.Request, s string) *http.Request {
 	req.Header.Add(echo.HeaderAuthorization, "Key "+s)
 	return req
@@ -201,4 +238,14 @@ func decode(t *testing.T, resp *http.Response, to interface{}) {
 	t.Helper()
 
 	require.Nil(t, json.NewDecoder(resp.Body).Decode(to))
+}
+
+func getKeyInfo(t *testing.T, s string) *api.Key {
+	t.Helper()
+
+	resp := invoke(t, newAdminRequest(t, http.MethodGet, "/key/"+s, nil))
+	checkCode(t, resp, http.StatusOK)
+	res := api.Key{}
+	decode(t, resp, &res)
+	return &res
 }

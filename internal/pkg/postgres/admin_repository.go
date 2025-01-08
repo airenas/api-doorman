@@ -2,11 +2,14 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog/log"
 )
@@ -28,11 +31,6 @@ func (a *AdmimRepository) ListLogs(ctx context.Context, project string, to time.
 
 // Create implements admin.KeyCreator.
 func (a *AdmimRepository) Create(ctx context.Context, project string, data *api.Key) (*api.Key, error) {
-	panic("unimplemented")
-}
-
-// Reset implements reset.Reseter.
-func (a *AdmimRepository) Reset(ctx context.Context, project string, since time.Time, limit float64) error {
 	panic("unimplemented")
 }
 
@@ -136,6 +134,150 @@ func (r *AdmimRepository) RestoreUsage(ctx context.Context, project string, manu
 		return fmt.Errorf("commit transaction: %w", err)
 	}
 	return nil
+}
+
+func (r *AdmimRepository) Reset(ctx context.Context, project string, since time.Time, limit float64) error {
+	log.Ctx(ctx).Debug().Str("project", project).Str("since", since.Format(time.RFC3339)).Float64("limit", limit).Msg("reset usage")
+
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer roolback(tx)
+
+	settings, err := getProjectSetting(ctx, tx, project)
+	if err != nil {
+		return fmt.Errorf("get project settings: %w", mapErr(err))
+	}
+
+	if since.Before(settings.NextReset) {
+		log.Info().Str("since", since.Format(time.RFC3339)).Str("next", settings.NextReset.Format(time.RFC3339)).Msg("skip reset")
+		return nil
+	}
+
+	items, err := getResetableItems(ctx, tx, project, since)
+	if err != nil {
+		return fmt.Errorf("get items: %w", err)
+	}
+	ua, ta := 0, 0.0
+	log.Info().Int("len", len(items)).Msg("items to check")
+	settings.NextReset = utils.StartOfMonth(since, 1)
+	for _, it := range items {
+		if it.ResetAt != nil && !since.After(*it.ResetAt) {
+			continue
+		}
+		if !since.After(it.Created) {
+			continue
+		}
+		cv := it.Limit - it.QuotaValue
+		if cv >= limit {
+			continue
+		}
+		if utils.Float64Equal(cv, limit) {
+			continue
+		}
+		ua++
+		ta += limit - cv
+		err = reset(ctx, tx, it.ID, settings.NextReset, limit-cv)
+		if err != nil {
+			return fmt.Errorf("reset: %w", err)
+		}
+	}
+
+	now := time.Now()
+	log.Info().Int("items", ua).Float64("quota_total", ta).Msg("updated quota")
+
+	settings.ResetStarted = now
+	settings.Updated = now
+	settings.Project = project
+	if err := updateProjectSetting(ctx, tx, project, settings); err != nil {
+		return mapErr(err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+	return err
+}
+
+func reset(ctx context.Context, tx dbTx, id string, at time.Time, quotaInc float64) error {
+	log.Ctx(ctx).Debug().Str("id", id).Time("at", at).Float64("quotaInc", quotaInc).Msg("reset usage")
+
+	_, err := newOperation(ctx, tx, &createOperationInput{opID: uuid.NewString(), key_id: id, date: time.Now(), quota_value: quotaInc, msg: "monthly reset"})
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		UPDATE keys
+		SET updated = $1,
+			reset_at = $2,
+			quota_limit = quota_limit + $3	
+		WHERE
+			id = $4
+		`, time.Now(), at, quotaInc, id)
+	if err != nil {
+		return fmt.Errorf("update key record: %w", err)
+	}
+	return nil
+}
+
+func getResetableItems(ctx context.Context, tx dbTx, project string, at time.Time) ([]*keyRecord, error) {
+	var res []*keyRecord
+	err := tx.SelectContext(ctx, &res, `
+		SELECT `+_keyFields+` 
+		FROM keys 
+		WHERE manual = FALSE AND
+			project = $1 AND
+			created < $2 AND
+			(reset_at IS NULL OR reset_at < $2)
+		`, project, at)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	return res, nil
+}
+
+func updateProjectSetting(ctx context.Context, tx dbTx, project string, settings *ProjectSettings) error {
+	_, err := tx.ExecContext(ctx, `
+		INSERT INTO settings 
+			(id, data, updated)
+		VALUES 
+			($1, $2, $3)
+		ON CONFLICT (id) DO UPDATE
+		SET 
+			data = EXCLUDED.data,
+			updated = EXCLUDED.updated
+		`, resetSettingKey(project), settings, time.Now())
+	if err != nil {
+		return fmt.Errorf("update project settings: %w", err)
+	}
+	return nil
+}
+
+func getProjectSetting(ctx context.Context, tx dbTx, project string) (*ProjectSettings, error) {
+	var data json.RawMessage
+	err := tx.QueryRowContext(ctx, `
+		SELECT data
+		FROM settings
+		WHERE id = $1
+		`, resetSettingKey(project)).Scan(&data)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return &ProjectSettings{Project: project}, nil
+		}
+		return nil, fmt.Errorf("get project settings: %w", err)
+	}
+	var res ProjectSettings
+	err = json.Unmarshal(data, &res)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal settings: %w", err)
+	}
+	return &res, nil
+}
+
+func resetSettingKey(project string) string {
+	return "reset-" + project
 }
 
 func mapToLog(v *logRecord) *api.Log {

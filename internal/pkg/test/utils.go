@@ -28,6 +28,11 @@ func WaitForOpenOrFail(ctx context.Context, urlWait string) {
 	}
 }
 
+func TimeToQueryStr(from time.Time) string {
+	return url.QueryEscape(from.Format(time.RFC3339))
+}
+
+
 func listen(urlStr string) error {
 	log.Printf("dial %s", urlStr)
 	conn, err := net.DialTimeout("tcp", urlStr, time.Second)

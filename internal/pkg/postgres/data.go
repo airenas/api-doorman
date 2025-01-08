@@ -42,8 +42,9 @@ type logRecord struct {
 	ErrorMsg  string `db:"error_msg"`
 }
 
-// type settingsRecord struct {
-// 	ResetStarted time.Time `bson:"resetStarted,omitempty"`
-// 	NextReset    time.Time `bson:"nextReset,omitempty"`
-// 	Updated      time.Time `bson:"updated,omitempty"`
-// }
+type ProjectSettings struct {
+	Project      string
+	ResetStarted time.Time `json:"resetStarted,omitempty"`
+	NextReset    time.Time `json:"nextReset,omitempty"`
+	Updated      time.Time `json:"updated,omitempty"`
+}

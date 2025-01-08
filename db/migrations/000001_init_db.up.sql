@@ -55,11 +55,11 @@ CREATE TABLE operations (
     FOREIGN KEY (key_id) REFERENCES keys (id)
 );
 
--- -- Table for settingsRecord
--- CREATE TABLE settings_record (
---     reset_started TIMESTAMPTZ,
---     next_reset TIMESTAMPTZ,
---     updated TIMESTAMPTZ
--- );
+-- Table for settings
+CREATE TABLE settings (
+    id TEXT NOT NULL PRIMARY KEY,
+    data JSONB NOT NULL,
+    updated TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
 END;
