@@ -62,13 +62,6 @@ func isDuplicate(err error) bool {
 	return false
 }
 
-func toStrArray(in *[]string) []string {
-	if in == nil {
-		return nil
-	}
-	return *in
-}
-
 func toTimePtr(time *time.Time) *time.Time {
 	if time == nil || time.IsZero() {
 		return nil

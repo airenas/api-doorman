@@ -67,7 +67,7 @@ func TestCreate(t *testing.T) {
 	resp = invoke(t, newRequest(t, http.MethodPost, "/key",
 		api.CreateInput{ID: uuid.NewString(), OperationID: in.OperationID,
 			Service: "test", Credits: 100}))
-	checkCode(t, resp, http.StatusBadRequest)
+	checkCode(t, resp, http.StatusConflict)
 }
 
 func TestCreate_OKSaveRequests(t *testing.T) {

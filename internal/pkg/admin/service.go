@@ -155,18 +155,28 @@ func keyAdd(data *Data) func(echo.Context) error {
 		keyResp, err := data.KeySaver.Create(c.Request().Context(), project, &input)
 
 		if err != nil {
-			log.Error().Err(err).Msg("can't create key")
-			var wfErr utils.WrongFieldError
-			if errors.Is(err, utils.ErrDuplicate) {
-				return echo.NewHTTPError(http.StatusBadRequest, "duplicate key")
-			} else if errors.Is(err, &wfErr) {
-				return echo.NewHTTPError(http.StatusBadRequest, wfErr.Error())
-			} else {
-				return echo.NewHTTPError(http.StatusInternalServerError)
-			}
+			return processError(err)
 		}
 		return c.JSON(http.StatusOK, keyResp)
 	}
+}
+
+func processError(err error) error {
+	log.Error().Err(err).Send()
+	var errF *utils.WrongFieldError
+	if errors.As(err, &errF) {
+		return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
+	}
+	if errors.Is(err, utils.ErrNoRecord) {
+		return echo.NewHTTPError(http.StatusBadRequest, "no record")
+	}
+	if errors.Is(err, utils.ErrDuplicate) {
+		return echo.NewHTTPError(http.StatusBadRequest, "duplicate record")
+	}
+	if errors.Is(err, utils.ErrOperationExists) {
+		return echo.NewHTTPError(http.StatusConflict, "duplicate operation")
+	}
+	return echo.NewHTTPError(http.StatusInternalServerError)
 }
 
 func keyList(data *Data) func(echo.Context) error {
@@ -180,9 +190,9 @@ func keyList(data *Data) func(echo.Context) error {
 		keyResp, err := data.KeyGetter.List(c.Request().Context(), project)
 
 		if err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return processError(err)
 		}
+
 		return c.JSON(http.StatusOK, keyResp)
 	}
 }
@@ -205,9 +215,9 @@ func logList(data *Data) func(echo.Context) error {
 		res, err := data.LogProvider.ListLogs(c.Request().Context(), project, *to)
 
 		if err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return processError(err)
 		}
+
 		return c.JSON(http.StatusOK, res)
 	}
 }
@@ -230,9 +240,9 @@ func logDelete(data *Data) func(echo.Context) error {
 
 		deleted, err := data.LogProvider.DeleteLogs(c.Request().Context(), project, *to)
 		if err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return processError(err)
 		}
+
 		return c.JSONBlob(http.StatusOK, []byte(fmt.Sprintf(`{"deleted":%d}`, deleted)))
 	}
 }
@@ -254,19 +264,14 @@ func keyInfo(data *Data) func(echo.Context) error {
 		res := &adminapi.KeyInfoResp{}
 		var err error
 		res.Key, err = data.OneKeyGetter.Get(c.Request().Context(), project, key)
-		if errors.Is(err, utils.ErrNoRecord) {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusBadRequest, "key not found")
-		}
 		if err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return processError(err)
 		}
+
 		if c.QueryParam("full") == "1" {
 			res.Logs, err = data.LogProvider.GetLogs(c.Request().Context(), project, key)
 			if err != nil {
-				log.Error().Err(err).Send()
-				return echo.NewHTTPError(http.StatusInternalServerError)
+				return processError(err)
 			}
 		}
 		return c.JSON(http.StatusOK, res)
@@ -294,17 +299,10 @@ func keyUpdate(data *Data) func(echo.Context) error {
 
 		keyResp, err := data.OneKeyUpdater.Update(c.Request().Context(), project, key, input)
 
-		var wfErr utils.WrongFieldError
-		if errors.Is(err, utils.ErrNoRecord) {
-			log.Error().Err(err).Msg("key not found")
-			return echo.NewHTTPError(http.StatusBadRequest, "key not found")
-		} else if errors.As(err, &wfErr) {
-			log.Error().Err(err).Msg("wrong field")
-			return echo.NewHTTPError(http.StatusBadRequest, "wrong field. "+err.Error())
-		} else if err != nil {
-			log.Error().Err(err).Msg("can't update key")
-			return echo.NewHTTPError(http.StatusInternalServerError)
+		if err != nil {
+			return processError(err)
 		}
+
 		return c.JSON(http.StatusOK, keyResp)
 	}
 }
@@ -384,9 +382,9 @@ func reset(data *Data) func(echo.Context) error {
 		err = data.UsageReseter.Reset(c.Request().Context(), project, *since, quota)
 
 		if err != nil {
-			log.Error().Err(err).Msg("reset usage")
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return processError(err)
 		}
+
 		return c.NoContent(http.StatusOK)
 	}
 }

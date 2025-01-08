@@ -129,7 +129,7 @@ func processError(err error) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "duplicate record")
 	}
 	if errors.Is(err, utils.ErrOperationExists) {
-		return echo.NewHTTPError(http.StatusBadRequest, "duplicate operation")
+		return echo.NewHTTPError(http.StatusConflict, "duplicate operation")
 	}
 	return echo.NewHTTPError(http.StatusInternalServerError)
 }

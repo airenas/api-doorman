@@ -95,7 +95,7 @@ func TestAccessCreate_FailDuplicate(t *testing.T) {
 	checkCode(t, resp, http.StatusBadRequest)
 	in.ID = uuid.NewString()
 	resp = invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
-	checkCode(t, resp, http.StatusBadRequest)
+	checkCode(t, resp, http.StatusConflict)
 }
 
 type testReq struct {

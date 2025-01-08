@@ -1,7 +1,7 @@
-
 package cms
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -13,6 +13,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks2"
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/labstack/echo/v4"
 	"github.com/petergtz/pegomock/v4"
 	"github.com/pkg/errors"
@@ -46,7 +47,7 @@ func TestWrongPath(t *testing.T) {
 
 func TestAddKey(t *testing.T) {
 	initTest(t)
-	pegomock.When(intMock.Create(pegomock.Any[*api.CreateInput]())).ThenReturn(&api.Key{Key: "kkk"}, true, nil)
+	pegomock.When(intMock.Create(pegomock.Any[context.Context](), pegomock.Any[*api.CreateInput]())).ThenReturn(&api.Key{Key: "kkk"}, true, nil)
 	req := httptest.NewRequest("POST", "/key", mocks.ToReader(api.CreateInput{ID: "1", Service: "pr"}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	resp := testCode(t, req, http.StatusCreated)
@@ -75,7 +76,7 @@ func TestAddKey_Fail(t *testing.T) {
 		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, ins: false, err: errors.New("olia")},
 			inp:  mocks.ToReader(api.CreateInput{ID: "1", Service: "pr"}),
 			want: http.StatusInternalServerError},
-		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, ins: false, err: &api.ErrField{Field: "aa", Msg: "msg"}},
+		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, ins: false, err: utils.NewWrongFieldError("aa", "msg")},
 			inp:  mocks.ToReader(api.CreateInput{ID: "1", Service: "pr"}),
 			want: http.StatusBadRequest},
 		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, ins: false, err: nil},
@@ -88,7 +89,7 @@ func TestAddKey_Fail(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.Create(pegomock.Any[*api.CreateInput]())).
+			pegomock.When(intMock.Create(pegomock.Any[context.Context](), pegomock.Any[*api.CreateInput]())).
 				ThenReturn(&tt.ret.key, tt.ret.ins, tt.ret.err)
 			req := httptest.NewRequest(http.MethodPost, "/key", tt.inp)
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -110,13 +111,13 @@ func TestGetKey(t *testing.T) {
 		{name: "OK", ret: ret{key: api.Key{Key: "kk"}, err: nil}, want: http.StatusOK},
 		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, err: errors.New("olia")},
 			want: http.StatusInternalServerError},
-		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, err: api.ErrNoRecord},
+		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, err: utils.ErrNoRecord},
 			want: http.StatusBadRequest},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.GetKey(pegomock.Any[string]())).
+			pegomock.When(intMock.GetKey(pegomock.Any[context.Context](), pegomock.Any[string]())).
 				ThenReturn(&tt.ret.key, tt.ret.err)
 			req := httptest.NewRequest(http.MethodGet, "/key/id1", nil)
 			testCode(t, req, tt.want)
@@ -138,7 +139,7 @@ func TestKeyUsage(t *testing.T) {
 		{name: "OK", ret: ret{res: api.Usage{RequestCount: 1}, err: nil}, want: http.StatusOK},
 		{name: "Fail", ret: ret{res: api.Usage{RequestCount: 1}, err: errors.New("olia")},
 			want: http.StatusInternalServerError},
-		{name: "Fail", ret: ret{res: api.Usage{RequestCount: 1}, err: api.ErrNoRecord},
+		{name: "Fail", ret: ret{res: api.Usage{RequestCount: 1}, err: utils.ErrNoRecord},
 			want: http.StatusBadRequest},
 		{name: "From", ret: ret{res: api.Usage{RequestCount: 1}, err: nil},
 			params: map[string]string{"from": "2020-01-20T14:50:30Z"},
@@ -156,7 +157,7 @@ func TestKeyUsage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.Usage(pegomock.Any[string](), pegomock.Any[*time.Time](),
+			pegomock.When(intMock.Usage(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[*time.Time](),
 				pegomock.Any[*time.Time](), pegomock.Any[bool]())).
 				ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodGet, "/key/id1/usage", nil)
@@ -172,23 +173,23 @@ func TestKeyUsage(t *testing.T) {
 
 func TestKeyUsage_Full(t *testing.T) {
 	initTest(t)
-	pegomock.When(intMock.Usage(pegomock.Any[string](), pegomock.Any[*time.Time](),
+	pegomock.When(intMock.Usage(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[*time.Time](),
 		pegomock.Any[*time.Time](), pegomock.Any[bool]())).
 		ThenReturn(&api.Usage{RequestCount: 1}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/key/id1/usage", nil)
 	testCode(t, req, http.StatusOK)
-	intMock.VerifyWasCalledOnce().Usage(pegomock.Any[string](), pegomock.Any[*time.Time](),
+	intMock.VerifyWasCalledOnce().Usage(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[*time.Time](),
 		pegomock.Any[*time.Time](), pegomock.Eq(false))
 
 	req = httptest.NewRequest(http.MethodGet, "/key/id1/usage?full=1", nil)
 	testCode(t, req, http.StatusOK)
-	intMock.VerifyWasCalledOnce().Usage(pegomock.Any[string](), pegomock.Any[*time.Time](),
+	intMock.VerifyWasCalledOnce().Usage(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[*time.Time](),
 		pegomock.Any[*time.Time](), pegomock.Eq(true))
 }
 
 func TestGetKey_ReturnKey(t *testing.T) {
 	initTest(t)
-	pegomock.When(intMock.GetKey(pegomock.Any[string]())).
+	pegomock.When(intMock.GetKey(pegomock.Any[context.Context](), pegomock.Any[string]())).
 		ThenReturn(&api.Key{Key: "aaa", Service: "srv", LastIP: "1.1.1.1"}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/key/id1", nil)
 	resp := testCode(t, req, http.StatusOK)
@@ -197,7 +198,7 @@ func TestGetKey_ReturnKey(t *testing.T) {
 	_ = json.Unmarshal(bytes, &k)
 	assert.Equal(t, api.Key{Service: "srv", LastIP: "1.1.1.1"}, k)
 
-	pegomock.When(intMock.GetKey(pegomock.Any[string]())).
+	pegomock.When(intMock.GetKey(pegomock.Any[context.Context](), pegomock.Any[string]())).
 		ThenReturn(&api.Key{Key: "aaa", Service: "srv", LastIP: "1.1.1.1"}, nil)
 	req = httptest.NewRequest(http.MethodGet, "/key/id1?returnKey=1", nil)
 	resp = testCode(t, req, http.StatusOK)
@@ -255,23 +256,23 @@ func TestAddCredits(t *testing.T) {
 		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: errors.New("olia")},
 			inp:  mocks.ToReader(api.CreditsInput{OperationID: "1", Credits: 100}),
 			want: http.StatusInternalServerError},
-		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: &api.ErrField{Field: "aa", Msg: "msg"}},
+		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: utils.NewWrongFieldError("aa", "msg")},
 			inp:  mocks.ToReader(api.CreditsInput{OperationID: "1", Credits: 100}),
 			want: http.StatusBadRequest},
-		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: api.ErrNoRecord},
+		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: utils.ErrNoRecord},
 			inp:  mocks.ToReader(api.CreditsInput{OperationID: "1", Credits: 100}),
 			want: http.StatusBadRequest},
 		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: errors.New("olia")},
 			inp:  strings.NewReader("olia"),
 			want: http.StatusBadRequest},
-		{name: "Operation exists", ret: ret{res: api.Key{Key: "kk"}, err: api.ErrOperationExists},
+		{name: "Operation exists", ret: ret{res: api.Key{Key: "kk"}, err: utils.ErrOperationExists},
 			inp:  mocks.ToReader(api.CreditsInput{OperationID: "1", Credits: 100}),
 			want: http.StatusConflict},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.AddCredits(pegomock.Any[string](), pegomock.Any[*api.CreditsInput]())).
+			pegomock.When(intMock.AddCredits(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[*api.CreditsInput]())).
 				ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodPatch, "/key/id/credits", tt.inp)
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -294,10 +295,10 @@ func TestUpdate(t *testing.T) {
 		{name: "OK", ret: ret{res: api.Key{Key: "kk"}, err: nil},
 			inp:  mocks.ToReader(map[string]interface{}{}),
 			want: http.StatusOK},
-		{name: "No record", ret: ret{res: api.Key{Key: "kk"}, err: api.ErrNoRecord},
+		{name: "No record", ret: ret{res: api.Key{Key: "kk"}, err: utils.ErrNoRecord},
 			inp:  mocks.ToReader(map[string]interface{}{}),
 			want: http.StatusBadRequest},
-		{name: "Field error", ret: ret{res: api.Key{Key: "kk"}, err: &api.ErrField{Msg: "empty"}},
+		{name: "Field error", ret: ret{res: api.Key{Key: "kk"}, err: utils.NewWrongFieldError("", "empty")},
 			inp:  mocks.ToReader(map[string]interface{}{}),
 			want: http.StatusBadRequest},
 		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: errors.New("olia")},
@@ -310,7 +311,7 @@ func TestUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.Update(pegomock.Any[string](), pegomock.Any[map[string]interface{}]())).
+			pegomock.When(intMock.Update(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[map[string]interface{}]())).
 				ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodPatch, "/key/id", tt.inp)
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -331,7 +332,7 @@ func TestChange(t *testing.T) {
 	}{
 		{name: "OK", ret: ret{res: api.Key{Key: "kk"}, err: nil},
 			want: http.StatusOK},
-		{name: "No record", ret: ret{res: api.Key{Key: "kk"}, err: api.ErrNoRecord},
+		{name: "No record", ret: ret{res: api.Key{Key: "kk"}, err: utils.ErrNoRecord},
 			want: http.StatusBadRequest},
 		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: errors.New("olia")},
 			want: http.StatusInternalServerError},
@@ -339,7 +340,7 @@ func TestChange(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.Change(pegomock.Any[string]())).ThenReturn(&tt.ret.res, tt.ret.err)
+			pegomock.When(intMock.Change(pegomock.Any[context.Context](), pegomock.Any[string]())).ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodPost, "/key/id/change", nil)
 			testCode(t, req, tt.want)
 		})
@@ -369,14 +370,14 @@ func TestKeyGetID(t *testing.T) {
 		{name: "No key", ret: ret{res: api.KeyID{ID: "kk"}, err: errors.New("olia")},
 			inp:  mocks.ToReader(keyByIDInput{Key: "1"}),
 			want: http.StatusInternalServerError},
-		{name: "No key", ret: ret{res: api.KeyID{ID: "kk"}, err: api.ErrNoRecord},
+		{name: "No key", ret: ret{res: api.KeyID{ID: "kk"}, err: utils.ErrNoRecord},
 			inp:  mocks.ToReader(keyByIDInput{Key: "1"}),
 			want: http.StatusBadRequest},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.GetKeyID(pegomock.Any[string]())).
+			pegomock.When(intMock.GetKeyID(pegomock.Any[context.Context](), pegomock.Any[string]())).
 				ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodPost, "/keyID", tt.inp)
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -411,7 +412,7 @@ func TestKeysChanges(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.Changes(pegomock.Any[*time.Time](), pegomock.Any[[]string]())).
+			pegomock.When(intMock.Changes(pegomock.Any[context.Context](), pegomock.Any[*time.Time](), pegomock.Any[[]string]())).
 				ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodGet, "/keys/changes", nil)
 			for k, v := range tt.params {
