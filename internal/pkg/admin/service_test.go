@@ -13,11 +13,11 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/labstack/echo/v4"
 	"github.com/petergtz/pegomock/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var (
@@ -149,7 +149,7 @@ func TestKey_FailFull(t *testing.T) {
 
 func TestKey_FailNoKey(t *testing.T) {
 	initTest(t)
-	pegomock.When(oneKeyRetrieverMock.Get(pegomock.Any[string](), pegomock.Eq("kkk"))).ThenReturn(nil, adminapi.ErrNoRecord)
+	pegomock.When(oneKeyRetrieverMock.Get(pegomock.Any[string](), pegomock.Eq("kkk"))).ThenReturn(nil, utils.ErrNoRecord)
 	req := httptest.NewRequest("GET", "/pr/key/kkk", nil)
 	testCode(t, req, 400)
 }
@@ -198,7 +198,7 @@ func TestAddKey_Fail(t *testing.T) {
 func TestAddKey_FailWrongField(t *testing.T) {
 	initTest(t)
 	pegomock.When(keyCreatorMock.Create(pegomock.Any[string](), pegomock.Any[*api.Key]())).
-		ThenReturn(nil, errors.Wrap(adminapi.ErrWrongField, "olia"))
+		ThenReturn(nil, errors.Wrap(utils.ErrWrongField, "olia"))
 	req := httptest.NewRequest("POST", "/pr/key", toReader(adminapi.Key{Limit: 10, ValidTo: testToTimePtr(time.Now().Add(time.Minute))}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 400)
@@ -274,7 +274,7 @@ func TestUpdateKey_Fail(t *testing.T) {
 func TestUpdateKey_FailWrongKey(t *testing.T) {
 	initTest(t)
 	pegomock.When(keyUpdaterMock.Update(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[map[string]interface{}]())).
-		ThenReturn(nil, errors.Wrap(adminapi.ErrNoRecord, "olia"))
+		ThenReturn(nil, errors.Wrap(utils.ErrNoRecord, "olia"))
 	req := httptest.NewRequest("PATCH", "/pr/key/kkk", toReader(adminapi.Key{Limit: 10, ValidTo: testToTimePtr(time.Now().Add(time.Minute))}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 400)
@@ -283,7 +283,7 @@ func TestUpdateKey_FailWrongKey(t *testing.T) {
 func TestUpdateKey_FailWrongField(t *testing.T) {
 	initTest(t)
 	pegomock.When(keyUpdaterMock.Update(pegomock.Any[string](), pegomock.Any[string](), pegomock.Any[map[string]interface{}]())).
-		ThenReturn(nil, errors.Wrap(adminapi.ErrWrongField, "olia"))
+		ThenReturn(nil, errors.Wrap(utils.ErrWrongField, "olia"))
 	req := httptest.NewRequest("PATCH", "/pr/key/kkk", toReader(adminapi.Key{Limit: 10, ValidTo: testToTimePtr(time.Now().Add(time.Minute))}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	testCode(t, req, 400)
@@ -331,13 +331,13 @@ func TestRestore_Fail(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPost, "/pr/restore/m:rID", toReader(restoreReq{Error: "err msg"}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	pegomock.When(uRestorer.RestoreUsage(pegomock.Any[string](), pegomock.Any[bool](), pegomock.Any[string](), pegomock.Any[string]())).
-		ThenReturn(adminapi.ErrNoRecord)
+		ThenReturn(utils.ErrNoRecord)
 	testCode(t, req, http.StatusBadRequest)
 
 	req = httptest.NewRequest(http.MethodPost, "/pr/restore/m:rID", toReader(restoreReq{Error: "err msg"}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	pegomock.When(uRestorer.RestoreUsage(pegomock.Any[string](), pegomock.Any[bool](), pegomock.Any[string](), pegomock.Any[string]())).
-		ThenReturn(adminapi.ErrLogRestored)
+		ThenReturn(utils.ErrLogRestored)
 	testCode(t, req, http.StatusConflict)
 
 	req = httptest.NewRequest(http.MethodPost, "/pr/restore/m:rID", toReader(restoreReq{Error: "err msg"}))

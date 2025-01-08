@@ -10,6 +10,7 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/facebookgo/grace v0.0.0-20180706040059-75cf19382434
 	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/go-sql-driver/mysql v1.8.1
 	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/golangci/golangci-lint v1.62.2
 	github.com/google/uuid v1.6.0
@@ -20,6 +21,7 @@ require (
 	github.com/labstack/echo-contrib v0.11.0
 	github.com/labstack/echo/v4 v4.7.2
 	github.com/labstack/gommon v0.3.1
+	github.com/lib/pq v1.10.9
 	github.com/petergtz/pegomock/v4 v4.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.33.0
@@ -138,7 +140,6 @@ require (
 	github.com/go-critic/go-critic v0.11.5 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/go-toolsmith/astcast v1.1.0 // indirect
 	github.com/go-toolsmith/astcopy v1.1.0 // indirect
@@ -221,7 +222,6 @@ require (
 	github.com/ldez/gomoddirectives v0.2.4 // indirect
 	github.com/ldez/tagliatelle v0.5.0 // indirect
 	github.com/leonklingele/grouper v1.1.2 // indirect
-	github.com/lib/pq v1.10.9 // indirect
 	github.com/macabu/inamedparam v0.1.3 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/maratori/testableexamples v1.0.0 // indirect
