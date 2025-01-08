@@ -163,14 +163,94 @@ func TestGet(t *testing.T) {
 	assert.Equal(t, "", res.Key)
 }
 
-func getKeyInfo(t *testing.T, s string) *api.Key {
-	t.Helper()
+func TestUpdate_Disabled(t *testing.T) {
+	t.Parallel()
 
-	resp := invoke(t, newRequest(t, http.MethodGet, "/key/"+s, nil))
-	checkCode(t, resp, http.StatusOK)
-	res := api.Key{}
-	decode(t, resp, &res)
-	return &res
+	key := newKey(t)
+
+	res := getKeyInfo(t, key.ID)
+	assert.False(t, res.Disabled)
+
+	key = update(t, key.ID, map[string]interface{}{"disabled": true})
+	assert.True(t, key.Disabled)
+	res = getKeyInfo(t, key.ID)
+	assert.True(t, res.Disabled)
+
+	key = update(t, key.ID, map[string]interface{}{"disabled": false})
+	assert.False(t, key.Disabled)
+	res = getKeyInfo(t, key.ID)
+	assert.False(t, res.Disabled)
+}
+
+func TestUpdate_FailDisabled(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	resp := updateResp(t, key.ID, map[string]interface{}{"disabled": "olia"})
+	checkCode(t, resp, http.StatusBadRequest)
+}
+
+func TestUpdate_ValidTo(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	now := time.Now()
+
+	res := getKeyInfo(t, key.ID)
+	assert.Greater(t, *res.ValidTo, now)
+
+	key = update(t, key.ID, map[string]interface{}{"validTo": now.Add(time.Hour)})
+	assert.Equal(t, now.Add(time.Hour).Unix(), key.ValidTo.Unix())
+	res = getKeyInfo(t, key.ID)
+	assert.Equal(t, now.Add(time.Hour).Unix(), res.ValidTo.Unix())
+}
+
+func TestUpdate_All(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	now := time.Now()
+
+	key = update(t, key.ID, map[string]interface{}{"validTo": now.Add(time.Hour), "disabled": true, "IPWhiteList": "192.123.123.1/32", "description": "olia"})
+	assert.Equal(t, now.Add(time.Hour).Unix(), key.ValidTo.Unix())
+	res := getKeyInfo(t, key.ID)
+	assert.Equal(t, now.Add(time.Hour).Unix(), res.ValidTo.Unix())
+	assert.True(t, res.Disabled)
+	assert.Equal(t, "192.123.123.1/32", res.IPWhiteList)
+	assert.Equal(t, "olia", res.Description)
+}
+
+func TestUpdate_FailValidTo(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	resp := updateResp(t, key.ID, map[string]interface{}{"validTo": "olia"})
+	checkCode(t, resp, http.StatusBadRequest)
+}
+
+func TestUpdate_FailIPWhiteList(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	resp := updateResp(t, key.ID, map[string]interface{}{"IPWhiteList": "olia"})
+	checkCode(t, resp, http.StatusBadRequest)
+}
+
+func TestUpdate_Fail(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	resp := updateResp(t, key.ID, map[string]interface{}{})
+	checkCode(t, resp, http.StatusBadRequest)
+
+	resp = updateResp(t, key.ID+"1", map[string]interface{}{"disabled": true, "validTo": time.Now().Add(time.Hour)})
+	checkCode(t, resp, http.StatusBadRequest)
 }
 
 func TestGet_ReturnsKey(t *testing.T) {
@@ -194,6 +274,38 @@ func TestGet_ReturnsKeyID(t *testing.T) {
 
 	assert.Equal(t, key.ID, resKey.ID)
 	assert.Equal(t, key.Service, resKey.Service)
+}
+
+func TestChangeKey_OK(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	old := key.Key
+	
+	resp := invoke(t, newRequest(t, http.MethodPost, fmt.Sprintf("/key/%s/change", key.ID), nil))
+	checkCode(t, resp, http.StatusOK)
+	nKey := api.Key{}
+	decode(t, resp, &nKey)
+	assert.NotEmpty(t, nKey.Key)
+	assert.NotEqual(t, old, nKey.Key)
+
+	resp = invoke(t, newRequest(t, http.MethodPost, "/keyID", api.Key{Key: old}))
+	checkCode(t, resp, http.StatusBadRequest)
+
+	resp = invoke(t, newRequest(t, http.MethodPost, "/keyID", api.Key{Key: nKey.Key}))
+	checkCode(t, resp, http.StatusOK)
+	resKey := api.KeyID{}
+	decode(t, resp, &resKey)
+
+	assert.Equal(t, key.ID, resKey.ID)
+	assert.Equal(t, key.Service, resKey.Service)
+}
+
+func TestChangeKey_Fail(t *testing.T) {
+	t.Parallel()
+
+	resp := invoke(t, newRequest(t, http.MethodPost, fmt.Sprintf("/key/%s/change", "olia"), nil))
+	checkCode(t, resp, http.StatusBadRequest)
 }
 
 func TestKey_NotFound(t *testing.T) {
@@ -265,6 +377,16 @@ func TestKeysChanges(t *testing.T) {
 	assert.Equal(t, 1, len(filter(res.Data, "changes")))
 }
 
+func getKeyInfo(t *testing.T, s string) *api.Key {
+	t.Helper()
+
+	resp := invoke(t, newRequest(t, http.MethodGet, "/key/"+s, nil))
+	checkCode(t, resp, http.StatusOK)
+	res := api.Key{}
+	decode(t, resp, &res)
+	return &res
+}
+
 func filter(keys []*api.Key, s string) []*api.Key {
 	var res []*api.Key
 	for _, d := range keys {
@@ -277,6 +399,7 @@ func filter(keys []*api.Key, s string) []*api.Key {
 
 func invoke(t *testing.T, r *http.Request) *http.Response {
 	t.Helper()
+
 	resp, err := cfg.httpClient.Do(r)
 	require.Nil(t, err, "not nil error = %v", err)
 	t.Cleanup(func() { resp.Body.Close() })
@@ -285,6 +408,7 @@ func invoke(t *testing.T, r *http.Request) *http.Response {
 
 func checkCode(t *testing.T, resp *http.Response, expected int) {
 	t.Helper()
+
 	if resp.StatusCode != expected {
 		b, _ := io.ReadAll(resp.Body)
 		require.Equal(t, expected, resp.StatusCode, string(b))
@@ -293,6 +417,7 @@ func checkCode(t *testing.T, resp *http.Response, expected int) {
 
 func decode(t *testing.T, resp *http.Response, to interface{}) {
 	t.Helper()
+
 	require.Nil(t, json.NewDecoder(resp.Body).Decode(to))
 }
 
@@ -315,6 +440,22 @@ func addCreditsResp(t *testing.T, key *api.Key, quota float64, opID string) *htt
 
 	in := api.CreditsInput{OperationID: opID, Credits: quota, Msg: "test"}
 	return invoke(t, newRequest(t, http.MethodPatch, fmt.Sprintf("/key/%s/credits", key.ID), in))
+}
+
+func update(t *testing.T, id string, in map[string]interface{}) *api.Key {
+	t.Helper()
+
+	resp := updateResp(t, id, in)
+	checkCode(t, resp, http.StatusOK)
+	res := api.Key{}
+	decode(t, resp, &res)
+	return &res
+}
+
+func updateResp(t *testing.T, id string, in map[string]interface{}) *http.Response {
+	t.Helper()
+
+	return invoke(t, newRequest(t, http.MethodPatch, fmt.Sprintf("/key/%s", id), in))
 }
 
 func newKey(t *testing.T) *api.Key {

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -13,6 +12,7 @@ type CreateInput struct {
 	Credits      float64    `json:"credits,omitempty"`
 	ValidTo      *time.Time `json:"validTo,omitempty"`
 	SaveRequests bool       `json:"saveRequests,omitempty"`
+	Description  string     `json:"description,omitempty"`
 }
 
 // CreditsInput for add credits
@@ -31,6 +31,7 @@ type Key struct {
 	Disabled     bool       `json:"disabled,omitempty"`
 	IPWhiteList  string     `json:"IPWhiteList,omitempty"`
 	SaveRequests bool       `json:"saveRequests,omitempty"`
+	Description  string     `json:"description,omitempty"`
 
 	TotalCredits  float64 `json:"totalCredits,omitempty"`
 	UsedCredits   float64 `json:"usedCredits,omitempty"`
@@ -70,13 +71,4 @@ type Log struct {
 	IP          string     `json:"ip,omitempty"`
 	Fail        bool       `json:"fail,omitempty"`
 	Response    int        `json:"response,omitempty"`
-}
-
-// ErrField error indicating input field problem
-type ErrField struct {
-	Field, Msg string
-}
-
-func (r *ErrField) Error() string {
-	return fmt.Sprintf("wrong field '%s' - %s", r.Field, r.Msg)
 }

@@ -23,18 +23,8 @@ type CMSRepository struct {
 	defaultValidToDuration time.Duration
 }
 
-// Change implements cms.Integrator.
-func (c *CMSRepository) Change(ctx context.Context, id string) (*api.Key, error) {
-	panic("unimplemented")
-}
-
 // Changes implements cms.Integrator.
 func (c *CMSRepository) Changes(ctx context.Context, from *time.Time, projects []string) (*api.Changes, error) {
-	panic("unimplemented")
-}
-
-// Update implements cms.Integrator.
-func (c *CMSRepository) Update(ctx context.Context, id string, in map[string]interface{}) (*api.Key, error) {
 	panic("unimplemented")
 }
 
@@ -127,6 +117,45 @@ func (r *CMSRepository) AddCredits(ctx context.Context, id string, in *api.Credi
 	return mapToKey(res, ""), nil
 }
 
+func (r *CMSRepository) Update(ctx context.Context, id string, in map[string]interface{}) (*api.Key, error) {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer roolback(tx)
+
+	res, err := r.update(ctx, tx, id, in)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit transaction: %w", err)
+	}
+	return mapToKey(res, ""), nil
+}
+
+func (r *CMSRepository) Change(ctx context.Context, id string) (*api.Key, error) {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer roolback(tx)
+
+	key, err := randkey.Generate(r.newKeySize)
+	if err != nil {
+		return nil, fmt.Errorf("generate key: %w", err)
+	}
+
+	res, err := r.changeKey(ctx, tx, id, key)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit transaction: %w", err)
+	}
+	return mapToKey(res, key), nil
+}
+
 func loadKeyRecord(ctx context.Context, db dbTx, id string) (*keyRecord, error) {
 	var res keyRecord
 	err := db.GetContext(ctx, &res, `
@@ -136,7 +165,7 @@ func loadKeyRecord(ctx context.Context, db dbTx, id string) (*keyRecord, error) 
 		FROM keys 
 		WHERE id = $1 LIMIT 1`, id)
 	if err != nil {
-		return nil, err
+		return nil, mapErr(err)
 	}
 	return &res, nil
 }
@@ -152,7 +181,7 @@ func loadKeyRecordByHash(ctx context.Context, db dbTx, hash string) (*keyRecord,
 			manual = TRUE		
 		LIMIT 1`, hash)
 	if err != nil {
-		return nil, err
+		return nil, mapErr(err)
 	}
 	return &res, nil
 }
@@ -160,29 +189,6 @@ func loadKeyRecordByHash(ctx context.Context, db dbTx, hash string) (*keyRecord,
 const (
 	_saveRequestTag = "x-tts-collect-data:always"
 )
-
-// GetKeyID returns keyID by key value
-// func (ss *CmsIntegrator) GetKeyID(key string) (*api.KeyID, error) {
-// 	if key == "" {
-// 		return nil, api.ErrNoRecord
-// 	}
-// 	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer cancel()
-
-// 	c := sessCtx.Client().Database(keyMapDB).Collection(keyMapTable)
-// 	keyMapR := &keyMapRecord{}
-// 	err = c.FindOne(sessCtx, bson.M{"keyHash": utils.HashKey(key)}).Decode(&keyMapR)
-// 	if err != nil {
-// 		if err == mongo.ErrNoDocuments {
-// 			return nil, api.ErrNoRecord
-// 		}
-// 		return nil, errors.Wrapf(err, "can't load from %s.%s", keyMapDB, keyMapTable)
-// 	}
-// 	return &api.KeyID{ID: keyMapR.ExternalID, Service: keyMapR.Project}, nil
-// }
 
 // Change generates new key for keyID, disables the old one, returns new key
 // func (ss *CmsIntegrator) Change(keyID string) (*api.Key, error) {
@@ -212,83 +218,72 @@ const (
 // 	return &api.Key{Key: keyR.Key}, nil
 // }
 
-// Update updates key table fields
-// func (ss *CmsIntegrator) Update(keyID string, input map[string]interface{}) (*api.Key, error) {
-// 	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer cancel()
+func prepareKeyUpdates(input map[string]interface{}, now time.Time) (string, []interface{}, error) {
+	var values []interface{}
+	var updates []string
 
-// 	keyMapR, err := loadKeyMapRecord(sessCtx, keyID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	for k, v := range input {
+		var err error
+		ok := true
+		if k == "validTo" {
+			var uv time.Time
+			uv, ok = v.(time.Time)
+			if !ok {
+				uv, err = time.Parse(time.RFC3339, v.(string))
+				ok = err == nil
+			}
+			if ok {
+				ok = uv.After(now)
+				if !ok {
+					return "", nil, utils.NewWrongFieldError(k, "past date")
+				}
+				updates = append(updates, "valid_to")
+				values = append(values, uv)
+			}
+		} else if k == "disabled" {
+			var uv bool
+			uv, ok = v.(bool)
+			if ok {
+				updates = append(updates, "disabled")
+				values = append(values, uv)
+			}
+		} else if k == "IPWhiteList" {
+			var s string
+			s, ok = v.(string)
+			if ok {
+				if err := utils.ValidateIPsCIDR(s); err != nil {
+					return "", nil, utils.NewWrongFieldError(k, "wrong IP CIDR format")
+				}
+				updates = append(updates, "ip_white_list")
+				values = append(values, s)
+			}
+		} else if k == "description" {
+			var uv string
+			uv, ok = v.(string)
+			if ok {
+				updates = append(updates, "description")
+				values = append(values, uv)
+			}
+		} else {
+			err = utils.NewWrongFieldError(k, "unknown or unsuported update")
+		}
+		if !ok || err != nil {
+			return "", nil, utils.NewWrongFieldError(k, "can't parse")
+		}
+	}
+	if len(updates) == 0 {
+		return "", nil, utils.NewWrongFieldError("", "no updates")
+	}
+	return makeUpdateSQL(updates), values, nil
+}
 
-// 	update, err := prepareKeyUpdates(input, time.Now())
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	keyR := &keyRecord{}
-// 	c := sessCtx.Client().Database(keyMapR.Project).Collection(keyTable)
-// 	err = c.FindOneAndUpdate(sessCtx,
-// 		keyFilter(keyMapR.KeyID),
-// 		bson.M{"$set": update},
-// 		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&keyR)
-// 	if err != nil {
-// 		if err == mongo.ErrNoDocuments {
-// 			return nil, api.ErrNoRecord
-// 		}
-// 		return nil, errors.Wrapf(err, "can't update %s.key", keyTable)
-// 	}
-// 	return mapToKey(keyMapR.Project, keyR, false), nil
-// }
-
-// func prepareKeyUpdates(input map[string]interface{}, now time.Time) (bson.M, error) {
-// 	res := bson.M{}
-// 	for k, v := range input {
-// 		var err error
-// 		ok := true
-// 		if k == "validTo" {
-// 			res["validTo"], ok = v.(time.Time)
-// 			if !ok {
-// 				res["validTo"], err = time.Parse(time.RFC3339, v.(string))
-// 				ok = err == nil
-// 			}
-// 			if ok {
-// 				ok = res["validTo"].(time.Time).After(now)
-// 				if !ok {
-// 					return nil, &api.ErrField{Field: k, Msg: "past date"}
-// 				}
-// 			}
-// 		} else if k == "disabled" {
-// 			res["disabled"], ok = v.(bool)
-// 		} else if k == "IPWhiteList" {
-// 			var s string
-// 			s, ok = v.(string)
-// 			if ok {
-// 				err := utils.ValidateIPsCIDR(s)
-// 				if err != nil {
-// 					return nil, &api.ErrField{Field: k, Msg: "wrong IP CIDR format"}
-// 				}
-// 				res["IPWhiteList"] = v
-// 			}
-// 		} else {
-// 			err = &api.ErrField{Field: k, Msg: "unknown or unsuported update"}
-// 		}
-// 		if !ok || err != nil {
-// 			if err != nil {
-// 				log.Error().Err(err).Send()
-// 			}
-// 			return nil, &api.ErrField{Field: k, Msg: "can't parse"}
-// 		}
-// 	}
-// 	if len(res) == 0 {
-// 		return nil, &api.ErrField{Field: "", Msg: "no updates"}
-// 	}
-// 	res["updated"] = now
-// 	return res, nil
-// }
+func makeUpdateSQL(updates []string) string {
+	res := make([]string, 0, len(updates))
+	for i, u := range updates {
+		res = append(res, fmt.Sprintf("%s = $%d", u, i+3)) // 1 and 2 are id and updated
+	}
+	return strings.Join(res, ", ")
+}
 
 // Usage returns usage information for the key
 // //}
@@ -392,7 +387,7 @@ func (r *CMSRepository) addQuota(ctx context.Context, db dbTx, id string, in *ap
 	}
 
 	if in.Credits < 0 && key.Limit+in.Credits < key.QuotaValue {
-		return nil, &api.ErrField{Field: "credits", Msg: "(limit - change) is less than used"}
+		return nil, utils.NewWrongFieldError("credits", "(limit - change) is less than used")
 	}
 
 	now := time.Now()
@@ -422,6 +417,36 @@ func (r *CMSRepository) addQuota(ctx context.Context, db dbTx, id string, in *ap
 	return key, nil
 }
 
+func (r *CMSRepository) update(ctx context.Context, db dbTx, id string, in map[string]interface{}) (*keyRecord, error) {
+	log.Ctx(ctx).Trace().Str("id", id).Any("in", in).Msg("Update")
+
+	now := time.Now()
+	updates, values, err := prepareKeyUpdates(in, now)
+	if err != nil {
+		return nil, err
+	}
+	upValues := make([]interface{}, 0, len(values)+1)
+	upValues = append(upValues, id)
+	upValues = append(upValues, now)
+	upValues = append(upValues, values...)
+
+	res, err := db.ExecContext(ctx, `
+	UPDATE keys
+	SET 
+		`+updates+`,
+		updated = $2
+	WHERE 
+		id = $1
+	`, upValues...)
+	if err != nil {
+		return nil, fmt.Errorf("update key: %w", mapErr(err))
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return nil, utils.ErrNoRecord
+	}
+	return loadKeyRecord(ctx, db, id)
+}
+
 func mapToKey(keyR *keyRecord, key string) *api.Key {
 	res := &api.Key{Service: keyR.Project,
 		ID:            keyR.ID,
@@ -436,6 +461,7 @@ func mapToKey(keyR *keyRecord, key string) *api.Key {
 		Updated:       toTimePtr(&keyR.Updated),
 		IPWhiteList:   keyR.IPWhiteList.String,
 		SaveRequests:  mapToSaveRequests(keyR.Tags),
+		Description:   keyR.Description.String,
 		Key:           key,
 	}
 	return res
@@ -486,6 +512,32 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 		Updated: now,
 		Tags:    pq.StringArray(tags),
 	}, nil
+}
+
+func (r *CMSRepository) changeKey(ctx context.Context, tx dbTx, id string, key string) (*keyRecord, error) {
+	log.Ctx(ctx).Trace().Str("id", id).Msg("Change key")
+
+	now := time.Now()
+	hash := utils.HashKey(key)
+	sRes, err := tx.ExecContext(ctx, `
+	UPDATE keys 
+	SET key_hash = $1, 
+		updated = $2
+	WHERE id = $3
+	`, hash, now, id)
+	if err != nil {
+		return nil, fmt.Errorf("create key: %w", mapErr(err))
+	}
+	if rows, _ := sRes.RowsAffected(); rows == 0 {
+		return nil, utils.ErrNoRecord
+	}
+
+	_, err = newOperation(ctx, tx, &createOperationInput{opID: uuid.NewString(), key_id: id, date: now, quota_value: 0, msg: "Change Key"})
+	if err != nil {
+		return nil, err
+	}
+	
+	return loadKeyRecord(ctx, tx, id)
 }
 
 type createOperationInput struct {
@@ -574,26 +626,26 @@ func validateInput(input *api.CreateInput) error {
 	// 	return &api.ErrField{Field: "operationID", Msg: "missing"}
 	// }
 	if strings.TrimSpace(input.Service) == "" {
-		return &api.ErrField{Field: "service", Msg: "missing"}
+		return utils.NewWrongFieldError("service", "missing")
 	}
 	if input.ValidTo != nil && input.ValidTo.Before(time.Now()) {
-		return &api.ErrField{Field: "validTo", Msg: "past date"}
+		return utils.NewWrongFieldError("validTo", "past date")
 	}
 	if input.Credits <= 0.1 {
-		return &api.ErrField{Field: "credits", Msg: "less than 0.1"}
+		return utils.NewWrongFieldError("credits", "less than 0.1")
 	}
 	return nil
 }
 
 func validateCreditsInput(input *api.CreditsInput) error {
 	if input == nil {
-		return &api.ErrField{Field: "operationID", Msg: "missing"}
+		return utils.NewWrongFieldError("operationID", "missing")
 	}
 	if strings.TrimSpace(input.OperationID) == "" {
-		return &api.ErrField{Field: "operationID", Msg: "missing"}
+		return utils.NewWrongFieldError("operationID", "missing")
 	}
 	if math.Abs(input.Credits) <= 0.1 {
-		return &api.ErrField{Field: "credits", Msg: "less than 0.1"}
+		return utils.NewWrongFieldError("credits", "less than 0.1")
 	}
 	return nil
 }

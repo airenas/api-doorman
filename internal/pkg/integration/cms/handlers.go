@@ -67,18 +67,7 @@ func keyCreate(data *Data) func(echo.Context) error {
 		keyResp, created, err := data.Integrator.Create(c.Request().Context(), &input)
 
 		if err != nil {
-			log.Error().Err(err).Msg("can't create key")
-			if errors.Is(err, utils.ErrDuplicate) {
-				return echo.NewHTTPError(http.StatusBadRequest, "duplicate record")
-			}
-			if errors.Is(err, utils.ErrOperationExists) {
-				return echo.NewHTTPError(http.StatusBadRequest, "duplicate operation")
-			}
-			var errF *api.ErrField
-			if errors.As(err, &errF) {
-				return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
-			}
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return processError(err)
 		}
 		if created {
 			return c.JSON(http.StatusCreated, keyResp)
@@ -96,13 +85,8 @@ func keyGet(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
 		}
 		keyResp, err := data.Integrator.GetKey(c.Request().Context(), keyID)
-
 		if err != nil {
-			log.Error().Err(err).Msg("can't get key")
-			if errors.Is(err, utils.ErrNoRecord) {
-				return echo.NewHTTPError(http.StatusBadRequest, "no record by ID "+keyID)
-			}
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return processError(err)
 		}
 		if c.QueryParam("returnKey") != "1" {
 			keyResp.Key = ""
@@ -125,20 +109,29 @@ func keyUpdate(data *Data) func(echo.Context) error {
 			return err
 		}
 		keyResp, err := data.Integrator.Update(c.Request().Context(), keyID, input)
-
 		if err != nil {
-			log.Error().Err(err).Msg("can't update key")
-			var errF *api.ErrField
-			if errors.As(err, &errF) {
-				return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
-			}
-			if errors.Is(err, utils.ErrNoRecord) {
-				return echo.NewHTTPError(http.StatusBadRequest, "no record by ID "+keyID)
-			}
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return processError(err)
 		}
 		return c.JSON(http.StatusOK, keyResp)
 	}
+}
+
+func processError(err error) error {
+	log.Error().Err(err).Send()
+	var errF *utils.WrongFieldError
+	if errors.As(err, &errF) {
+		return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
+	}
+	if errors.Is(err, utils.ErrNoRecord) {
+		return echo.NewHTTPError(http.StatusBadRequest, "no record")
+	}
+	if errors.Is(err, utils.ErrDuplicate) {
+		return echo.NewHTTPError(http.StatusBadRequest, "duplicate record")
+	}
+	if errors.Is(err, utils.ErrOperationExists) {
+		return echo.NewHTTPError(http.StatusBadRequest, "duplicate operation")
+	}
+	return echo.NewHTTPError(http.StatusInternalServerError)
 }
 
 func keyAddCredits(data *Data) func(echo.Context) error {
@@ -155,20 +148,8 @@ func keyAddCredits(data *Data) func(echo.Context) error {
 			return err
 		}
 		keyResp, err := data.Integrator.AddCredits(c.Request().Context(), keyID, &input)
-
 		if err != nil {
-			log.Error().Err(err).Msg("can't add credits")
-			var errF *api.ErrField
-			if errors.As(err, &errF) {
-				return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
-			}
-			if errors.Is(err, utils.ErrNoRecord) {
-				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ID")
-			}
-			if errors.Is(err, utils.ErrOperationExists) {
-				return c.JSON(http.StatusConflict, keyResp)
-			}
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return processError(err)
 		}
 		return c.JSON(http.StatusOK, keyResp)
 	}
@@ -184,14 +165,10 @@ func keyChange(data *Data) func(echo.Context) error {
 		}
 
 		keyResp, err := data.Integrator.Change(c.Request().Context(), keyID)
-
 		if err != nil {
-			log.Error().Err(err).Msg("can't change key")
-			if errors.Is(err, utils.ErrNoRecord) {
-				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ID")
-			}
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return processError(err)
 		}
+
 		return c.JSON(http.StatusOK, keyResp)
 	}
 }
@@ -213,14 +190,10 @@ func keyGetID(data *Data) func(echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, "no key")
 		}
 		keyResp, err := data.Integrator.GetKeyID(c.Request().Context(), input.Key)
-
 		if err != nil {
-			log.Error().Err(err).Msg("can't get key by ID")
-			if errors.Is(err, utils.ErrNoRecord) {
-				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ")
-			}
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return processError(err)
 		}
+
 		return c.JSON(http.StatusOK, keyResp)
 	}
 }
@@ -242,14 +215,10 @@ func keyUsage(data *Data) func(echo.Context) error {
 			return err
 		}
 		usageResp, err := data.Integrator.Usage(c.Request().Context(), keyID, from, to, c.QueryParam("full") == "1")
-
 		if err != nil {
-			log.Error().Err(err).Msg("can't get usage")
-			if errors.Is(err, utils.ErrNoRecord) {
-				return echo.NewHTTPError(http.StatusBadRequest, "no record by key ID")
-			}
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return processError(err)
 		}
+
 		return c.JSON(http.StatusOK, usageResp)
 	}
 }
@@ -262,11 +231,10 @@ func keysChanges(data *Data) func(echo.Context) error {
 			return err
 		}
 		changesResp, err := data.Integrator.Changes(c.Request().Context(), from, data.ProjectValidator.Projects())
-
 		if err != nil {
-			log.Error().Err(err).Msg("can't get changes")
-			return echo.NewHTTPError(http.StatusInternalServerError)
+			return processError(err)
 		}
+
 		return c.JSON(http.StatusOK, changesResp)
 	}
 }
