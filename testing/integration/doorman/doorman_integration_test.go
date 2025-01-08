@@ -176,21 +176,33 @@ func TestDefaultUsage(t *testing.T) {
 func TestReset(t *testing.T) {
 	t.Parallel()
 
-	inTest := testReq{Text: "olia olia "}
-	resp := invoke(t, newRequest(t, http.MethodPost, "/private", inTest))
-	checkCode(t, resp, http.StatusOK)
-
 	integration.ResetSettings(t, cfg.db, "reset-test")
-	id := integration.FindKeyByIP(t, cfg.db, "test", "127.0.0.1")
-	integration.ResetKey(t, cfg.db, id)
+	id1 := integration.InsertIPKey(t, cfg.db, "test")
+	id2 := integration.InsertIPKey(t, cfg.db, "test")
 
 	since := time.Now().Add(time.Second)
-	resp = invoke(t, newAdminRequest(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=50000&since=%s", test.TimeToQueryStr(since)), nil))
+	resp := invoke(t, newAdminRequest(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=50000&since=%s", test.TimeToQueryStr(since)), nil))
 	checkCode(t, resp, http.StatusOK)
 
-	key := getKeyInfo(t, id)
+	key := getKeyInfo(t, id1)
 	assert.Equal(t, 50000.0, key.TotalCredits-key.UsedCredits)
-	assert.Greater(t, key.UsedCredits, 9.0)
+
+	key = getKeyInfo(t, id2)
+	assert.Equal(t, 50000.0, key.TotalCredits-key.UsedCredits)
+
+	// try again
+	id3 := integration.InsertIPKey(t, cfg.db, "test")
+	integration.ResetSettings(t, cfg.db, "reset-test")
+	resp = invoke(t, newAdminRequest(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=40000&since=%s", test.TimeToQueryStr(since)), nil))
+	checkCode(t, resp, http.StatusOK)
+
+	// not changed
+	key = getKeyInfo(t, id2)
+	assert.Equal(t, 50000.0, key.TotalCredits-key.UsedCredits)
+
+	// new
+	key = getKeyInfo(t, id3)
+	assert.Equal(t, 40000.0, key.TotalCredits-key.UsedCredits)
 }
 
 func addAuth(req *http.Request, s string) *http.Request {

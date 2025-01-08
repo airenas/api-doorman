@@ -26,6 +26,7 @@ services:
       PROXY_TTS_SYNCLOG: true
       PROXY_TTS_QUOTA_TYPE: "jsonTTS"
       PROXY_TTS_QUOTA_DEFAULT: 100
+      LOGGER_LEVEL: TRACE
     depends_on:
       postgres:
         condition: service_healthy 
@@ -46,6 +47,7 @@ services:
     environment:
       DB_DSN: "postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable"
       PROJECTS: test,tts,changes
+      LOGGER_LEVEL: TRACE
     restart: on-failure
 
   postgres:
@@ -83,6 +85,8 @@ services:
       - doorman-admin
     environment:
       ADMIN_URL: http://doorman-admin:8000  
+      DOORMAN_URL: http://doorman:8000
+      DB_DSN: "postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable"  
     volumes:
       - ../../../:/go/src/
     command: -tags integration -v -count=1 ./testing/integration/cms/...

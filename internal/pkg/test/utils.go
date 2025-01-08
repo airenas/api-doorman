@@ -29,7 +29,7 @@ func WaitForOpenOrFail(ctx context.Context, urlWait string) {
 }
 
 func TimeToQueryStr(from time.Time) string {
-	return url.QueryEscape(from.Format(time.RFC3339))
+	return url.QueryEscape(from.Format(time.RFC3339Nano))
 }
 
 

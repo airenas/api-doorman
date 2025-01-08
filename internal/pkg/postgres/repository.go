@@ -174,21 +174,9 @@ func (r *Repository) Restore(ctx context.Context, key string, manual bool, qv fl
 func (r *Repository) CheckCreateIPKey(ctx context.Context, ip string, limit float64) (string, error) {
 	log.Ctx(ctx).Debug().Str("ip", ip).Msg("Validating IP")
 
-	tx, err := r.db.Beginx()
-	if err != nil {
-		return "", fmt.Errorf("begin transaction: %w", err)
-	}
-	defer roolback(tx)
-
-	var res keyRecord
-	err = tx.GetContext(ctx, &res, `
-		SELECT id 
-		FROM keys 
-		WHERE project = $1 AND 
-			key_hash = $2 AND 
-			manual = $3 LIMIT 1`, r.project, ip, false)
+	res, err := r.getKeyIDByIP(ctx, ip)
 	if err == nil {
-		return res.ID, nil
+		return res, nil
 	}
 	if err != sql.ErrNoRows {
 		return "", err
@@ -196,17 +184,36 @@ func (r *Repository) CheckCreateIPKey(ctx context.Context, ip string, limit floa
 
 	id := uuid.NewString()
 	log.Ctx(ctx).Debug().Str("ip", ip).Msg("insert new key for IP")
-	_, err = tx.ExecContext(ctx, `
+	sRes, err := r.db.ExecContext(ctx, `
 	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated)
 	VALUES ($1, $2, $3, FALSE, $4, $5, $6, $6)
+	ON CONFLICT DO NOTHING
 	`, id, r.project, ip, limit, time.Date(2100, time.Month(1), 1, 01, 0, 0, 0, time.UTC), time.Now())
 	if err != nil {
 		return "", fmt.Errorf("create key: %w", err)
 	}
-	if err := tx.Commit(); err != nil {
-		return "", fmt.Errorf("commit transaction: %w", err)
+	ra, err := sRes.RowsAffected()
+	if err != nil {
+		return "", fmt.Errorf("get rows affected: %w", err)
+	}
+	if ra == 0 {
+		return r.getKeyIDByIP(ctx, ip)
 	}
 	return id, nil
+}
+
+func (r *Repository) getKeyIDByIP(ctx context.Context, ip string) (string, error) {
+	var res string
+	err := r.db.GetContext(ctx, &res, `
+		SELECT id 
+		FROM keys 
+		WHERE project = $1 AND 
+			key_hash = $2 AND 
+			manual = $3 
+		LIMIT 1
+		FOR UPDATE
+		`, r.project, ip, false)
+	return res, err
 }
 
 func (r *Repository) SaveLog(ctx context.Context, data *api.Log) error {

@@ -426,10 +426,10 @@ func TestKeysChanges(t *testing.T) {
 	decode(t, resp, &res)
 	assert.Equal(t, 0, len(filterByDescription(res.Data, tDescr)))
 	// create one more and see if it appears in changes list
-	_ = newKey(t)
+	_ = newKeyChanges(t, tDescr)
 	checkCode(t, resp, http.StatusOK)
 	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s",
-		test.TimeToQueryStr(res.Till.Add(time.Millisecond))), nil))
+		test.TimeToQueryStr(*res.Till)), nil))
 	checkCode(t, resp, http.StatusOK)
 	res = api.Changes{}
 	decode(t, resp, &res)
