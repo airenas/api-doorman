@@ -21,6 +21,7 @@ type CMSRepository struct {
 	db                     *sqlx.DB
 	newKeySize             int
 	defaultValidToDuration time.Duration
+	hasher                 Hasher
 }
 
 const (
@@ -30,14 +31,17 @@ const (
 	last_used, last_ip, quota_value_failed, description, external_id`
 )
 
-func NewCMSRepository(ctx context.Context, db *sqlx.DB, keySize int) (*CMSRepository, error) {
+func NewCMSRepository(ctx context.Context, db *sqlx.DB, keySize int, hasher Hasher) (*CMSRepository, error) {
 	if db == nil {
 		return nil, fmt.Errorf("db is nil")
 	}
 	if keySize < 10 || keySize > 100 {
 		return nil, fmt.Errorf("wrong keySize")
 	}
-	f := CMSRepository{db: db, newKeySize: keySize, defaultValidToDuration: time.Hour * 24 * 365 * 10 /*aprox 10 years*/}
+	if hasher == nil {
+		return nil, fmt.Errorf("hasher is nil")
+	}
+	f := CMSRepository{db: db, newKeySize: keySize, defaultValidToDuration: time.Hour * 24 * 365 * 10 /*aprox 10 years*/, hasher: hasher}
 	return &f, nil
 }
 
@@ -82,7 +86,7 @@ func (r *CMSRepository) GetKey(ctx context.Context, id string) (*api.Key, error)
 }
 
 func (r *CMSRepository) GetKeyID(ctx context.Context, id string) (*api.KeyID, error) {
-	hash := utils.HashKey(id)
+	hash := r.hasher.HashKey(id)
 	res, err := loadKeyRecordByHash(ctx, r.db, hash)
 	if err != nil {
 		return nil, mapErr(err)
@@ -448,7 +452,7 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 	}
 
 	now := time.Now()
-	hash := utils.HashKey(key)
+	hash := r.hasher.HashKey(key)
 	log.Ctx(ctx).Trace().Str("id", in.ID).Str("key", key).Msg("Create key record")
 	_, err := tx.ExecContext(ctx, `
 	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated, disabled, tags, description)
@@ -481,7 +485,7 @@ func (r *CMSRepository) changeKey(ctx context.Context, tx dbTx, id string, key s
 	log.Ctx(ctx).Trace().Str("id", id).Msg("Change key")
 
 	now := time.Now()
-	hash := utils.HashKey(key)
+	hash := r.hasher.HashKey(key)
 	sRes, err := tx.ExecContext(ctx, `
 	UPDATE keys 
 	SET key_hash = $1, 

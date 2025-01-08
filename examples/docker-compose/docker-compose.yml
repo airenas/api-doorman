@@ -5,6 +5,7 @@ services:
       - "${DOORMAN_PORT}:8000"
     environment:
       DB_DSN: "postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable"  
+      HASHSALT: ohcheiPhahBahPa2aephei6eiree5P
       PROXY_HANDLERS: "test,test2,test3,tts,default"
       PROXY_DEFAULT_BACKEND: "http://test-api:8000/"
       PROXY_TEST_TYPE: quota
@@ -49,6 +50,7 @@ services:
       - "${ADMIN_PORT}:8000"
     environment:
       DB_DSN: "postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable"  
+      HASHSALT: ohcheiPhahBahPa2aephei6eiree5P
       PROJECTS: test,test1,tts,asr
       LOGGER_LEVEL: TRACE
     # restart: unless-stopped

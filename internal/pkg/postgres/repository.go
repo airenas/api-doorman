@@ -14,13 +14,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type Hasher interface {
+	HashKey(key string) string
+}
+
 // Repository communicates with postgres
 type Repository struct {
 	db      *sqlx.DB
 	project string
+	hasher  Hasher
 }
 
-func NewRepository(ctx context.Context, db *sqlx.DB, project string) (*Repository, error) {
+func NewRepository(ctx context.Context, db *sqlx.DB, project string, hasher Hasher) (*Repository, error) {
 	pr := strings.TrimSpace(project)
 	if pr == "" {
 		return nil, fmt.Errorf("project is empty")
@@ -28,13 +33,17 @@ func NewRepository(ctx context.Context, db *sqlx.DB, project string) (*Repositor
 	if db == nil {
 		return nil, fmt.Errorf("db is nil")
 	}
-	f := Repository{db: db, project: pr}
+	if hasher == nil {
+		return nil, fmt.Errorf("hasher is nil")
+	}
+
+	f := Repository{db: db, project: pr, hasher: hasher}
 	return &f, nil
 }
 
 func (r *Repository) hash(key string, manual bool) string {
 	if manual {
-		return utils.HashKey(key)
+		return r.hasher.HashKey(key)
 	}
 	return key
 }

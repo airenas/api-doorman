@@ -9,6 +9,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms"
 	"github.com/airenas/api-doorman/internal/pkg/postgres"
 	"github.com/airenas/api-doorman/internal/pkg/reset"
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/labstack/gommon/color"
 	"github.com/rs/zerolog"
@@ -58,7 +59,13 @@ func mainInt(ctx context.Context) error {
 
 	data.CmsData = &cms.Data{}
 	data.CmsData.ProjectValidator = pv
-	cms, err := postgres.NewCMSRepository(ctx, db, goapp.Config.GetInt("keySize"))
+
+	hasher, err := utils.NewHasher(goapp.Config.GetString("hashSalt"))
+	if err != nil {
+		return fmt.Errorf("init hasher: %w", err)
+	}
+
+	cms, err := postgres.NewCMSRepository(ctx, db, goapp.Config.GetInt("keySize"), hasher)
 	if err != nil {
 		return fmt.Errorf("init integrator: %w", err)
 	}

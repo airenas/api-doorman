@@ -32,5 +32,6 @@ proxy:
 
 db:
     dsn: postgres://postgres:postgres@localhost:5432/doorman?sslmode=disable
+hashSalt: ohcheiPhahBahPa2aephei6eiree5P    
 
 ipExtractType: lastForwardFor

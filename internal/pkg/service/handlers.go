@@ -21,7 +21,8 @@ import (
 )
 
 type HandlerData struct {
-	DB *sqlx.DB
+	DB     *sqlx.DB
+	Hasher *utils.Hasher
 }
 
 // NewHandler creates handler based on config
@@ -126,7 +127,7 @@ func newQuotaHandler(name string, cfg *viper.Viper, hd *HandlerData) (http.Handl
 	}
 
 	project := cfg.GetString(name + ".db")
-	repo, err := postgres.NewRepository(context.Background(), hd.DB, project)
+	repo, err := postgres.NewRepository(context.Background(), hd.DB, project, hd.Hasher)
 	if err != nil {
 		return nil, fmt.Errorf("can't init validator: %w", err)
 	}
@@ -308,7 +309,7 @@ func newKeyHandler(name string, cfg *viper.Viper, hd *HandlerData) (http.Handler
 	}
 
 	project := cfg.GetString(name + ".db")
-	repo, err := postgres.NewRepository(context.Background(), hd.DB, project)
+	repo, err := postgres.NewRepository(context.Background(), hd.DB, project, hd.Hasher)
 	if err != nil {
 		return nil, fmt.Errorf("can't init validator: %w", err)
 	}

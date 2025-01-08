@@ -7,7 +7,6 @@ import (
 
 	"github.com/airenas/api-doorman/internal/pkg/postgres"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -35,8 +34,14 @@ func mainInt(ctx context.Context) error {
 	}
 	defer db.Close()
 
+	hd := &service.HandlerData{DB: db}
+	hd.Hasher, err = utils.NewHasher(goapp.Config.GetString("hashSalt"))
+	if err != nil {
+		return fmt.Errorf("init hasher: %w", err)
+	}
+
 	data := service.Data{}
-	data.Handlers, err = initFromConfig(goapp.Sub(goapp.Config, "proxy"), db)
+	data.Handlers, err = initFromConfig(goapp.Sub(goapp.Config, "proxy"), hd)
 	if err != nil {
 		return fmt.Errorf("init handlers: %w", err)
 	}
@@ -56,7 +61,7 @@ func mainInt(ctx context.Context) error {
 	return nil
 }
 
-func initFromConfig(cfg *viper.Viper, db *sqlx.DB) ([]service.HandlerWrap, error) {
+func initFromConfig(cfg *viper.Viper, hd *service.HandlerData) ([]service.HandlerWrap, error) {
 	res := make([]service.HandlerWrap, 0)
 	if cfg == nil {
 		return nil, errors.New("Can't init handlers - names are not provided")
@@ -65,7 +70,7 @@ func initFromConfig(cfg *viper.Viper, db *sqlx.DB) ([]service.HandlerWrap, error
 	for _, sh := range strings.Split(strHand, ",") {
 		sh = strings.TrimSpace(sh)
 		if sh != "" {
-			h, err := service.NewHandler(sh, cfg, &service.HandlerData{DB: db})
+			h, err := service.NewHandler(sh, cfg, hd)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Can't init handler '%s'", sh)
 			}
