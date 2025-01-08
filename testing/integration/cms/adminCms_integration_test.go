@@ -297,7 +297,7 @@ func TestUsage_Empty(t *testing.T) {
 	now := time.Now()
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=1", key.ID,
-		url.QueryEscape(now.Add(-time.Hour).Format(time.RFC3339)), url.QueryEscape(now.Format(time.RFC3339))), nil))
+		toQueryStr(now.Add(-time.Hour)), toQueryStr(now.Add(time.Second))), nil))
 	checkCode(t, resp, http.StatusOK)
 	res := api.Usage{}
 	decode(t, resp, &res)
@@ -319,7 +319,7 @@ func TestUsage_OK(t *testing.T) {
 	}
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=1", key.ID,
-		url.QueryEscape(now.Add(-time.Hour).Format(time.RFC3339)), url.QueryEscape(now.Add(time.Second).Format(time.RFC3339))), nil))
+		toQueryStr(now.Add(-time.Hour)), toQueryStr(now.Add(time.Second))), nil))
 	checkCode(t, resp, http.StatusOK)
 	res := api.Usage{}
 	decode(t, resp, &res)
@@ -345,7 +345,7 @@ func TestUsage_OKWithFailures(t *testing.T) {
 	}
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=1", key.ID,
-		url.QueryEscape(now.Add(-time.Hour).Format(time.RFC3339)), url.QueryEscape(now.Add(time.Second).Format(time.RFC3339))), nil))
+		toQueryStr(now.Add(-time.Hour)), toQueryStr(now.Add(time.Second))), nil))
 	checkCode(t, resp, http.StatusOK)
 	res := api.Usage{}
 	decode(t, resp, &res)
@@ -366,7 +366,7 @@ func TestUsage_OKNoLog(t *testing.T) {
 	}
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=0", key.ID,
-		url.QueryEscape(now.Add(-time.Hour).Format(time.RFC3339)), url.QueryEscape(now.Add(time.Second).Format(time.RFC3339))), nil))
+		toQueryStr(now.Add(-time.Hour)), toQueryStr(now.Add(time.Second))), nil))
 	checkCode(t, resp, http.StatusOK)
 	res := api.Usage{}
 	decode(t, resp, &res)
@@ -391,54 +391,54 @@ func newCallService(t *testing.T, key string, size int, code int) {
 func TestKeysChanges(t *testing.T) {
 	t.Parallel()
 
-	from := time.Now().Add(-time.Millisecond) // make sure we are in past at least by 1ms
-	id := uuid.NewString()
-	in := api.CreateInput{ID: id, OperationID: uuid.NewString(), Service: "changes", Credits: 100}
-	resp := invoke(t, newRequest(t, http.MethodPost, "/key", in))
-	checkCode(t, resp, http.StatusCreated)
+	tDescr := uuid.NewString()
 
-	resp = invoke(t, newRequest(t, http.MethodGet, "/keys/changes", in))
+	from := time.Now().Add(-time.Millisecond) // make sure we are in past at least by 1ms
+	key := newKeyChanges(t, tDescr)
+
+	resp := invoke(t, newRequest(t, http.MethodGet, "/keys/changes", nil))
 	checkCode(t, resp, http.StatusOK)
 	res := api.Changes{}
 	decode(t, resp, &res)
-	require.NotEmpty(t, filter(res.Data, "changes"))
-	assert.Equal(t, id, filter(res.Data, "changes")[0].ID, "%v", res)
+	require.NotEmpty(t, filterByDescription(res.Data, tDescr))
+	assert.Equal(t, key.ID, filterByDescription(res.Data, tDescr)[0].ID, "%v", res)
 	assert.Nil(t, res.From)
 	assert.NotNil(t, res.Till)
 
-	in = api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "changes", Credits: 100}
-	resp = invoke(t, newRequest(t, http.MethodPost, "/key", in))
-	checkCode(t, resp, http.StatusCreated)
-	resp = invoke(t, newRequest(t, http.MethodGet, "/keys/changes", in))
+	_ = newKeyChanges(t, tDescr)
+	resp = invoke(t, newRequest(t, http.MethodGet, "/keys/changes", nil))
 	checkCode(t, resp, http.StatusOK)
 
 	res = api.Changes{}
 	decode(t, resp, &res)
-	assert.Equal(t, 2, len(filter(res.Data, "changes")))
+	assert.Equal(t, 2, len(filterByDescription(res.Data, tDescr)))
 
-	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s", from.Format(time.RFC3339Nano)), in))
+	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s", toQueryStr(from)), nil))
 	checkCode(t, resp, http.StatusOK)
 	res = api.Changes{}
 	decode(t, resp, &res)
-	assert.Equal(t, 2, len(filter(res.Data, "changes")))
+	assert.Equal(t, 2, len(filterByDescription(res.Data, tDescr)))
 	assert.Equal(t, from.Unix(), res.From.Unix())
 
 	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s",
-		res.Till.Add(time.Millisecond).Format(time.RFC3339Nano)), in))
+		toQueryStr(res.Till.Add(time.Millisecond))), nil))
 	checkCode(t, resp, http.StatusOK)
 	res = api.Changes{}
 	decode(t, resp, &res)
-	assert.Equal(t, 0, len(filter(res.Data, "changes")))
+	assert.Equal(t, 0, len(filterByDescription(res.Data, tDescr)))
 	// create one more and see if it appears in changes list
-	in = api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "changes", Credits: 100}
-	resp = invoke(t, newRequest(t, http.MethodPost, "/key", in))
-	checkCode(t, resp, http.StatusCreated)
+	_ = newKey(t)
+	checkCode(t, resp, http.StatusOK)
 	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s",
-		res.Till.Add(time.Millisecond).Format(time.RFC3339Nano)), in))
+		toQueryStr(res.Till.Add(time.Millisecond))), nil))
 	checkCode(t, resp, http.StatusOK)
 	res = api.Changes{}
 	decode(t, resp, &res)
-	assert.Equal(t, 1, len(filter(res.Data, "changes")))
+	assert.Equal(t, 1, len(filterByDescription(res.Data, tDescr)))
+}
+
+func toQueryStr(from time.Time) string {
+	return url.QueryEscape(from.Format(time.RFC3339))
 }
 
 func getKeyInfo(t *testing.T, s string) *api.Key {
@@ -451,10 +451,10 @@ func getKeyInfo(t *testing.T, s string) *api.Key {
 	return &res
 }
 
-func filter(keys []*api.Key, s string) []*api.Key {
+func filterByDescription(keys []*api.Key, description string) []*api.Key {
 	var res []*api.Key
 	for _, d := range keys {
-		if d.Service == "changes" {
+		if d.Description == description {
 			res = append(res, d)
 		}
 	}
@@ -520,6 +520,13 @@ func updateResp(t *testing.T, id string, in map[string]interface{}) *http.Respon
 	t.Helper()
 
 	return invoke(t, newRequest(t, http.MethodPatch, fmt.Sprintf("/key/%s", id), in))
+}
+
+func newKeyChanges(t *testing.T, description string) *api.Key {
+	t.Helper()
+
+	return newKeyInput(t, &api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100,
+		Description: description})
 }
 
 func newKey(t *testing.T) *api.Key {

@@ -23,10 +23,12 @@ type CMSRepository struct {
 	defaultValidToDuration time.Duration
 }
 
-// Changes implements cms.Integrator.
-func (c *CMSRepository) Changes(ctx context.Context, from *time.Time, projects []string) (*api.Changes, error) {
-	panic("unimplemented")
-}
+const (
+	_saveRequestTag = "x-tts-collect-data:always"
+	_keyFields      = `id, project, manual, quota_limit, 
+	quota_value, valid_to, disabled, ip_white_list, tags, created, updated, 
+	last_used, last_ip, quota_value_failed, description, external_id`
+)
 
 func NewCMSRepository(ctx context.Context, db *sqlx.DB, keySize int) (*CMSRepository, error) {
 	if db == nil {
@@ -187,6 +189,34 @@ func (r *CMSRepository) Usage(ctx context.Context, id string, from *time.Time, t
 	return apiRes, nil
 }
 
+func (r *CMSRepository) Changes(ctx context.Context, from *time.Time, projects []string) (*api.Changes, error) {
+	log.Ctx(ctx).Debug().Msg("Get changes")
+
+	where, values := makeKeyUpdatedFilter(from)
+
+	to := time.Now().Add(-time.Millisecond) // make sure we will not loose some updates, so add -1 ms
+	var res []*keyRecord
+	err := r.db.SelectContext(ctx, &res, `
+		SELECT `+_keyFields+` 
+		FROM keys 
+		WHERE manual = TRUE
+		`+where+`			
+		`, values...)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	log.Ctx(ctx).Debug().Int("count", len(res)).Msg("Got keys")
+	apiRes := &api.Changes{
+		Data: make([]*api.Key, 0, len(res)),
+		From: from,
+		Till: &to,
+	}
+	for _, r := range res {
+		apiRes.Data = append(apiRes.Data, mapToKey(r, ""))
+	}
+	return apiRes, nil
+}
+
 func makeDatesFilter(from *time.Time, to *time.Time) (string, []interface{}) {
 	var values []interface{}
 	var res string
@@ -201,12 +231,17 @@ func makeDatesFilter(from *time.Time, to *time.Time) (string, []interface{}) {
 	return res, values
 }
 
+func makeKeyUpdatedFilter(from *time.Time) (string, []interface{}) {
+	if from != nil {
+		return " AND updated >= $1", []interface{}{*from}
+	}
+	return "", nil
+}
+
 func loadKeyRecord(ctx context.Context, db dbTx, id string) (*keyRecord, error) {
 	var res keyRecord
 	err := db.GetContext(ctx, &res, `
-		SELECT id, project, manual, quota_limit, quota_value, valid_to, disabled, 
-			ip_white_list, tags, created, updated, last_used, last_ip, 
-			quota_value_failed, description, external_id 
+		SELECT `+_keyFields+` 
 		FROM keys 
 		WHERE id = $1 LIMIT 1`, id)
 	if err != nil {
@@ -218,9 +253,7 @@ func loadKeyRecord(ctx context.Context, db dbTx, id string) (*keyRecord, error) 
 func loadKeyRecordByHash(ctx context.Context, db dbTx, hash string) (*keyRecord, error) {
 	var res keyRecord
 	err := db.GetContext(ctx, &res, `
-		SELECT id, project, manual, quota_limit, quota_value, valid_to, disabled, 
-			ip_white_list, tags, created, updated, last_used, last_ip, 
-			quota_value_failed, description, external_id 
+		SELECT `+_keyFields+` 
 		FROM keys 
 		WHERE key_hash = $1 AND
 			manual = TRUE		
@@ -230,10 +263,6 @@ func loadKeyRecordByHash(ctx context.Context, db dbTx, hash string) (*keyRecord,
 	}
 	return &res, nil
 }
-
-const (
-	_saveRequestTag = "x-tts-collect-data:always"
-)
 
 func prepareKeyUpdates(input map[string]interface{}, now time.Time) (string, []interface{}, error) {
 	var values []interface{}
@@ -301,96 +330,6 @@ func makeUpdateSQL(updates []string) string {
 	}
 	return strings.Join(res, ", ")
 }
-
-// Changes returns changed keys information
-// func (ss *CmsIntegrator) Changes(from *time.Time, services []string) (*api.Changes, error) {
-// 	sessCtx, cancel, err := newSessionWithContext(ss.sessionProvider)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer cancel()
-
-// 	res := &api.Changes{}
-// 	res.From = from
-// 	to := time.Now().Add(-time.Millisecond) // make sure we will not loose some updates, so add -1 ms
-// 	for _, s := range services {
-// 		keys, err := loadKeys(sessCtx, s, from)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		for _, k := range keys {
-// 			if k.ExternalID != "" { // skip without IDs
-// 				res.Data = append(res.Data, mapToKey(s, k, false))
-// 			}
-// 		}
-// 	}
-// 	res.Till = &to
-// 	return res, nil
-// }
-
-// func loadKeys(sessCtx mongo.SessionContext, service string, from *time.Time) ([]*keyRecord, error) {
-// 	c := sessCtx.Client().Database(service).Collection(keyTable)
-// 	filter := makeDateFilterForKey(from, nil)
-// 	cursor, err := c.Find(sessCtx, filter)
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "can't get keys")
-// 	}
-// 	defer cursor.Close(sessCtx)
-// 	res := []*keyRecord{}
-// 	for cursor.Next(sessCtx) {
-// 		var keyR keyRecord
-// 		if err := cursor.Decode(&keyR); err != nil {
-// 			return nil, errors.Wrap(err, "can't get key record")
-// 		}
-// 		res = append(res, &keyR)
-// 	}
-// 	if err := cursor.Err(); err != nil {
-// 		return nil, fmt.Errorf("can't get keys: %w", err)
-// 	}
-// 	return res, nil
-// }
-
-// func makeDateFilterForKey(from, to *time.Time) bson.M {
-// 	res := bson.M{"manual": true}
-// 	df := getDateFilter(from, to)
-// 	if len(df) > 0 {
-// 		res["updated"] = df
-// 	}
-// 	return res
-// }
-
-// func getDateFilter(from, to *time.Time) bson.M {
-// 	var res bson.M
-// 	if from != nil || to != nil {
-// 		res = bson.M{}
-// 		if from != nil {
-// 			res["$gte"] = *from
-// 		}
-// 		if to != nil {
-// 			res["$lt"] = *to
-// 		}
-// 	}
-// 	return res
-// }
-
-// func makeDateFilter(keyID string, from, to *time.Time) bson.M {
-// 	res := bson.M{"keyID": Sanitize(keyID)}
-// 	df := getDateFilter(from, to)
-// 	if len(df) > 0 {
-// 		res["date"] = df
-// 	}
-// 	return res
-// }
-
-// func mapLogRecord(log *logRecord) *api.Log {
-// 	res := &api.Log{}
-// 	res.Date = toTime(&log.Date)
-// 	res.Fail = log.Fail
-// 	res.Response = log.ResponseCode
-// 	res.IP = log.IP
-// 	res.UsedCredits = log.QuotaValue
-// 	return res
-// }
 
 func (r *CMSRepository) addQuota(ctx context.Context, db dbTx, id string, in *api.CreditsInput) (*keyRecord, error) {
 	log.Ctx(ctx).Trace().Str("id", id).Str("operationID", in.OperationID).Float64("quota", in.Credits).Msg("Add credits")
@@ -512,9 +451,9 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 	hash := utils.HashKey(key)
 	log.Ctx(ctx).Trace().Str("id", in.ID).Str("key", key).Msg("Create key record")
 	_, err := tx.ExecContext(ctx, `
-	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated, disabled, tags)
-	VALUES ($1, $2, $3, TRUE, $4, $5, $6, $6, FALSE, $7)
-	`, in.ID, in.Service, hash, in.Credits, now.Add(r.defaultValidToDuration), now, tags)
+	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated, disabled, tags, description)
+	VALUES ($1, $2, $3, TRUE, $4, $5, $6, $6, FALSE, $7, $8)
+	`, in.ID, in.Service, hash, in.Credits, now.Add(r.defaultValidToDuration), now, tags, in.Description)
 	if err != nil {
 		return nil, fmt.Errorf("create key: %w", mapErr(err))
 	}
