@@ -8,15 +8,19 @@ import (
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
+	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
+	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 
 // Repository communicates with postgres
 type AdmimRepository struct {
-	db *sqlx.DB
+	db     *sqlx.DB
+	hasher Hasher
 }
 
 // DeleteLogs implements admin.LogProvider.
@@ -44,11 +48,14 @@ func (a *AdmimRepository) List(ctx context.Context, project string) ([]*api.Key,
 	panic("unimplemented")
 }
 
-func NewAdmimRepository(ctx context.Context, db *sqlx.DB) (*AdmimRepository, error) {
+func NewAdmimRepository(ctx context.Context, db *sqlx.DB, hasher Hasher) (*AdmimRepository, error) {
 	if db == nil {
 		return nil, fmt.Errorf("db is nil")
 	}
-	f := AdmimRepository{db: db}
+	if hasher == nil {
+		return nil, fmt.Errorf("hasher is nil")
+	}
+	f := AdmimRepository{db: db, hasher: hasher}
 	return &f, nil
 }
 
@@ -132,6 +139,48 @@ func (r *AdmimRepository) RestoreUsage(ctx context.Context, project string, manu
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit transaction: %w", err)
+	}
+	return nil
+}
+
+func (r *AdmimRepository) ValidateToken(ctx context.Context, token string) (*model.User, error) {
+	log.Ctx(ctx).Trace().Msg("Validating token")
+	hash := r.hasher.HashKey(token)
+	var res administratorRecord
+	err := r.db.GetContext(ctx, &res, `
+		SELECT id, disabled, max_valid_to, max_limit, projects, name
+		FROM administrators
+		WHERE key_hash = $1`, hash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, utils.ErrUnauthorized
+		}
+		return nil, fmt.Errorf("can't get administrators: %w", mapErr(err))
+	}
+	if res.Disabled {
+		return nil, fmt.Errorf("disabled: %w", utils.ErrUnauthorized)
+	}
+	return &model.User{
+		ID:         res.ID,
+		Projects:   res.Projects,
+		MaxValidTo: res.MaxValidTo,
+		MaxLimit:   res.MaxLimit,
+		Name:       res.Name,
+	}, nil
+}
+
+func (r *AdmimRepository) AddAdmin(ctx context.Context, key string, user *model.User) error {
+	log.Ctx(ctx).Trace().Any("data", user).Msg("Add admin")
+	now := time.Now()
+	hash := r.hasher.HashKey(key)
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO administrators
+			(id, key_hash, projects, max_valid_to, max_limit, name, created, updated)
+		VALUES
+			($1, $2, $3, $4, $5, $6, $7, $7)
+		`, ulid.Make().String(), hash, pq.Array(user.Projects), user.MaxValidTo, user.MaxLimit, user.Name, now)
+	if err != nil {
+		return fmt.Errorf("insert admin: %w", mapErr(err))
 	}
 	return nil
 }

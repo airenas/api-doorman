@@ -42,3 +42,7 @@ type KeyInfoResp struct {
 	Key  *Key   `json:"key,omitempty"`
 	Logs []*Log `json:"logs,omitempty"`
 }
+
+type KeyIn struct {
+	Key         string     `json:"key,omitempty"`
+}

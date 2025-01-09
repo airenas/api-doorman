@@ -17,6 +17,9 @@ var ErrDuplicate = errors.New("duplicate record")
 // ErrOperationExists indicates existing operation for the record
 var ErrOperationExists = errors.New("operation exists")
 
+var ErrUnauthorized = errors.New("unauthorized")
+var ErrNoAccess = errors.New("no access")
+
 type WrongFieldError struct {
 	Field   string
 	Message string

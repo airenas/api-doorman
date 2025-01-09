@@ -11,3 +11,7 @@ db:
     dsn: postgres://postgres:postgres@localhost:5432/doorman?sslmode=disable
 
 hashSalt: ohcheiPhahBahPa2aephei6eiree5P
+mainAdmin: 
+    key: olia
+    maxLimit: 100000000
+    forceShortKey: true

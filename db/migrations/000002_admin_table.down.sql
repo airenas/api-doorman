@@ -1,0 +1,7 @@
+BEGIN;
+
+ALTER TABLE keys DROP CONSTRAINT IF EXISTS fk_administrator;
+ALTER TABLE keys DROP COLUMN IF EXISTS adm_id;
+DROP TABLE IF EXISTS administrators;
+
+END;

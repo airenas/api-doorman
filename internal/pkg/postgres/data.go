@@ -48,3 +48,16 @@ type ProjectSettings struct {
 	NextReset    time.Time `json:"nextReset,omitempty"`
 	Updated      time.Time `json:"updated,omitempty"`
 }
+
+type administratorRecord struct {
+	ID          string
+	Projects    pq.StringArray
+	KeyHash     string    `db:"key_hash"` 
+	MaxValidTo  time.Time `db:"max_valid_to"`
+	MaxLimit    float64   `db:"max_limit"`
+	Name        string
+	Disabled    bool
+	Description sql.NullString
+	Created     time.Time
+	Updated     time.Time
+}

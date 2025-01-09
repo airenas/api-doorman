@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin"
+	"github.com/airenas/api-doorman/internal/pkg/handler"
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms"
+	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/airenas/api-doorman/internal/pkg/postgres"
 	"github.com/airenas/api-doorman/internal/pkg/reset"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
@@ -38,16 +41,27 @@ func mainInt(ctx context.Context) error {
 	}
 	defer db.Close()
 
-	repo, err := postgres.NewAdmimRepository(ctx, db)
+	hasher, err := utils.NewHasher(goapp.Config.GetString("hashSalt"))
+	if err != nil {
+		return fmt.Errorf("init hasher: %w", err)
+	}
+
+	repo, err := postgres.NewAdmimRepository(ctx, db, hasher)
 	if err != nil {
 		return fmt.Errorf("init repository: %w", err)
 	}
 
 	data := admin.Data{}
+	data.Hasher = hasher
 	data.Port = goapp.Config.GetInt("port")
 	data.KeyGetter, data.KeySaver, data.OneKeyUpdater = repo, repo, repo
 	data.OneKeyGetter, data.UsageRestorer = repo, repo
 	data.LogProvider = repo
+	authmw, err := handler.NewAuthMiddleware(repo)
+	if err != nil {
+		return fmt.Errorf("init auth middleware: %w", err)
+	}
+	data.Auth = authmw.Handle
 
 	prStr := goapp.Config.GetString("projects")
 	log.Info().Msgf("Projects: %s", prStr)
@@ -59,11 +73,6 @@ func mainInt(ctx context.Context) error {
 
 	data.CmsData = &cms.Data{}
 	data.CmsData.ProjectValidator = pv
-
-	hasher, err := utils.NewHasher(goapp.Config.GetString("hashSalt"))
-	if err != nil {
-		return fmt.Errorf("init hasher: %w", err)
-	}
 
 	cms, err := postgres.NewCMSRepository(ctx, db, goapp.Config.GetInt("keySize"), hasher)
 	if err != nil {
@@ -88,6 +97,10 @@ func mainInt(ctx context.Context) error {
 		return fmt.Errorf("start timer: %w", err)
 	}
 
+	if err := tryAddInitialAdmin(ctx, config, repo, pv.Projects()); err != nil {
+		return err
+	}
+
 	err = admin.StartWebServer(&data)
 	if err != nil {
 		return fmt.Errorf("start web server: %w", err)
@@ -99,6 +112,32 @@ func mainInt(ctx context.Context) error {
 	case <-time.After(time.Second * 15):
 		log.Warn().Msg("Timeout graceful shutdown")
 	}
+	return nil
+}
+
+func tryAddInitialAdmin(ctx context.Context, config *viper.Viper, repo *postgres.AdmimRepository, projects []string) error {
+	key := config.GetString("mainAdmin.key")
+	if key == "" {
+		return nil
+	}
+
+	if len(key) < 30 && !config.GetBool("mainAdmin.forceShortKey") {
+		return fmt.Errorf("admin auth key too short")
+	}
+
+	log.Ctx(ctx).Info().Msg("Try to add initial admin")
+	err := repo.AddAdmin(ctx, key, &model.User{Name: "Main",
+		MaxLimit:   config.GetFloat64("mainAdmin.maxLimit"),
+		MaxValidTo: time.Now().AddDate(10, 0, 0),
+		Projects:   projects})
+	if err != nil {
+		if errors.Is(err, utils.ErrDuplicate) {
+			log.Ctx(ctx).Info().Msg("Initial admin exists")
+			return nil
+		}
+		return fmt.Errorf("add initial admin: %w", err)
+	}
+	log.Ctx(ctx).Warn().Msg("Initial admin added")
 	return nil
 }
 

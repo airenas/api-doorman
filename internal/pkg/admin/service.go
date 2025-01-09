@@ -9,7 +9,9 @@ import (
 	"time"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
+	"github.com/airenas/api-doorman/internal/pkg/handler"
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms"
+	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/facebookgo/grace/gracehttp"
@@ -57,11 +59,18 @@ type (
 	UsageReseter interface {
 		Reset(ctx context.Context, project string, since time.Time, limit float64) error
 	}
+	Auth interface {
+		ValidateToken(ctx context.Context, token string) (model.User, error)
+	}
 
 	// PrValidator validates if project is available
 	PrValidator interface {
 		Check(string) bool
 		Projects() []string
+	}
+
+	Hasher interface {
+		HashKey(key string) string
 	}
 
 	//Data is service operation data
@@ -76,6 +85,8 @@ type (
 		UsageRestorer    UsageRestorer
 		UsageReseter     UsageReseter
 		ProjectValidator PrValidator
+		Auth             echo.MiddlewareFunc
+		Hasher           Hasher
 
 		CmsData *cms.Data
 	}
@@ -83,6 +94,16 @@ type (
 
 // StartWebServer starts the HTTP service and listens for the admin requests
 func StartWebServer(data *Data) error {
+	if data == nil {
+		return errors.New("no data")
+	}
+	if data.Auth == nil {
+		return errors.New("no auth")
+	}
+	if data.Hasher == nil {
+		return errors.New("no hasher")
+	}
+
 	log.Info().Int("port", data.Port).Msg("Starting HTTP doorman admin service")
 
 	e := initRoutes(data)
@@ -108,8 +129,10 @@ func init() {
 func initRoutes(data *Data) *echo.Echo {
 	e := echo.New()
 	promMdlw.Use(e)
+	e.Use(data.Auth)
 
 	e.GET("/live", live(data))
+	e.POST("/hash", makeHash(data))
 	e.GET("/:project/key-list", keyList(data))
 	e.GET("/:project/key/:key", keyInfo(data))
 	e.POST("/:project/key", keyAdd(data))
@@ -175,6 +198,12 @@ func processError(err error) error {
 	}
 	if errors.Is(err, utils.ErrOperationExists) {
 		return echo.NewHTTPError(http.StatusConflict, "duplicate operation")
+	}
+	if errors.Is(err, utils.ErrUnauthorized) {
+		return echo.NewHTTPError(http.StatusUnauthorized)
+	}
+	if errors.Is(err, utils.ErrNoAccess) {
+		return echo.NewHTTPError(http.StatusForbidden)
 	}
 	return echo.NewHTTPError(http.StatusInternalServerError)
 }
@@ -304,6 +333,28 @@ func keyUpdate(data *Data) func(echo.Context) error {
 		}
 
 		return c.JSON(http.StatusOK, keyResp)
+	}
+}
+
+func makeHash(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		defer goapp.Estimate("Service method: " + c.Path())()
+		var input adminapi.KeyIn
+		if err := utils.TakeJSONInput(c, &input); err != nil {
+			log.Error().Err(err).Send()
+			return err
+		}
+
+		ctx := c.Request().Context()
+
+		user, ok := ctx.Value(handler.CtxUser).(*model.User)
+		if !ok {
+			return processError(utils.ErrNoAccess)
+		}
+		_ = user
+
+		res := data.Hasher.HashKey(input.Key)
+		return c.String(http.StatusOK, res)
 	}
 }
 
