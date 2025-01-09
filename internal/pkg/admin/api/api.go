@@ -44,5 +44,5 @@ type KeyInfoResp struct {
 }
 
 type KeyIn struct {
-	Key         string     `json:"key,omitempty"`
+	Key string `json:"key,omitempty"`
 }

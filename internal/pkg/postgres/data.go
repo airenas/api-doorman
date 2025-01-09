@@ -52,7 +52,7 @@ type ProjectSettings struct {
 type administratorRecord struct {
 	ID          string
 	Projects    pq.StringArray
-	KeyHash     string    `db:"key_hash"` 
+	KeyHash     string    `db:"key_hash"`
 	MaxValidTo  time.Time `db:"max_valid_to"`
 	MaxLimit    float64   `db:"max_limit"`
 	Name        string

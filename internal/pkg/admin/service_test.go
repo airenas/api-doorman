@@ -412,6 +412,11 @@ func toReader(key interface{}) io.Reader {
 }
 
 func newTestData() *Data {
+	authMw := func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			return next(c)
+		}
+	}
 	res := &Data{KeySaver: keyCreatorMock,
 		KeyGetter:        keyRetrieverMock,
 		OneKeyGetter:     oneKeyRetrieverMock,
@@ -419,6 +424,7 @@ func newTestData() *Data {
 		OneKeyUpdater:    keyUpdaterMock,
 		ProjectValidator: prValidarorMock,
 		UsageRestorer:    uRestorer,
+		Auth:             authMw,
 	}
 	return res
 }
