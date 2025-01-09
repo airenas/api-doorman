@@ -4,16 +4,9 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/google/uuid"
-)
-
-type key int
-
-const (
-	// CtxContext context key for custom context object
-	CtxContext key = iota
-	CtxUser
+	"github.com/oklog/ulid/v2"
 )
 
 type customData struct {
@@ -31,13 +24,13 @@ type customData struct {
 }
 
 func customContext(r *http.Request) (*http.Request, *customData) {
-	res, ok := r.Context().Value(CtxContext).(*customData)
+	res, ok := r.Context().Value(model.CtxContext).(*customData)
 	if ok {
 		return r, res
 	}
 	res = &customData{}
 	res.IP = utils.ExtractIP(r)
-	res.RequestID = uuid.NewString()
-	ctx := context.WithValue(r.Context(), CtxContext, res)
+	res.RequestID = ulid.Make().String()
+	ctx := context.WithValue(r.Context(), model.CtxContext, res)
 	return r.WithContext(ctx), res
 }

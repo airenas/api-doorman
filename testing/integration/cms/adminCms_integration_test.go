@@ -15,6 +15,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/test"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
+	"github.com/airenas/api-doorman/testing/integration"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -542,6 +543,12 @@ func newKeyInput(t *testing.T, in *api.CreateInput) *api.Key {
 }
 
 func newRequest(t *testing.T, method string, urlSuffix string, body interface{}) *http.Request {
+	t.Helper()
+
+	return integration.AddAdmAuth(newRequestFull(t, method, cfg.url+urlSuffix, body))
+}
+
+func newRequestNoAuth(t *testing.T, method string, urlSuffix string, body interface{}) *http.Request {
 	t.Helper()
 
 	return newRequestFull(t, method, cfg.url+urlSuffix, body)

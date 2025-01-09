@@ -9,7 +9,6 @@ import (
 	"time"
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
-	"github.com/airenas/api-doorman/internal/pkg/handler"
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms"
 	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
@@ -178,34 +177,10 @@ func keyAdd(data *Data) func(echo.Context) error {
 		keyResp, err := data.KeySaver.Create(c.Request().Context(), project, &input)
 
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 		return c.JSON(http.StatusOK, keyResp)
 	}
-}
-
-func processError(err error) error {
-	log.Error().Err(err).Send()
-	var errF *utils.WrongFieldError
-	if errors.As(err, &errF) {
-		return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
-	}
-	if errors.Is(err, utils.ErrNoRecord) {
-		return echo.NewHTTPError(http.StatusBadRequest, "no record")
-	}
-	if errors.Is(err, utils.ErrDuplicate) {
-		return echo.NewHTTPError(http.StatusBadRequest, "duplicate record")
-	}
-	if errors.Is(err, utils.ErrOperationExists) {
-		return echo.NewHTTPError(http.StatusConflict, "duplicate operation")
-	}
-	if errors.Is(err, utils.ErrUnauthorized) {
-		return echo.NewHTTPError(http.StatusUnauthorized)
-	}
-	if errors.Is(err, utils.ErrNoAccess) {
-		return echo.NewHTTPError(http.StatusForbidden)
-	}
-	return echo.NewHTTPError(http.StatusInternalServerError)
 }
 
 func keyList(data *Data) func(echo.Context) error {
@@ -219,7 +194,7 @@ func keyList(data *Data) func(echo.Context) error {
 		keyResp, err := data.KeyGetter.List(c.Request().Context(), project)
 
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 
 		return c.JSON(http.StatusOK, keyResp)
@@ -244,7 +219,7 @@ func logList(data *Data) func(echo.Context) error {
 		res, err := data.LogProvider.ListLogs(c.Request().Context(), project, *to)
 
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 
 		return c.JSON(http.StatusOK, res)
@@ -269,7 +244,7 @@ func logDelete(data *Data) func(echo.Context) error {
 
 		deleted, err := data.LogProvider.DeleteLogs(c.Request().Context(), project, *to)
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 
 		return c.JSONBlob(http.StatusOK, []byte(fmt.Sprintf(`{"deleted":%d}`, deleted)))
@@ -294,13 +269,13 @@ func keyInfo(data *Data) func(echo.Context) error {
 		var err error
 		res.Key, err = data.OneKeyGetter.Get(c.Request().Context(), project, key)
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 
 		if c.QueryParam("full") == "1" {
 			res.Logs, err = data.LogProvider.GetLogs(c.Request().Context(), project, key)
 			if err != nil {
-				return processError(err)
+				return utils.ProcessError(err)
 			}
 		}
 		return c.JSON(http.StatusOK, res)
@@ -329,7 +304,7 @@ func keyUpdate(data *Data) func(echo.Context) error {
 		keyResp, err := data.OneKeyUpdater.Update(c.Request().Context(), project, key, input)
 
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 
 		return c.JSON(http.StatusOK, keyResp)
@@ -338,23 +313,15 @@ func keyUpdate(data *Data) func(echo.Context) error {
 
 func makeHash(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		var input adminapi.KeyIn
-		if err := utils.TakeJSONInput(c, &input); err != nil {
-			log.Error().Err(err).Send()
-			return err
-		}
-
-		ctx := c.Request().Context()
-
-		user, ok := ctx.Value(handler.CtxUser).(*model.User)
-		if !ok {
-			return processError(utils.ErrNoAccess)
-		}
-		_ = user
-
-		res := data.Hasher.HashKey(input.Key)
-		return c.String(http.StatusOK, res)
+		return utils.RunWithUser(c, func(e echo.Context, user *model.User) error {
+			var input adminapi.KeyIn
+			if err := utils.TakeJSONInput(c, &input); err != nil {
+				log.Error().Err(err).Send()
+				return err
+			}
+			res := data.Hasher.HashKey(input.Key)
+			return c.String(http.StatusOK, res)
+		})
 	}
 }
 
@@ -387,16 +354,8 @@ func restore(data *Data) func(echo.Context) error {
 		}
 
 		err = data.UsageRestorer.RestoreUsage(c.Request().Context(), project, manual, rID, input.Error)
-
-		if errors.Is(err, utils.ErrNoRecord) {
-			log.Error().Err(err).Msg("log not found")
-			return echo.NewHTTPError(http.StatusBadRequest, "requestID not found")
-		} else if errors.Is(err, utils.ErrLogRestored) {
-			log.Error().Err(err).Msg("already restored")
-			return echo.NewHTTPError(http.StatusConflict, "already restored")
-		} else if err != nil {
-			log.Error().Err(err).Msg("can't restore requestID usage")
-			return echo.NewHTTPError(http.StatusInternalServerError)
+		if err != nil {
+			return utils.ProcessError(err)
 		}
 		return c.NoContent(http.StatusOK)
 	}
@@ -433,7 +392,7 @@ func reset(data *Data) func(echo.Context) error {
 		err = data.UsageReseter.Reset(c.Request().Context(), project, *since, quota)
 
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 
 		return c.NoContent(http.StatusOK)

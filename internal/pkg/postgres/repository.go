@@ -9,8 +9,8 @@ import (
 
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 
@@ -100,7 +100,7 @@ func (r *Repository) SaveValidate(ctx context.Context, key string, ip string, ma
 	if err != nil {
 		return false, 0, 0, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer roolback(tx)
+	defer rollback(tx)
 
 	var res keyRecord
 	err = tx.GetContext(ctx, &res, `
@@ -146,7 +146,7 @@ func (r *Repository) SaveValidate(ctx context.Context, key string, ip string, ma
 	return true, remainingQuota, limit, nil
 }
 
-func roolback(tx *sqlx.Tx) {
+func rollback(tx *sqlx.Tx) {
 	err := tx.Rollback()
 	if err != nil && err != sql.ErrTxDone {
 		log.Warn().Err(err).Msg("rollback failed")
@@ -191,7 +191,7 @@ func (r *Repository) CheckCreateIPKey(ctx context.Context, ip string, limit floa
 		return "", err
 	}
 
-	id := uuid.NewString()
+	id := ulid.Make().String()
 	log.Ctx(ctx).Debug().Str("ip", ip).Msg("insert new key for IP")
 	sRes, err := r.db.ExecContext(ctx, `
 	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated)

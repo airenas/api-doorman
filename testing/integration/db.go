@@ -9,8 +9,8 @@ import (
 
 	"github.com/airenas/api-doorman/internal/pkg/postgres"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,9 +37,10 @@ func ResetSettings(t *testing.T, db *sqlx.DB, key string) {
 func InsertIPKey(t *testing.T, db *sqlx.DB, project string) string {
 	t.Helper()
 
-	id := uuid.New().String()
-	ip := uuid.New().String()
+	id := ulid.Make().String()
+	ip := ulid.Make().String()
 	_, err := db.Exec(`INSERT INTO keys (id, project, key_hash, quota_limit, manual, valid_to) VALUES ($1, $2, $3, 10000, FALSE, $4)`, id, project, ip, time.Now().AddDate(0, 0, 1))
 	require.NoError(t, err)
 	return id
 }
+

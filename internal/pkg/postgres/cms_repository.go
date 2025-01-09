@@ -9,19 +9,19 @@ import (
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
+	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
 
 type CMSRepository struct {
-	db                     *sqlx.DB
-	newKeySize             int
-	defaultValidToDuration time.Duration
-	hasher                 Hasher
+	db         *sqlx.DB
+	newKeySize int
+	hasher     Hasher
 }
 
 const (
@@ -41,11 +41,11 @@ func NewCMSRepository(ctx context.Context, db *sqlx.DB, keySize int, hasher Hash
 	if hasher == nil {
 		return nil, fmt.Errorf("hasher is nil")
 	}
-	f := CMSRepository{db: db, newKeySize: keySize, defaultValidToDuration: time.Hour * 24 * 365 * 10 /*aprox 10 years*/, hasher: hasher}
+	f := CMSRepository{db: db, newKeySize: keySize, hasher: hasher}
 	return &f, nil
 }
 
-func (r *CMSRepository) Create(ctx context.Context, in *api.CreateInput) (*api.Key, bool /*created*/, error) {
+func (r *CMSRepository) Create(ctx context.Context, user *model.User, in *api.CreateInput) (*api.Key, bool /*created*/, error) {
 	if err := validateInput(in); err != nil {
 		return nil, false, err
 	}
@@ -54,20 +54,31 @@ func (r *CMSRepository) Create(ctx context.Context, in *api.CreateInput) (*api.K
 	if err != nil {
 		return nil, false, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer roolback(tx)
+	defer rollback(tx)
+
+	if err := user.ValidateProject(in.Service); err != nil {
+		return nil, false, err
+	}
+	validTo, err := user.ValidateDate(in.ValidTo)
+	if err != nil {
+		return nil, false, err
+	}
+	if err := r.validateQuota(ctx, tx, user, in.Credits); err != nil {
+		return nil, false, err
+	}
 
 	if in.OperationID == "" {
-		in.OperationID = uuid.NewString()
+		in.OperationID = ulid.Make().String()
 	}
 	if in.ID == "" {
-		in.ID = uuid.NewString()
+		in.ID = ulid.Make().String()
 	}
 	key, err := randkey.Generate(r.newKeySize)
 	if err != nil {
 		return nil, false, fmt.Errorf("generate key: %w", err)
 	}
 
-	res, err := r.createKeyWithQuota(ctx, tx, in, key)
+	res, err := r.createKeyWithQuota(ctx, tx, in, key, user.ID, validTo)
 	if err != nil {
 		return nil, false, err
 	}
@@ -75,6 +86,30 @@ func (r *CMSRepository) Create(ctx context.Context, in *api.CreateInput) (*api.K
 		return nil, false, fmt.Errorf("commit transaction: %w", err)
 	}
 	return mapToKey(res, key), true, nil
+}
+
+func (r *CMSRepository) validateQuota(ctx context.Context, tx dbTx, user *model.User, credits float64) error {
+	assigned, err := r.getAssignedQuota(ctx, tx, user.ID)
+	if err != nil {
+		return err
+	}
+	if assigned+credits > user.MaxLimit {
+		return model.NewWrongFieldError("credits", fmt.Sprintf("over limit, max %f, assigned %f", user.MaxLimit, assigned))
+	}
+	return nil
+}
+
+func (r *CMSRepository) getAssignedQuota(ctx context.Context, tx dbTx, id string) (float64, error) {
+	var res float64
+	err := tx.GetContext(ctx, &res, `
+		SELECT COALESCE(SUM(quota_limit), 0)
+		FROM keys
+		WHERE adm_id = $1
+	`, id)
+	if err != nil {
+		return 0, fmt.Errorf("get all assigned quotas: %w", mapErr(err))
+	}
+	return res, nil
 }
 
 func (r *CMSRepository) GetKey(ctx context.Context, id string) (*api.Key, error) {
@@ -103,11 +138,11 @@ func (r *CMSRepository) AddCredits(ctx context.Context, id string, in *api.Credi
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer roolback(tx)
+	defer rollback(tx)
 
 	res, err := r.addQuota(ctx, tx, id, in)
 	if err != nil {
-		if errors.Is(err, utils.ErrOperationExists) && res != nil {
+		if errors.Is(err, model.ErrOperationExists) && res != nil {
 			return mapToKey(res, ""), nil
 		}
 		return nil, err
@@ -123,7 +158,7 @@ func (r *CMSRepository) Update(ctx context.Context, id string, in map[string]int
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer roolback(tx)
+	defer rollback(tx)
 
 	res, err := r.update(ctx, tx, id, in)
 	if err != nil {
@@ -140,7 +175,7 @@ func (r *CMSRepository) Change(ctx context.Context, id string) (*api.Key, error)
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer roolback(tx)
+	defer rollback(tx)
 
 	key, err := randkey.Generate(r.newKeySize)
 	if err != nil {
@@ -285,7 +320,7 @@ func prepareKeyUpdates(input map[string]interface{}, now time.Time) (string, []i
 			if ok {
 				ok = uv.After(now)
 				if !ok {
-					return "", nil, utils.NewWrongFieldError(k, "past date")
+					return "", nil, model.NewWrongFieldError(k, "past date")
 				}
 				updates = append(updates, "valid_to")
 				values = append(values, uv)
@@ -302,7 +337,7 @@ func prepareKeyUpdates(input map[string]interface{}, now time.Time) (string, []i
 			s, ok = v.(string)
 			if ok {
 				if err := utils.ValidateIPsCIDR(s); err != nil {
-					return "", nil, utils.NewWrongFieldError(k, "wrong IP CIDR format")
+					return "", nil, model.NewWrongFieldError(k, "wrong IP CIDR format")
 				}
 				updates = append(updates, "ip_white_list")
 				values = append(values, s)
@@ -315,14 +350,14 @@ func prepareKeyUpdates(input map[string]interface{}, now time.Time) (string, []i
 				values = append(values, uv)
 			}
 		} else {
-			err = utils.NewWrongFieldError(k, "unknown or unsuported update")
+			err = model.NewWrongFieldError(k, "unknown or unsuported update")
 		}
 		if !ok || err != nil {
-			return "", nil, utils.NewWrongFieldError(k, "can't parse")
+			return "", nil, model.NewWrongFieldError(k, "can't parse")
 		}
 	}
 	if len(updates) == 0 {
-		return "", nil, utils.NewWrongFieldError("", "no updates")
+		return "", nil, model.NewWrongFieldError("", "no updates")
 	}
 	return makeUpdateSQL(updates), values, nil
 }
@@ -344,7 +379,7 @@ func (r *CMSRepository) addQuota(ctx context.Context, db dbTx, id string, in *ap
 	}
 
 	if in.Credits < 0 && key.Limit+in.Credits < key.QuotaValue {
-		return nil, utils.NewWrongFieldError("credits", "(limit - change) is less than used")
+		return nil, model.NewWrongFieldError("credits", "(limit - change) is less than used")
 	}
 
 	now := time.Now()
@@ -354,7 +389,7 @@ func (r *CMSRepository) addQuota(ctx context.Context, db dbTx, id string, in *ap
 		return nil, err
 	}
 	if has {
-		return key, utils.ErrOperationExists
+		return key, model.ErrOperationExists
 	}
 
 	var limit float64
@@ -399,7 +434,7 @@ func (r *CMSRepository) update(ctx context.Context, db dbTx, id string, in map[s
 		return nil, fmt.Errorf("update key: %w", mapErr(err))
 	}
 	if rows, _ := res.RowsAffected(); rows == 0 {
-		return nil, utils.ErrNoRecord
+		return nil, model.ErrNoRecord
 	}
 	return loadKeyRecord(ctx, db, id)
 }
@@ -443,7 +478,7 @@ func mapToSaveRequests(tags []string) bool {
 	return false
 }
 
-func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api.CreateInput, key string) (*keyRecord, error) {
+func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api.CreateInput, key string, userID string, validTo time.Time) (*keyRecord, error) {
 	log.Ctx(ctx).Trace().Str("id", in.ID).Str("operationID", in.OperationID).Str("service", in.Service).Msg("Create operation record")
 
 	var tags []string
@@ -455,9 +490,9 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 	hash := r.hasher.HashKey(key)
 	log.Ctx(ctx).Trace().Str("id", in.ID).Str("key", key).Msg("Create key record")
 	_, err := tx.ExecContext(ctx, `
-	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated, disabled, tags, description)
-	VALUES ($1, $2, $3, TRUE, $4, $5, $6, $6, FALSE, $7, $8)
-	`, in.ID, in.Service, hash, in.Credits, now.Add(r.defaultValidToDuration), now, tags, in.Description)
+	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated, disabled, tags, description, adm_id)
+	VALUES ($1, $2, $3, TRUE, $4, $5, $6, $6, FALSE, $7, $8, $9)
+	`, in.ID, in.Service, hash, in.Credits, validTo, now, tags, in.Description, userID)
 	if err != nil {
 		return nil, fmt.Errorf("create key: %w", mapErr(err))
 	}
@@ -467,14 +502,14 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 		return nil, err
 	}
 	if has {
-		return nil, utils.ErrOperationExists
+		return nil, model.ErrOperationExists
 	}
 
 	return &keyRecord{
 		ID:      in.ID,
 		Project: in.Service,
 		Limit:   in.Credits,
-		ValidTo: now.Add(r.defaultValidToDuration),
+		ValidTo: validTo,
 		Created: now,
 		Updated: now,
 		Tags:    pq.StringArray(tags),
@@ -496,10 +531,10 @@ func (r *CMSRepository) changeKey(ctx context.Context, tx dbTx, id string, key s
 		return nil, fmt.Errorf("create key: %w", mapErr(err))
 	}
 	if rows, _ := sRes.RowsAffected(); rows == 0 {
-		return nil, utils.ErrNoRecord
+		return nil, model.ErrNoRecord
 	}
 
-	_, err = newOperation(ctx, tx, &createOperationInput{opID: uuid.NewString(), key_id: id, date: now, quota_value: 0, msg: "Change Key"})
+	_, err = newOperation(ctx, tx, &createOperationInput{opID: ulid.Make().String(), key_id: id, date: now, quota_value: 0, msg: "Change Key"})
 	if err != nil {
 		return nil, err
 	}
@@ -532,26 +567,26 @@ func newOperation(ctx context.Context, tx sqlx.ExecerContext, in *createOperatio
 
 func validateInput(input *api.CreateInput) error {
 	if strings.TrimSpace(input.Service) == "" {
-		return utils.NewWrongFieldError("service", "missing")
+		return model.NewWrongFieldError("service", "missing")
 	}
 	if input.ValidTo != nil && input.ValidTo.Before(time.Now()) {
-		return utils.NewWrongFieldError("validTo", "past date")
+		return model.NewWrongFieldError("validTo", "past date")
 	}
 	if input.Credits <= 0.1 {
-		return utils.NewWrongFieldError("credits", "less than 0.1")
+		return model.NewWrongFieldError("credits", "less than 0.1")
 	}
 	return nil
 }
 
 func validateCreditsInput(input *api.CreditsInput) error {
 	if input == nil {
-		return utils.NewWrongFieldError("operationID", "missing")
+		return model.NewWrongFieldError("operationID", "missing")
 	}
 	if strings.TrimSpace(input.OperationID) == "" {
-		return utils.NewWrongFieldError("operationID", "missing")
+		return model.NewWrongFieldError("operationID", "missing")
 	}
 	if math.Abs(input.Credits) <= 0.1 {
-		return utils.NewWrongFieldError("credits", "less than 0.1")
+		return model.NewWrongFieldError("credits", "less than 0.1")
 	}
 	return nil
 }

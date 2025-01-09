@@ -10,7 +10,6 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/oklog/ulid/v2"
@@ -96,7 +95,7 @@ func (r *AdmimRepository) RestoreUsage(ctx context.Context, project string, manu
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer roolback(tx)
+	defer rollback(tx)
 
 	var res logRecord
 	err = tx.GetContext(ctx, &res, `
@@ -108,7 +107,7 @@ func (r *AdmimRepository) RestoreUsage(ctx context.Context, project string, manu
 		return mapErr(err)
 	}
 	if res.Fail {
-		return utils.ErrLogRestored
+		return model.ErrLogRestored
 	}
 	updateQuery := `
 		UPDATE logs
@@ -153,12 +152,12 @@ func (r *AdmimRepository) ValidateToken(ctx context.Context, token string) (*mod
 		WHERE key_hash = $1`, hash)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, utils.ErrUnauthorized
+			return nil, model.ErrUnauthorized
 		}
 		return nil, fmt.Errorf("can't get administrators: %w", mapErr(err))
 	}
 	if res.Disabled {
-		return nil, fmt.Errorf("disabled: %w", utils.ErrUnauthorized)
+		return nil, fmt.Errorf("disabled: %w", model.ErrUnauthorized)
 	}
 	return &model.User{
 		ID:         res.ID,
@@ -192,7 +191,7 @@ func (r *AdmimRepository) Reset(ctx context.Context, project string, since time.
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer roolback(tx)
+	defer rollback(tx)
 
 	settings, err := getProjectSetting(ctx, tx, project)
 	if err != nil {
@@ -252,7 +251,7 @@ func (r *AdmimRepository) Reset(ctx context.Context, project string, since time.
 func reset(ctx context.Context, tx dbTx, id string, at time.Time, quotaInc float64) error {
 	log.Ctx(ctx).Debug().Str("id", id).Time("at", at).Float64("quotaInc", quotaInc).Msg("reset usage")
 
-	_, err := newOperation(ctx, tx, &createOperationInput{opID: uuid.NewString(), key_id: id, date: time.Now(), quota_value: quotaInc, msg: "monthly reset"})
+	_, err := newOperation(ctx, tx, &createOperationInput{opID: ulid.Make().String(), key_id: id, date: time.Now(), quota_value: quotaInc, msg: "monthly reset"})
 	if err != nil {
 		return err
 	}

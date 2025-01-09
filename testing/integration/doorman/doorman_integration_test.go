@@ -20,6 +20,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
+	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -66,8 +67,8 @@ func TestLiveAdmin(t *testing.T) {
 
 func TestAccessCreate(t *testing.T) {
 	t.Parallel()
-	id := uuid.NewString()
-	in := api.CreateInput{ID: id, OperationID: uuid.NewString(), Service: "test", Credits: 100}
+	id := ulid.Make().String()
+	in := api.CreateInput{ID: id, OperationID: ulid.Make().String(), Service: "test", Credits: 100}
 	resp := invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
 	checkCode(t, resp, http.StatusCreated)
 	res := api.Key{}
@@ -79,6 +80,46 @@ func TestAccessCreate(t *testing.T) {
 	res = api.Key{}
 	decode(t, resp, &res)
 	assert.Equal(t, 100.0, res.TotalCredits)
+}
+
+func TestAccessCreate_FailNoAuth(t *testing.T) {
+	t.Parallel()
+
+	in := api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100}
+	resp := invoke(t, newAdminRequestNoAuth(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusUnauthorized)
+}
+
+func TestAccessCreate_FailValidTo(t *testing.T) {
+	t.Parallel()
+
+	to := time.Now().AddDate(50, 0, 0)
+	in := api.CreateInput{ID: ulid.Make().String(),
+		ValidTo: &to,
+
+		OperationID: ulid.Make().String(), Service: "test", Credits: 100}
+	resp := invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusBadRequest)
+}
+
+func TestAccessCreate_FailLimits(t *testing.T) {
+	t.Parallel()
+
+	in := api.CreateInput{ID: ulid.Make().String(),	OperationID: ulid.Make().String(), Service: "test", Credits: -100}
+	resp := invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusBadRequest)
+
+	in = api.CreateInput{ID: ulid.Make().String(),	OperationID: ulid.Make().String(), Service: "test", Credits: 10000000000000}
+	resp = invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusBadRequest)
+}
+
+func TestAccessCreate_FailWrong(t *testing.T) {
+	t.Parallel()
+
+	in := api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100}
+	resp := invoke(t, integration.AddAuth(newAdminRequestNoAuth(t, http.MethodPost, "/key", in), "haha"))
+	checkCode(t, resp, http.StatusUnauthorized)
 }
 
 func TestAccessCreate_FailDuplicate(t *testing.T) {
@@ -165,6 +206,22 @@ func TestAccessCreate_UsedRestore(t *testing.T) {
 	assert.Equal(t, 10.0, res.FailedCredits)
 }
 
+func TestHash_OK(t *testing.T) {
+	t.Parallel()
+
+	in := adminapi.KeyIn{Key: "aaa"}
+	resp := invoke(t, newAdminRequest(t, http.MethodPost, "/hash", in))
+	checkCode(t, resp, http.StatusOK)
+}
+
+func TestHash_FailNoAuth(t *testing.T) {
+	t.Parallel()
+
+	in := adminapi.KeyIn{Key: "aaa"}
+	resp := invoke(t, newAdminRequestNoAuth(t, http.MethodPost, "/hash", in))
+	checkCode(t, resp, http.StatusUnauthorized)
+}
+
 func TestDefaultUsage(t *testing.T) {
 	t.Parallel()
 
@@ -181,7 +238,7 @@ func TestReset(t *testing.T) {
 	id2 := integration.InsertIPKey(t, cfg.db, "test")
 
 	since := time.Now().Add(time.Second)
-	resp := invoke(t, newAdminRequest(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=50000&since=%s", test.TimeToQueryStr(since)), nil))
+	resp := invoke(t, newAdminRequestNoAuth(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=50000&since=%s", test.TimeToQueryStr(since)), nil))
 	checkCode(t, resp, http.StatusOK)
 
 	key := getKeyInfo(t, id1)
@@ -193,7 +250,7 @@ func TestReset(t *testing.T) {
 	// try again
 	id3 := integration.InsertIPKey(t, cfg.db, "test")
 	integration.ResetSettings(t, cfg.db, "reset-test")
-	resp = invoke(t, newAdminRequest(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=40000&since=%s", test.TimeToQueryStr(since)), nil))
+	resp = invoke(t, newAdminRequestNoAuth(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=40000&since=%s", test.TimeToQueryStr(since)), nil))
 	checkCode(t, resp, http.StatusOK)
 
 	// not changed
@@ -221,6 +278,16 @@ func newRequest(t *testing.T, method string, urlSuffix string, body interface{})
 }
 
 func newAdminRequest(t *testing.T, method string, urlSuffix string, body interface{}) *http.Request {
+	t.Helper()
+	req, err := http.NewRequest(method, cfg.url+urlSuffix, mocks.ToReader(body))
+	require.Nil(t, err, "not nil error = %v", err)
+	if body != nil {
+		req.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	}
+	return integration.AddAdmAuth(req)
+}
+
+func newAdminRequestNoAuth(t *testing.T, method string, urlSuffix string, body interface{}) *http.Request {
 	t.Helper()
 	req, err := http.NewRequest(method, cfg.url+urlSuffix, mocks.ToReader(body))
 	require.Nil(t, err, "not nil error = %v", err)

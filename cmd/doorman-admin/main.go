@@ -131,7 +131,7 @@ func tryAddInitialAdmin(ctx context.Context, config *viper.Viper, repo *postgres
 		MaxValidTo: time.Now().AddDate(10, 0, 0),
 		Projects:   projects})
 	if err != nil {
-		if errors.Is(err, utils.ErrDuplicate) {
+		if errors.Is(err, model.ErrDuplicate) {
 			log.Ctx(ctx).Info().Msg("Initial admin exists")
 			return nil
 		}

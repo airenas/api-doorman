@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
+	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/labstack/echo/v4"
@@ -16,7 +17,7 @@ import (
 type (
 	// Integrator wraps integratoin functionality
 	Integrator interface {
-		Create(ctx context.Context, in *api.CreateInput) (*api.Key, bool /*created*/, error)
+		Create(ctx context.Context, user *model.User, in *api.CreateInput) (*api.Key, bool /*created*/, error)
 		GetKey(ctx context.Context, id string) (*api.Key, error)
 		AddCredits(ctx context.Context, id string, in *api.CreditsInput) (*api.Key, error)
 		GetKeyID(ctx context.Context, id string) (*api.KeyID, error)
@@ -53,26 +54,28 @@ func InitRoutes(e *echo.Echo, data *Data) {
 
 func keyCreate(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		var input api.CreateInput
-		if err := utils.TakeJSONInput(c, &input); err != nil {
-			log.Error().Err(err).Send()
-			return err
-		}
-		if err := validateService(input.Service, data.ProjectValidator); err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-		}
+		return utils.RunWithUser(c, func(ctx echo.Context, u *model.User) error {
+			defer goapp.Estimate("Service method: " + c.Path())()
+			var input api.CreateInput
+			if err := utils.TakeJSONInput(c, &input); err != nil {
+				log.Error().Err(err).Send()
+				return err
+			}
+			if err := validateService(input.Service, data.ProjectValidator); err != nil {
+				log.Error().Err(err).Send()
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			}
 
-		keyResp, created, err := data.Integrator.Create(c.Request().Context(), &input)
+			keyResp, created, err := data.Integrator.Create(c.Request().Context(), u, &input)
 
-		if err != nil {
-			return processError(err)
-		}
-		if created {
-			return c.JSON(http.StatusCreated, keyResp)
-		}
-		return c.JSON(http.StatusConflict, keyResp)
+			if err != nil {
+				return utils.ProcessError(err)
+			}
+			if created {
+				return c.JSON(http.StatusCreated, keyResp)
+			}
+			return c.JSON(http.StatusConflict, keyResp)
+		})
 	}
 }
 
@@ -86,7 +89,7 @@ func keyGet(data *Data) func(echo.Context) error {
 		}
 		keyResp, err := data.Integrator.GetKey(c.Request().Context(), keyID)
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 		if c.QueryParam("returnKey") != "1" {
 			keyResp.Key = ""
@@ -110,28 +113,10 @@ func keyUpdate(data *Data) func(echo.Context) error {
 		}
 		keyResp, err := data.Integrator.Update(c.Request().Context(), keyID, input)
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 		return c.JSON(http.StatusOK, keyResp)
 	}
-}
-
-func processError(err error) error {
-	log.Error().Err(err).Send()
-	var errF *utils.WrongFieldError
-	if errors.As(err, &errF) {
-		return echo.NewHTTPError(http.StatusBadRequest, errF.Error())
-	}
-	if errors.Is(err, utils.ErrNoRecord) {
-		return echo.NewHTTPError(http.StatusBadRequest, "no record")
-	}
-	if errors.Is(err, utils.ErrDuplicate) {
-		return echo.NewHTTPError(http.StatusBadRequest, "duplicate record")
-	}
-	if errors.Is(err, utils.ErrOperationExists) {
-		return echo.NewHTTPError(http.StatusConflict, "duplicate operation")
-	}
-	return echo.NewHTTPError(http.StatusInternalServerError)
 }
 
 func keyAddCredits(data *Data) func(echo.Context) error {
@@ -149,7 +134,7 @@ func keyAddCredits(data *Data) func(echo.Context) error {
 		}
 		keyResp, err := data.Integrator.AddCredits(c.Request().Context(), keyID, &input)
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 		return c.JSON(http.StatusOK, keyResp)
 	}
@@ -166,7 +151,7 @@ func keyChange(data *Data) func(echo.Context) error {
 
 		keyResp, err := data.Integrator.Change(c.Request().Context(), keyID)
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 
 		return c.JSON(http.StatusOK, keyResp)
@@ -191,7 +176,7 @@ func keyGetID(data *Data) func(echo.Context) error {
 		}
 		keyResp, err := data.Integrator.GetKeyID(c.Request().Context(), input.Key)
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 
 		return c.JSON(http.StatusOK, keyResp)
@@ -216,7 +201,7 @@ func keyUsage(data *Data) func(echo.Context) error {
 		}
 		usageResp, err := data.Integrator.Usage(c.Request().Context(), keyID, from, to, c.QueryParam("full") == "1")
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 
 		return c.JSON(http.StatusOK, usageResp)
@@ -232,7 +217,7 @@ func keysChanges(data *Data) func(echo.Context) error {
 		}
 		changesResp, err := data.Integrator.Changes(c.Request().Context(), from, data.ProjectValidator.Projects())
 		if err != nil {
-			return processError(err)
+			return utils.ProcessError(err)
 		}
 
 		return c.JSON(http.StatusOK, changesResp)

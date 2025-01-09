@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
@@ -46,10 +46,10 @@ func mapErr(err error) error {
 		return nil
 	}
 	if err == sql.ErrNoRows {
-		return fmt.Errorf("%w: %w", utils.ErrNoRecord, err)
+		return fmt.Errorf("%w: %w", model.ErrNoRecord, err)
 	}
 	if isDuplicate(err) {
-		return fmt.Errorf("%w: %w", utils.ErrDuplicate, err)
+		return fmt.Errorf("%w: %w", model.ErrDuplicate, err)
 	}
 	return err
 }

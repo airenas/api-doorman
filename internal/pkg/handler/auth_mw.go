@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/airenas/api-doorman/internal/pkg/model"
-	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
 )
@@ -44,13 +43,13 @@ func (a *AuthMiddleware) Handle(next echo.HandlerFunc) echo.HandlerFunc {
 			user, err := a.auth.ValidateToken(ctx, key)
 			if err != nil {
 				log.Ctx(ctx).Error().Err(err).Msg("can't validate token")
-				if errors.Is(err, utils.ErrUnauthorized) {
+				if errors.Is(err, model.ErrUnauthorized) {
 					return echo.NewHTTPError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 				}
 				return echo.NewHTTPError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 			}
 			log.Ctx(ctx).Trace().Str("user", user.Name).Msg("Logged as")
-			c.SetRequest(r.WithContext(context.WithValue(ctx, CtxUser, user)))
+			c.SetRequest(r.WithContext(context.WithValue(ctx, model.CtxUser, user)))
 		}
 		return next(c)
 	}
