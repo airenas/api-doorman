@@ -9,11 +9,8 @@ import (
 	"github.com/petergtz/pegomock/v4"
 )
 
-//go:generate pegomock generate --package=mocks --output=keyCreator.go github.com/airenas/api-doorman/internal/pkg/admin KeyCreator
-//go:generate pegomock generate --package=mocks --output=keyRetriever.go github.com/airenas/api-doorman/internal/pkg/admin KeyRetriever
 //go:generate pegomock generate --package=mocks --output=oneKeyRetriever.go github.com/airenas/api-doorman/internal/pkg/admin OneKeyRetriever
 //go:generate pegomock generate --package=mocks --output=logProvider.go github.com/airenas/api-doorman/internal/pkg/admin LogProvider
-//go:generate pegomock generate --package=mocks --output=keyUpdater.go github.com/airenas/api-doorman/internal/pkg/admin KeyUpdater
 //go:generate pegomock generate --package=mocks --output=prValidator.go github.com/airenas/api-doorman/internal/pkg/admin PrValidator
 //go:generate pegomock generate --package=mocks --output=usageRestorer.go github.com/airenas/api-doorman/internal/pkg/admin UsageRestorer
 
@@ -26,8 +23,6 @@ import (
 //go:generate pegomock generate --package=mocks --output=countGetter.go github.com/airenas/api-doorman/internal/pkg/handler CountGetter
 
 //go:generate pegomock generate --package=mocks --output=ipManager.go github.com/airenas/api-doorman/internal/pkg/service IPManager
-
-//go:generate pegomock generate --package=mocks --output=sProvider.go github.com/airenas/api-doorman/internal/pkg/mongodb SProvider
 
 // AttachMockToTest register pegomock verification to be passed to testing engine
 func AttachMockToTest(t *testing.T) {

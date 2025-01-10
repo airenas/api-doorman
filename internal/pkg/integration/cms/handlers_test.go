@@ -12,6 +12,7 @@ import (
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/model"
+	"github.com/airenas/api-doorman/internal/pkg/model/permission"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks2"
 	"github.com/labstack/echo/v4"
@@ -36,6 +37,23 @@ func initTest(t *testing.T) {
 
 	tData = &Data{ProjectValidator: prValidarorMock, Integrator: intMock}
 	tEcho = echo.New()
+
+	authMw := func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			r := c.Request()
+			ctx := r.Context()
+			user := &model.User{Name: "olia",
+				Permissions: map[permission.Enum]bool{permission.Everything: true},
+				Projects:    []string{"test"},
+				MaxLimit:    1000,
+				MaxValidTo:  time.Now().AddDate(1, 0, 0),
+			}
+			c.SetRequest(r.WithContext(context.WithValue(ctx, model.CtxUser, user)))
+			return next(c)
+		}
+	}
+	tEcho.Use(authMw)
+
 	InitRoutes(tEcho, tData)
 }
 
@@ -47,7 +65,7 @@ func TestWrongPath(t *testing.T) {
 
 func TestAddKey(t *testing.T) {
 	initTest(t)
-	pegomock.When(intMock.Create(pegomock.Any[context.Context](), pegomock.Any[*api.CreateInput]())).ThenReturn(&api.Key{Key: "kkk"}, true, nil)
+	pegomock.When(intMock.Create(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[*api.CreateInput]())).ThenReturn(&api.Key{Key: "kkk"}, true, nil)
 	req := httptest.NewRequest("POST", "/key", mocks.ToReader(api.CreateInput{ID: "1", Service: "pr"}))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	resp := testCode(t, req, http.StatusCreated)
@@ -89,7 +107,7 @@ func TestAddKey_Fail(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.Create(pegomock.Any[context.Context](), pegomock.Any[*api.CreateInput]())).
+			pegomock.When(intMock.Create(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[*api.CreateInput]())).
 				ThenReturn(&tt.ret.key, tt.ret.ins, tt.ret.err)
 			req := httptest.NewRequest(http.MethodPost, "/key", tt.inp)
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -117,7 +135,7 @@ func TestGetKey(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.GetKey(pegomock.Any[context.Context](), pegomock.Any[string]())).
+			pegomock.When(intMock.GetKey(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[string]())).
 				ThenReturn(&tt.ret.key, tt.ret.err)
 			req := httptest.NewRequest(http.MethodGet, "/key/id1", nil)
 			testCode(t, req, tt.want)
@@ -157,7 +175,7 @@ func TestKeyUsage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.Usage(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[*time.Time](),
+			pegomock.When(intMock.Usage(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[string](), pegomock.Any[*time.Time](),
 				pegomock.Any[*time.Time](), pegomock.Any[bool]())).
 				ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodGet, "/key/id1/usage", nil)
@@ -173,23 +191,23 @@ func TestKeyUsage(t *testing.T) {
 
 func TestKeyUsage_Full(t *testing.T) {
 	initTest(t)
-	pegomock.When(intMock.Usage(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[*time.Time](),
+	pegomock.When(intMock.Usage(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[string](), pegomock.Any[*time.Time](),
 		pegomock.Any[*time.Time](), pegomock.Any[bool]())).
 		ThenReturn(&api.Usage{RequestCount: 1}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/key/id1/usage", nil)
 	testCode(t, req, http.StatusOK)
-	intMock.VerifyWasCalledOnce().Usage(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[*time.Time](),
+	intMock.VerifyWasCalledOnce().Usage(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[string](), pegomock.Any[*time.Time](),
 		pegomock.Any[*time.Time](), pegomock.Eq(false))
 
 	req = httptest.NewRequest(http.MethodGet, "/key/id1/usage?full=1", nil)
 	testCode(t, req, http.StatusOK)
-	intMock.VerifyWasCalledOnce().Usage(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[*time.Time](),
+	intMock.VerifyWasCalledOnce().Usage(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[string](), pegomock.Any[*time.Time](),
 		pegomock.Any[*time.Time](), pegomock.Eq(true))
 }
 
 func TestGetKey_ReturnKey(t *testing.T) {
 	initTest(t)
-	pegomock.When(intMock.GetKey(pegomock.Any[context.Context](), pegomock.Any[string]())).
+	pegomock.When(intMock.GetKey(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[string]())).
 		ThenReturn(&api.Key{Key: "aaa", Service: "srv", LastIP: "1.1.1.1"}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/key/id1", nil)
 	resp := testCode(t, req, http.StatusOK)
@@ -198,7 +216,7 @@ func TestGetKey_ReturnKey(t *testing.T) {
 	_ = json.Unmarshal(bytes, &k)
 	assert.Equal(t, api.Key{Service: "srv", LastIP: "1.1.1.1"}, k)
 
-	pegomock.When(intMock.GetKey(pegomock.Any[context.Context](), pegomock.Any[string]())).
+	pegomock.When(intMock.GetKey(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[string]())).
 		ThenReturn(&api.Key{Key: "aaa", Service: "srv", LastIP: "1.1.1.1"}, nil)
 	req = httptest.NewRequest(http.MethodGet, "/key/id1?returnKey=1", nil)
 	resp = testCode(t, req, http.StatusOK)
@@ -272,7 +290,7 @@ func TestAddCredits(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.AddCredits(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[*api.CreditsInput]())).
+			pegomock.When(intMock.AddCredits(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[string](), pegomock.Any[*api.CreditsInput]())).
 				ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodPatch, "/key/id/credits", tt.inp)
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -311,7 +329,7 @@ func TestUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.Update(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[map[string]interface{}]())).
+			pegomock.When(intMock.Update(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[string](), pegomock.Any[*api.UpdateInput]())).
 				ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodPatch, "/key/id", tt.inp)
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -340,7 +358,7 @@ func TestChange(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.Change(pegomock.Any[context.Context](), pegomock.Any[string]())).ThenReturn(&tt.ret.res, tt.ret.err)
+			pegomock.When(intMock.Change(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[string]())).ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodPost, "/key/id/change", nil)
 			testCode(t, req, tt.want)
 		})
@@ -377,7 +395,7 @@ func TestKeyGetID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.GetKeyID(pegomock.Any[context.Context](), pegomock.Any[string]())).
+			pegomock.When(intMock.GetKeyID(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[string]())).
 				ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodPost, "/keyID", tt.inp)
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -412,7 +430,7 @@ func TestKeysChanges(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initTest(t)
-			pegomock.When(intMock.Changes(pegomock.Any[context.Context](), pegomock.Any[*time.Time](), pegomock.Any[[]string]())).
+			pegomock.When(intMock.Changes(pegomock.Any[context.Context](), pegomock.Any[*model.User](), pegomock.Any[*time.Time](), pegomock.Any[[]string]())).
 				ThenReturn(&tt.ret.res, tt.ret.err)
 			req := httptest.NewRequest(http.MethodGet, "/keys/changes", nil)
 			for k, v := range tt.params {
