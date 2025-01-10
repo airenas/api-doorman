@@ -31,7 +31,7 @@ func (h *skipFirstQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Query().Get(pName)
 	if param == "" {
 		http.Error(w, fmt.Sprintf("No param '%s'", pName), http.StatusBadRequest)
-		log.Error().Msgf(fmt.Sprintf("no param '%s'", pName))
+		log.Error().Str("param", pName).Msg("no param")
 		return
 	}
 
