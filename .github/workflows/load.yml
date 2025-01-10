@@ -1,7 +1,7 @@
 name: Load Tests
 on:
   push:
-    branches: [ main, tts, to-postgresql ]
+    branches: [ main, tts ]
   pull_request:
     branches: [ main ]
 jobs:
@@ -14,6 +14,6 @@ jobs:
           go-version: 1.19
       - uses: actions/checkout@v2
       - name: Build containers
-        run: make docker/doorman-admin/build docker/doorman/build
+        run: make docker/build/all
       - name: Run load tests
         run: make test/load

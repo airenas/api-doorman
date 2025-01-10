@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build containers
-        run: make docker/doorman-admin/build docker/doorman/build
+        run: make docker/build/all
       - name: Run integration tests
         run: make test/integration
 

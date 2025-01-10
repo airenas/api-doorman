@@ -2,7 +2,7 @@ name: Go
 
 on:
   push:
-    branches: [ main, tts, to-postgresql]
+    branches: [ main, tts ]
   pull_request:
     branches: [ main ]
 

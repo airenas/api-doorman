@@ -62,7 +62,8 @@ test/load:
 #####################################################################################
 ## generate mock objects for test
 generate:
-	go install github.com/petergtz/pegomock/v4/pegomock
+	@go install github.com/petergtz/pegomock/v4/pegomock
+	@go install golang.org/x/tools/cmd/stringer
 	go generate ./...
 .PHONY: generate	
 #####################################################################################
