@@ -1,7 +1,7 @@
 name: Snyk vulnerabilities Tests
 on:
   push:
-    branches: [ main, tts ]
+    branches: [ main, tts, to-postgresql ]
   pull_request:
     branches: [ main ]
 jobs:
