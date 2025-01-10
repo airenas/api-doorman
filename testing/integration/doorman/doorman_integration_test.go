@@ -63,7 +63,7 @@ func TestMain(m *testing.M) {
 
 func TestLiveAdmin(t *testing.T) {
 	t.Parallel()
-	checkCode(t, invoke(t, newAdminRequest(t, http.MethodGet, "/live", nil)), http.StatusOK)
+	checkCode(t, invoke(t, newAdminRequestNoAuth(t, http.MethodGet, "/live", nil)), http.StatusOK)
 }
 
 func TestAccessCreate(t *testing.T) {

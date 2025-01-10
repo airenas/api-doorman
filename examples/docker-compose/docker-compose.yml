@@ -42,7 +42,7 @@ services:
       PROXY_TTS_QUOTA_DISCOUNT: 0.80
       PROXY_TTS_QUOTA_DEFAULT: 100
       LOGGER_LEVEL: TRACE
-    # restart: unless-stopped
+    restart: unless-stopped
 
   doorman-admin:
     image: airenas/api-doorman-admin:${ADMIN_VERSION}
@@ -53,7 +53,11 @@ services:
       HASHSALT: ohcheiPhahBahPa2aephei6eiree5P
       PROJECTS: test,test1,tts,asr
       LOGGER_LEVEL: TRACE
-    # restart: unless-stopped
+      MAINADMIN_KEY: olia
+      MAINADMIN_MAXLIMIT: 100000000
+      MAINADMIN_FORCESHORTKEY: true
+
+    restart: unless-stopped
   
   doorman-redis:
     image: redis:7.2.5-alpine3.19

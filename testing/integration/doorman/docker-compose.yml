@@ -7,6 +7,9 @@ services:
       HASHSALT: ohcheiPhahBahPa2aephei6eiree5P
       PROJECTS: test,tts
       LOGGER_LEVEL: TRACE
+      MAINADMIN_KEY: olia
+      MAINADMIN_MAXLIMIT: 100000000
+      MAINADMIN_FORCESHORTKEY: true
     restart: on-failure
     depends_on:
       postgres:
