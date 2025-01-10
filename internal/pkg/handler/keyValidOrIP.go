@@ -9,7 +9,7 @@ type keyValidOrIP struct {
 	withIPHandler  http.Handler
 }
 
-//KeyValidOrIP creates handler
+// KeyValidOrIP creates handler
 func KeyValidOrIP(withKeyHandler http.Handler, withIPHandler http.Handler) http.Handler {
 	res := &keyValidOrIP{}
 	res.withKeyHandler = withKeyHandler

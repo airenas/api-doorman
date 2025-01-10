@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -22,12 +23,13 @@ func TestInit(t *testing.T) {
 	d, err := NewDurationClient("http://localhost:8000")
 	assert.Nil(t, err)
 	assert.NotNil(t, d)
+	assert.Equal(t, time.Minute*3, d.timeout)
 }
 
 func initTestServer(t *testing.T, rCode int, body string) *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(rCode)
-		rw.Write([]byte(body))
+		_, _ = rw.Write([]byte(body))
 	}))
 	return server
 }
@@ -53,15 +55,15 @@ func TestClient_PassFile(t *testing.T) {
 	rb, _ := json.Marshal(resp)
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		assert.Equal(t, "POST", req.Method)
-		req.ParseMultipartForm(32 << 20)
+		_ = req.ParseMultipartForm(32 << 20)
 		file, handler, _ := req.FormFile("file")
 		defer file.Close()
 		assert.Equal(t, "1.wav", handler.Filename)
 		buf := new(strings.Builder)
-		io.Copy(buf, file)
+		_, _ = io.Copy(buf, file)
 		assert.Equal(t, "olia", buf.String())
 		rw.WriteHeader(200)
-		rw.Write(rb)
+		_, _ = rw.Write(rb)
 	}))
 	defer server.Close()
 	d, _ := NewDurationClient(server.URL)
@@ -81,6 +83,24 @@ func TestClient_Fail(t *testing.T) {
 	d, _ := NewDurationClient(server.URL)
 	d.httpclient = server.Client()
 
+	_, err := d.Get("1.wav", strings.NewReader("olia"))
+
+	assert.NotNil(t, err)
+}
+
+func TestClient_FailTimeout(t *testing.T) {
+	var resp durationResponse
+	resp.Duration = 10
+	rb, _ := json.Marshal(resp)
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		time.Sleep(time.Millisecond * 10)
+		rw.WriteHeader(200)
+		_, _ = rw.Write(rb)
+	}))
+	defer server.Close()
+	d, _ := NewDurationClient(server.URL)
+	d.httpclient = server.Client()
+	d.httpclient.Timeout = time.Millisecond * 5
 	_, err := d.Get("1.wav", strings.NewReader("olia"))
 
 	assert.NotNil(t, err)

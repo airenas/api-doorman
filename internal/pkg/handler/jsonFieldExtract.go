@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
-	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/rs/zerolog/log"
 )
 
 type jsonField struct {
@@ -15,7 +15,7 @@ type jsonField struct {
 	field string
 }
 
-//TakeJSON creates handler
+// TakeJSON creates handler
 func TakeJSON(next http.Handler, field string) http.Handler {
 	res := &jsonField{}
 	res.next = next
@@ -27,28 +27,28 @@ func (h *jsonField) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
 
 	// read all bytes from content body and create new stream using it.
-	bodyBytes, _ := ioutil.ReadAll(r.Body)
+	bodyBytes, _ := io.ReadAll(r.Body)
 	var data map[string]interface{}
 	err := json.Unmarshal(bodyBytes, &data)
 	if err != nil {
 		http.Error(w, "No field "+h.field, http.StatusBadRequest)
-		goapp.Log.Error("Can't extract json field. ", err)
+		log.Error().Err(err).Msg("Can't extract json field")
 		return
 	}
 	f := data[h.field]
 	if f == nil {
 		http.Error(w, "No field "+h.field, http.StatusBadRequest)
-		goapp.Log.Error("No json field. ")
+		log.Error().Msgf("No json field. ")
 		return
 	}
 	var ok bool
 	ctx.Value, ok = f.(string)
 	if !ok {
 		http.Error(w, "Field is not string type "+h.field, http.StatusBadRequest)
-		goapp.Log.Errorf("Field is not a string %v", f)
+		log.Error().Msgf("Field is not a string %v", f)
 		return
 	}
-	rn.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	rn.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	h.next.ServeHTTP(w, rn)
 }

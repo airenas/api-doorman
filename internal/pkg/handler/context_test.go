@@ -14,4 +14,5 @@ func TestCustomContext(t *testing.T) {
 	r1, data1 := customContext(r)
 	assert.Equal(t, "1111", data1.Key)
 	assert.Equal(t, r, r1)
+	assert.NotEmpty(t, data1.RequestID)
 }

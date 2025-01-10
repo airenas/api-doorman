@@ -1,7 +1,7 @@
-go.sum
 **/.mongo/**
 .vscode/**
-deploy/local/.env
+build/local/.env
 Makefile.option
-deploy/**/data/**
+build/**/data/**
 internal/pkg/test/mocks/**
+internal/pkg/test/mocks2/**

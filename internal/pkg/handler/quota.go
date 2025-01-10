@@ -8,7 +8,7 @@ type requestAsQuota struct {
 	next http.Handler
 }
 
-//RequestAsQuota creates handler
+// RequestAsQuota creates handler
 func RequestAsQuota(next http.Handler) http.Handler {
 	res := &requestAsQuota{}
 	res.next = next

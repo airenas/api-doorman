@@ -1,17 +1,19 @@
 package handler
 
 import (
+	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/rs/zerolog/log"
 )
 
-//DBSaver logs to db
+// DBSaver logs to db
 type DBSaver interface {
-	Save(*api.Log) error
+	SaveLog(ctx context.Context, data *api.Log) error
 }
 
 type logDB struct {
@@ -20,11 +22,12 @@ type logDB struct {
 	sync bool
 }
 
-//LogDB creates handler
-func LogDB(next http.Handler, dbs DBSaver) http.Handler {
+// LogDB creates handler
+func LogDB(next http.Handler, dbs DBSaver, syncLog bool) http.Handler {
 	res := &logDB{}
 	res.next = next
 	res.dbs = dbs
+	res.sync = syncLog
 	return res
 }
 
@@ -37,15 +40,18 @@ func (h *logDB) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// data.Value = ctx.Value
 	data.Date = time.Now()
 	data.QuotaValue = ctx.QuotaValue
-	data.Key = ctx.Key
+	data.KeyID = strings.TrimSpace(ctx.KeyID)
+	data.RequestID = ctx.RequestID
 	data.IP = utils.ExtractIP(r)
 	data.URL = rn.URL.String()
 	data.ResponseCode = ctx.ResponseCode
 	data.Fail = responseCodeIsFail(data.ResponseCode)
 	sf := func() {
-		err := h.dbs.Save(data)
+		ctx, cf := context.WithTimeout(context.Background(), 5*time.Second) // use another context, request context can be canceled
+		defer cf()
+		err := h.dbs.SaveLog(ctx, data)
 		if err != nil {
-			goapp.Log.Error("Can't save log. ", err)
+			log.Error().Err(err).Msg("can't save log")
 		}
 	}
 	if h.sync {

@@ -1,0 +1,47 @@
+name: Snyk vulnerabilities Tests
+on:
+  push:
+    branches: [ main, tts, to-postgresql ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build containers
+        run: make docker/doorman-admin/build docker/doorman/build doorman_version=latest admin_version=latest
+
+      - name: Run Snyk to check Admin Docker image for vulnerabilities
+        continue-on-error: true
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: airenas/api-doorman-admin:latest
+          args: --file=build/doorman-admin/Dockerfile
+
+      - name: Make sarif file copy
+        run: mv snyk.sarif snyk-admin.sarif
+
+      - name: Run Snyk to check Docker image for vulnerabilities
+        continue-on-error: true
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: airenas/api-doorman:latest
+          args: --file=build/doorman/Dockerfile
+
+      - name: Upload snyk result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: snyk.sarif
+          category: doorman-analysis-tool  
+
+      - name: Upload snyk admin result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: snyk-admin.sarif
+          category: admin-analysis-tool  
+

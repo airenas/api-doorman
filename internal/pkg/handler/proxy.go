@@ -6,14 +6,14 @@ import (
 	"net/http/httputil"
 	"net/url"
 
-	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/rs/zerolog/log"
 )
 
 type proxy struct {
 	url *url.URL
 }
 
-//Proxy creates handler
+// Proxy creates handler
 func Proxy(url *url.URL) http.Handler {
 	res := &proxy{}
 	res.url = url
@@ -32,7 +32,7 @@ func (h *proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return nil
 	}
 	proxy.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, err error) {
-		goapp.Log.Errorf("http: proxy error: %v", err)
+		log.Error().Msgf("http: proxy error: %v", err)
 		rw.WriteHeader(http.StatusBadGateway)
 		ctx.ResponseCode = http.StatusBadGateway
 	}

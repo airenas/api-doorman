@@ -1,14 +1,17 @@
 package handler
 
 import (
+	"context"
 	"net/http"
+	"strconv"
+	"strings"
 
-	"github.com/airenas/go-app/pkg/goapp"
+	"github.com/rs/zerolog/log"
 )
 
-//KeyValidator validator
+// KeyValidator validator
 type KeyValidator interface {
-	IsValid(string, string, bool) (bool, []string, error)
+	IsValid(context.Context, string, string, bool) (bool, string, []string, error)
 }
 
 type keyValid struct {
@@ -16,7 +19,7 @@ type keyValid struct {
 	kv   KeyValidator
 }
 
-//KeyValid creates handler
+// KeyValid creates handler
 func KeyValid(next http.Handler, kv KeyValidator) http.Handler {
 	res := &keyValid{}
 	res.kv = kv
@@ -26,10 +29,10 @@ func KeyValid(next http.Handler, kv KeyValidator) http.Handler {
 
 func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
-	ok, tags, err := h.kv.IsValid(ctx.Key, ctx.IP, ctx.Manual)
+	ok, id, tags, err := h.kv.IsValid(r.Context(), ctx.Key, ctx.IP, ctx.Manual)
 	if err != nil {
-		http.Error(w, "Service error", http.StatusInternalServerError)
-		goapp.Log.Error("Can't check key. ", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		log.Error().Err(err).Msg("can't check key")
 		return
 	}
 	if !ok {
@@ -37,8 +40,25 @@ func (h *keyValid) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx.Tags = tags
-
+	ctx.KeyID = id
+	if ctx.RateLimitValue, err = getLimitSetting(tags); err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		log.Error().Err(err).Msg("can't check rate limit setting")
+		return
+	}
 	h.next.ServeHTTP(w, rn)
+}
+
+const rateLimitTag = "x-rate-limit:"
+
+func getLimitSetting(tags []string) (int64, error) {
+	for _, hs := range tags {
+		if strings.HasPrefix(hs, rateLimitTag) {
+			str := hs[len(rateLimitTag):]
+			return strconv.ParseInt(strings.TrimSpace(str), 10, 64)
+		}
+	}
+	return 0, nil
 }
 
 func (h *keyValid) Info(pr string) string {

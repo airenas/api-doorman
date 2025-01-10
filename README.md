@@ -1,6 +1,6 @@
 # api-doorman
 
-![](https://github.com/airenas/api-doorman/workflows/Go/badge.svg) [![Coverage Status](https://coveralls.io/repos/github/airenas/api-doorman/badge.svg?branch=main)](https://coveralls.io/github/airenas/api-doorman?branch=main) [![Go Report Card](https://goreportcard.com/badge/github.com/airenas/api-doorman)](https://goreportcard.com/report/github.com/airenas/api-doorman) ![Integration Tests](https://github.com/airenas/api-doorman/workflows/Integration%20Tests/badge.svg)
+[![Go](https://github.com/airenas/api-doorman/actions/workflows/go.yml/badge.svg?branch=tts)](https://github.com/airenas/api-doorman/actions/workflows/go.yml) [![Coverage Status](https://coveralls.io/repos/github/airenas/api-doorman/badge.svg?branch=tts)](https://coveralls.io/github/airenas/api-doorman?branch=tts) [![Go Report Card](https://goreportcard.com/badge/github.com/airenas/api-doorman?branch=tts)](https://goreportcard.com/report/github.com/airenas/api-doorman?branch=tts) ![Integration Tests](https://github.com/airenas/api-doorman/workflows/Integration%20Tests/badge.svg) ![Load Tests](https://github.com/airenas/api-doorman/workflows/Load%20Tests/badge.svg)
 
 Simple proxy for traking API usage in Mongo DB and authenticating requests by keys.
 
@@ -16,12 +16,12 @@ Lets say we have API with a path *http://localhost:8002/private*. The API accept
 1. Test fake api by investigating *Makefile* and *docker-compose.yml*:
 
    ```bash
-   make test-public
-   make test-private
-   make test-private-key
+   make test/api/public
+   make test/api/private
+   make test/api/key
    ```
 
-1. Add new key to DB: `make adm-add`
+1. Add new key to DB: `make test/adm/add`
 Expected result: 
 
     ```json
@@ -29,9 +29,16 @@ Expected result:
     "validTo":"2030-11-24T11:07:00Z", "limit":500 ...}
     ```
 
-1. Retrieve available keys from DB: `make adm-key-list`
+1. Retrieve available keys from DB: `make test/adm/key-list`
 
-1. Access private API: `make test-private-key key=<<created key>>` . Sample: `make test-private-key key=XK3JoSyC48cxgvvkpUF4`
+1. Access private API: `make test/api/key key=<<created key>>` . Sample: `make test/api/key key=XK3JoSyC48cxgvvkpUF4`
+
+1. Clean demo
+```bash
+make clean
+# or 
+sudo make clean
+```
 
 **Note**: the proxy must be not exposed to the Internet directly! It is expected to work under some real proxy like: *nginx*, *traefik* or other. It uses *X-FORWARDED-FOR* header value to detect IP.
 
@@ -39,7 +46,7 @@ Expected result:
 
 ## License
 
-Copyright © 2021, [Airenas Vaičiūnas](https://github.com/airenas).
+Copyright © 2022, [Airenas Vaičiūnas](https://github.com/airenas).
 
 Released under the [The 3-Clause BSD License](LICENSE).
 

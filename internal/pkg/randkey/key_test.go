@@ -1,20 +1,41 @@
 package randkey
 
 import (
-	"math/rand"
 	"testing"
 
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestKey(t *testing.T) {
-	rand.Seed(10)
-	assert.Equal(t, "wSv9wq3TdG", Generate(10))
-	assert.Equal(t, "TjgXccmV5G", Generate(10))
+func TestGenerate(t *testing.T) {
+	type args struct {
+		n int
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantLen int
+		wantErr bool
+	}{
+		{name: "Simple", args: args{n: 10}, wantErr: false, wantLen: 10},
+		{name: "30", args: args{n: 30}, wantErr: false, wantLen: 30},
+		{name: "Long", args: args{n: 1000}, wantErr: false, wantLen: 1000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Generate(tt.args.n)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Generate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if len(got) != tt.wantLen {
+				t.Errorf("Generate() = %v, want %v", got, tt.wantLen)
+			}
+		})
+	}
 }
 
-func TestLen(t *testing.T) {
-	rand.Seed(10)
-	assert.Equal(t, 2, len(Generate(2)))
-	assert.Equal(t, 22, len(Generate(22)))
+func TestDiffers(t *testing.T) {
+	got, _ := Generate(5)
+	got1, _ := Generate(5)
+	assert.NotEqual(t, got, got1)
 }

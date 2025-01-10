@@ -1,9 +1,17 @@
 port: 8001
+logger:
+    level: TRACE
+    out: CONSOLE
 
-keySize: 20
+keySize: 30
 
-projects: tts,asr
+projects: tts,asr,test
 
-# overwrite with env variable MONGO_URL
-mongo: 
-    url: mongodb://xxx:xxx@localhost:27017    
+db:
+    dsn: postgres://postgres:postgres@localhost:5432/doorman?sslmode=disable
+
+hashSalt: ohcheiPhahBahPa2aephei6eiree5P
+mainAdmin: 
+    key: olia
+    maxLimit: 100000000
+    forceShortKey: true

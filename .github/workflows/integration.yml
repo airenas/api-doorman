@@ -1,7 +1,7 @@
 name: Integration Tests
 on:
   push:
-    branches: [ main ]
+    branches: [ main, tts, to-postgresql ]
   pull_request:
     branches: [ main ]
 jobs:
@@ -9,7 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Init services
-        run: cd examples/docker-compose && make start
+      - name: Build containers
+        run: make docker/doorman-admin/build docker/doorman/build
       - name: Run integration tests
-        run: cd tests && make all
+        run: make test/integration
+

@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,4 +32,8 @@ func TestValidator_CheckSeveral(t *testing.T) {
 	assert.True(t, pv.Check("aaaa"))
 	assert.False(t, pv.Check("B"))
 	assert.False(t, pv.Check("aa"))
+
+	pr := pv.Projects()
+	sort.Strings(pr)
+	assert.Equal(t, []string{"a", "aaaa", "bbb"}, pr)
 }

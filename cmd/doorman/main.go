@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"strings"
 
+	"github.com/airenas/api-doorman/internal/pkg/postgres"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
-	"github.com/airenas/api-doorman/internal/pkg/mongodb"
 	"github.com/airenas/api-doorman/internal/pkg/service"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/labstack/gommon/color"
@@ -15,34 +19,49 @@ import (
 
 func main() {
 	goapp.StartWithDefault()
+	log.Logger = goapp.Log
+	zerolog.DefaultContextLogger = &goapp.Log
 
-	mongoSessionProvider, err := mongodb.NewSessionProvider(goapp.Config.GetString("mongo.url"))
-	if err != nil {
-		goapp.Log.Fatal(errors.Wrap(err, "Can't init mongo provider"))
+	if err := mainInt(context.Background()); err != nil {
+		log.Fatal().Err(err).Send()
 	}
-	defer mongoSessionProvider.Close()
+}
+
+func mainInt(ctx context.Context) error {
+	db, err := postgres.NewDB(ctx, goapp.Config.GetString("db.dsn"))
+	if err != nil {
+		return fmt.Errorf("init db: %w", err)
+	}
+	defer db.Close()
+
+	hd := &service.HandlerData{DB: db}
+	hd.Hasher, err = utils.NewHasher(goapp.Config.GetString("hashSalt"))
+	if err != nil {
+		return fmt.Errorf("init hasher: %w", err)
+	}
 
 	data := service.Data{}
-	data.Handlers, err = initFromConfig(goapp.Sub(goapp.Config, "proxy"), mongoSessionProvider)
+	data.Handlers, err = initFromConfig(goapp.Sub(goapp.Config, "proxy"), hd)
 	if err != nil {
-		goapp.Log.Fatal(errors.Wrap(err, "Can't init handlers"))
+		return fmt.Errorf("init handlers: %w", err)
 	}
 	data.Port = goapp.Config.GetInt("port")
 
 	utils.DefaultIPExtractor, err = utils.NewIPExtractor(goapp.Config.GetString("ipExtractType"))
 	if err != nil {
-		goapp.Log.Fatal(errors.Wrap(err, "Can't init IP extractor"))
+		return fmt.Errorf("init IP extractor: %w", err)
 	}
 
 	printBanner()
 
 	err = service.StartWebServer(&data)
 	if err != nil {
-		goapp.Log.Fatal(errors.Wrap(err, "Can't start the service"))
+		return fmt.Errorf("start web server: %w", err)
 	}
+	return nil
 }
 
-func initFromConfig(cfg *viper.Viper, ms *mongodb.SessionProvider) ([]service.HandlerWrap, error) {
+func initFromConfig(cfg *viper.Viper, hd *service.HandlerData) ([]service.HandlerWrap, error) {
 	res := make([]service.HandlerWrap, 0)
 	if cfg == nil {
 		return nil, errors.New("Can't init handlers - names are not provided")
@@ -51,7 +70,7 @@ func initFromConfig(cfg *viper.Viper, ms *mongodb.SessionProvider) ([]service.Ha
 	for _, sh := range strings.Split(strHand, ",") {
 		sh = strings.TrimSpace(sh)
 		if sh != "" {
-			h, err := service.NewHandler(sh, cfg, ms)
+			h, err := service.NewHandler(sh, cfg, hd)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Can't init handler '%s'", sh)
 			}

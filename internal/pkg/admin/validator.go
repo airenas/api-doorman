@@ -5,15 +5,15 @@ import (
 	"strings"
 )
 
-//ProjectConfigValidator loads available projects from config
+// ProjectConfigValidator loads available projects from config
 type ProjectConfigValidator struct {
 	projects map[string]bool
 }
 
-//NewProjectConfigValidator creates project validator, reads available projects from config
+// NewProjectConfigValidator creates project validator, reads available projects from config
 func NewProjectConfigValidator(projects string) (*ProjectConfigValidator, error) {
 	if projects == "" {
-		return nil, errors.New("No projects provided")
+		return nil, errors.New("no projects provided")
 	}
 	res := ProjectConfigValidator{}
 	res.projects = make(map[string]bool)
@@ -24,12 +24,23 @@ func NewProjectConfigValidator(projects string) (*ProjectConfigValidator, error)
 		}
 	}
 	if len(res.projects) == 0 {
-		return nil, errors.New("No projects provided")
+		return nil, errors.New("no projects provided")
 	}
 	return &res, nil
 }
 
-//Check tests if project is available
+// Check tests if project is available
 func (pv *ProjectConfigValidator) Check(pr string) bool {
 	return pv.projects[pr]
+}
+
+// Projects returns all supported projects
+func (pv *ProjectConfigValidator) Projects() []string {
+	res := make([]string, len(pv.projects))
+	i := 0
+	for k := range pv.projects {
+		res[i] = k
+		i++
+	}
+	return res
 }

@@ -10,11 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/petergtz/pegomock"
+	"github.com/petergtz/pegomock/v4"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
-	"github.com/airenas/api-doorman/internal/pkg/test/mocks/matchers"
 )
 
 var audioLenGetterMock *mocks.MockAudioLenGetter
@@ -30,7 +29,7 @@ func TestAudio(t *testing.T) {
 	resp := httptest.NewRecorder()
 
 	AudioLenQuota(newTestHandler(), "file", audioLenGetterMock).ServeHTTP(resp, req)
-	cf, _ := audioLenGetterMock.VerifyWasCalledOnce().Get(pegomock.AnyString(), matchers.AnyIoReader()).GetCapturedArguments()
+	cf, _ := audioLenGetterMock.VerifyWasCalledOnce().Get(pegomock.Any[string](), pegomock.Any[io.Reader]()).GetCapturedArguments()
 	assert.Equal(t, 555, resp.Code)
 	assert.Equal(t, "test.mp3", cf)
 }
@@ -56,7 +55,7 @@ func TestAudio_FailAudio(t *testing.T) {
 	initAudioTest(t)
 	req := newTestAudioRequest("test.mp3")
 	resp := httptest.NewRecorder()
-	pegomock.When(audioLenGetterMock.Get(pegomock.AnyString(), matchers.AnyIoReader())).ThenReturn(0.0, errors.New("olia"))
+	pegomock.When(audioLenGetterMock.Get(pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn(0.0, errors.New("olia"))
 	AudioLenQuota(newTestHandler(), "file", audioLenGetterMock).ServeHTTP(resp, req)
 	assert.Equal(t, 500, resp.Code)
 }
@@ -65,7 +64,7 @@ func TestAudio_SetResult(t *testing.T) {
 	initAudioTest(t)
 	req, ctx := customContext(newTestAudioRequest("test.mp3"))
 	resp := httptest.NewRecorder()
-	pegomock.When(audioLenGetterMock.Get(pegomock.AnyString(), matchers.AnyIoReader())).ThenReturn(10.0, nil)
+	pegomock.When(audioLenGetterMock.Get(pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn(10.0, nil)
 	AudioLenQuota(newTestHandler(), "file", audioLenGetterMock).ServeHTTP(resp, req)
 	assert.Equal(t, 555, resp.Code)
 	assert.Equal(t, 10.0, ctx.QuotaValue)
@@ -86,6 +85,7 @@ func newTestAudioRequest(file string) *http.Request {
 
 type testHandler struct {
 	code int
+	r    *http.Request
 }
 
 func newTestHandlerWithCode(code int) *testHandler {
@@ -102,4 +102,5 @@ func (h *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(h.code)
 	_, ctx := customContext(r)
 	ctx.ResponseCode = h.code
+	h.r = r
 }

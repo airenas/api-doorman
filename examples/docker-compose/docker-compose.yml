@@ -1,13 +1,12 @@
-version: '3.7'
-
 services:
   doorman:
     image: airenas/api-doorman:${DOORMAN_VERSION}
     ports:
       - "${DOORMAN_PORT}:8000"
     environment:
-      MONGO_URL: "${MONGO_URL}"  
-      PROXY_HANDLERS: "test,test2,default"
+      DB_DSN: "postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable"  
+      HASHSALT: ohcheiPhahBahPa2aephei6eiree5P
+      PROXY_HANDLERS: "test,test2,test3,tts,default"
       PROXY_DEFAULT_BACKEND: "http://test-api:8000/"
       PROXY_TEST_TYPE: quota
       PROXY_TEST_DB: test
@@ -16,36 +15,93 @@ services:
       PROXY_TEST_QUOTA_TYPE: "json"
       PROXY_TEST_QUOTA_FIELD: "text"
       PROXY_TEST_QUOTA_DEFAULT: 100
+      PROXY_TEST_RATELIMIT_WINDOW: 5m
+      PROXY_TEST_RATELIMIT_DEFAULT: 5000
+      PROXY_TEST_RATELIMIT_URL: doorman-redis:6379
+      PROXY_TEST_SYNCLOG: true
       PROXY_TEST2_TYPE: simple
       PROXY_TEST2_DB: test
       PROXY_TEST2_BACKEND: "http://test-api:8000/"
       PROXY_TEST2_PREFIXURL: "/simple/public"
       PROXY_TEST2_STRIPPREFIX: "/simple"
       PROXY_TEST2_QUOTA_DEFAULT: 100
-    # restart: unless-stopped
+      PROXY_TEST3_TYPE: quota
+      PROXY_TEST3_DB: test
+      PROXY_TEST3_BACKEND: "http://test-api:8000/"
+      PROXY_TEST3_PREFIXURL: "/quotatts/private"
+      PROXY_TEST3_STRIPPREFIX: "/quotatts"
+      PROXY_TEST3_QUOTA_TYPE: "jsonTTS"
+      PROXY_TEST3_QUOTA_DISCOUNT: 0.80
+      PROXY_TEST3_QUOTA_DEFAULT: 100
+      PROXY_TTS_TYPE: quota
+      PROXY_TTS_DB: tts
+      PROXY_TTS_BACKEND: "http://test-api:8000/"
+      PROXY_TTS_PREFIXURL: "/quotatts1/private"
+      PROXY_TTS_STRIPPREFIX: "/quotatts1"
+      PROXY_TTS_QUOTA_TYPE: "jsonTTS"
+      PROXY_TTS_QUOTA_DISCOUNT: 0.80
+      PROXY_TTS_QUOTA_DEFAULT: 100
+      LOGGER_LEVEL: TRACE
+    restart: unless-stopped
 
   doorman-admin:
     image: airenas/api-doorman-admin:${ADMIN_VERSION}
     ports:
       - "${ADMIN_PORT}:8000"
     environment:
-      MONGO_URL: "${MONGO_URL}"  
-      PROJECTS: test,test1
-    # restart: unless-stopped
+      DB_DSN: "postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable"  
+      HASHSALT: ohcheiPhahBahPa2aephei6eiree5P
+      PROJECTS: test,test1,tts,asr
+      LOGGER_LEVEL: TRACE
+      MAINADMIN_KEY: olia
+      MAINADMIN_MAXLIMIT: 100000000
+      MAINADMIN_FORCESHORTKEY: true
+
+    restart: unless-stopped
   
+  doorman-redis:
+    image: redis:7.2.5-alpine3.19
+    # restart: unless-stopped
+
   test-api:
     image: airenas/test-api:${TEST_API_VERSION}
     ports:
       - "${TEST_API_PORT}:8000"
 
-  mongo:
-    image: mongo:4.4.1
+  postgres:
+    # image:   postgres:17-alpine3.21
+    image: timescale/timescaledb:2.17.2-pg17-bitnami
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    volumes:  
+    - doorman_postgres_data:/var/lib/postgresql/data:r  
     environment:
-      MONGO_DATA_DIR: "/data/db"
-      MONGO_LOG_DIR: "/dev/null"
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
-    volumes:
-      - ./.mongo:/data/db
-    # restart: unless-stopped     
-    command: mongod --logpath=/dev/null # --quiet
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=doorman
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s     
+      timeout: 5s       
+      retries: 5        
+      start_period: 1s 
+
+  dbmigration:
+    build:
+      context: ../../
+      dockerfile: ./build/api-doorman-dbmigration/Dockerfile
+    command:
+      [
+        '-path',
+        '/db/migrations',
+        '-database',
+        'postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable',
+        'up',
+      ]
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy    
+
+volumes:
+  doorman_postgres_data:    

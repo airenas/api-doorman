@@ -1,0 +1,84 @@
+services:
+  doorman:
+    image: airenas/api-doorman:dev
+    ports:
+      - "${DOORMAN_PORT}:8000"
+    environment:
+      DB_DSN: "postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable"
+      HASHSALT: ohcheiPhahBahPa2aephei6eiree5P
+      PROXY_HANDLERS: "test,test2,test3,tts,default"
+      PROXY_DEFAULT_BACKEND: "http://test-api:8000/"
+      PROXY_TEST_TYPE: quota
+      PROXY_TEST_DB: test
+      PROXY_TEST_BACKEND: "http://test-api:8000/"
+      PROXY_TEST_PREFIXURL: "/private"
+      PROXY_TEST_QUOTA_TYPE: "json"
+      PROXY_TEST_QUOTA_FIELD: "text"
+      PROXY_TEST_QUOTA_DEFAULT: 100
+      PROXY_TEST2_TYPE: simple
+      PROXY_TEST2_DB: test
+      PROXY_TEST2_BACKEND: "http://test-api:8000/"
+      PROXY_TEST2_PREFIXURL: "/simple/public"
+      PROXY_TEST2_STRIPPREFIX: "/simple"
+      PROXY_TEST2_QUOTA_DEFAULT: 100
+      PROXY_TEST3_TYPE: quota
+      PROXY_TEST3_DB: test
+      PROXY_TEST3_BACKEND: "http://test-api:8000/"
+      PROXY_TEST3_PREFIXURL: "/quotatts/private"
+      PROXY_TEST3_STRIPPREFIX: "/quotatts"
+      PROXY_TEST3_QUOTA_TYPE: "jsonTTS"
+      PROXY_TEST3_QUOTA_DISCOUNT: 0.80
+      PROXY_TEST3_QUOTA_DEFAULT: 100
+      PROXY_TTS_TYPE: quota
+      PROXY_TTS_DB: tts
+      PROXY_TTS_BACKEND: "http://test-api:8000/"
+      PROXY_TTS_PREFIXURL: "/quotatts1/private"
+      PROXY_TTS_STRIPPREFIX: "/quotatts1"
+      PROXY_TTS_QUOTA_TYPE: "jsonTTS"
+      PROXY_TTS_QUOTA_DISCOUNT: 0.80
+      PROXY_TTS_QUOTA_DEFAULT: 100
+    restart: on-failure    
+
+  doorman-admin:
+    image: airenas/api-doorman-admin:dev
+    ports:
+      - "${ADMIN_PORT}:8000"
+    environment:
+      DB_DSN: "postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable"
+      PROJECTS: test,test1,tts,asr
+      HASHSALT: ohcheiPhahBahPa2aephei6eiree5P
+      MAINADMIN_KEY: olia
+      MAINADMIN_MAXLIMIT: 100000000
+      MAINADMIN_FORCESHORTKEY: true
+    restart: on-failure    
+  
+  test-api:
+    image: airenas/test-api:0.9.85
+    restart: on-failure    
+
+  postgres:
+    image: timescale/timescaledb:2.17.2-pg17-bitnami
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=doorman
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s     
+      timeout: 1s       
+      retries: 5        
+      start_period: 1s 
+
+  dbmigration:
+    image: airenas/api-doorman-dbmigration:dev
+    command:
+      [
+        '-path',
+        '/db/migrations',
+        '-database',
+        'postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable',
+        'up',
+      ]
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy

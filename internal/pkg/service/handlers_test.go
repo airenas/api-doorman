@@ -7,12 +7,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/airenas/go-app/pkg/goapp"
-
-	"github.com/airenas/api-doorman/internal/pkg/mongodb"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newTestDefH(h http.Handler) *defaultHandler {
@@ -62,8 +63,14 @@ tts:
     type: json
     field: field
     default: 100
+    skipFirstURL: http://tts:8000/{{rID}}
+  rateLimit:
+    window: 3m
+    default: 1002
+    url: redis:6379
   prefixURL: /start
   method: POST
+  cleanHeaders: tts-one,tts-two
 `
 
 func TestQuotaHandle(t *testing.T) {
@@ -77,6 +84,12 @@ func TestQuotaHandle(t *testing.T) {
 	assert.Equal(t, "tts", hq.Name())
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
 	assert.Contains(t, h.Info(), "FillHeader")
+	assert.Contains(t, h.Info(), "FillOutHeader")
+	assert.Contains(t, h.Info(), "FillKeyHeader")
+	assert.Contains(t, h.Info(), "FillRequestIDHeader(db:test)")
+	assert.Contains(t, h.Info(), "RateLimitValidate(1002, RedisRateLimiter(redis:6379, 180))")
+	assert.Contains(t, h.Info(), "CleanHeader ([TTS-ONE TTS-TWO])")
+	assert.Contains(t, h.Info(), "SkipFirstQuota(rID)")
 }
 
 func TestQuotaHandleAudio(t *testing.T) {
@@ -103,6 +116,57 @@ tts:
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
 }
 
+func TestQuotaHandleToTxtFile(t *testing.T) {
+	h, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: toTxtFile
+    service: http://olia/ser
+    field: fieldText
+    default: 100
+  prefixURL: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, h)
+	assert.Nil(t, err)
+	assert.Contains(t, h.Info(), "ToTextAndQuota(fieldText)")
+}
+
+func TestQuotaHandleToTxtFile_Fail(t *testing.T) {
+	_, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: toTxtFile
+    service: http://olia/ser
+    field: 
+    default: 100
+  prefixURL: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, err)
+
+	_, err = NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: toTxtFile
+    service: 
+    field: olia
+    default: 100
+  prefixURL: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, err)
+}
+
 func TestQuotaHandler_InitStrip(t *testing.T) {
 	h, err := NewHandler("tts", newTestC(t, `
 tts:
@@ -121,6 +185,60 @@ tts:
 	assert.NotNil(t, h)
 	assert.Nil(t, err)
 	assert.Contains(t, h.Info(), "StripPrefix(/start)")
+}
+
+func TestQuotaHandler_JSONTTS(t *testing.T) {
+	h, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: jsonTTS
+    discount: 0.85
+    default: 100
+  prefixURL: /start
+  stripPrefix: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, h)
+	assert.Nil(t, err)
+	assert.Contains(t, h.Info(), "JSONTTSField(text)")
+	assert.Contains(t, h.Info(), "JSONTTSAsQuota(discount: 0.8500)")
+}
+
+func TestQuotaHandler_JSONTTS_Fail(t *testing.T) {
+	_, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: jsonTTS
+    discount: 1.85
+    default: 100
+  prefixURL: /start
+  stripPrefix: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, err)
+}
+
+func TestQuotaHandler_SkipFirstQuota_Fail(t *testing.T) {
+	_, err := NewHandler("tts", newTestC(t, `
+tts:
+  backend: http://olia.lt
+  type: quota
+  db: test
+  quota:
+    type: jsonTTS
+    default: 100
+    skipFirstURL: http://tts;8000/{{}} # expexted {{keyID}}
+  prefixURL: /start
+  stripPrefix: /start
+  method: POST
+`), newTestProvider(t))
+	assert.NotNil(t, err)
 }
 
 func TestQuotaHandler_NoInitStrip(t *testing.T) {
@@ -214,6 +332,7 @@ tts:
   db: test
   prefixURL: /start
   method: POST
+  cleanHeaders: tts-one,
 `), newTestProvider(t))
 	assert.NotNil(t, h)
 	assert.Nil(t, err)
@@ -224,6 +343,10 @@ tts:
 	assert.Equal(t, "tts", hq.Name())
 	assert.True(t, hq.Valid(httptest.NewRequest("POST", "/start", nil)))
 	assert.Contains(t, h.Info(), "FillHeader")
+	assert.Contains(t, h.Info(), "FillOutHeader")
+	assert.Contains(t, h.Info(), "FillKeyHeader")
+	assert.Contains(t, h.Info(), "FillRequestIDHeader(db:test)")
+	assert.Contains(t, h.Info(), "CleanHeader ([TTS-ONE])")
 }
 
 func TestKeyHandler_FailNoDB(t *testing.T) {
@@ -300,10 +423,18 @@ func TestPriority(t *testing.T) {
 	assert.Equal(t, 7, (&prefixHandler{prefix: "/olia/3"}).Priority())
 }
 
-func newTestProvider(t *testing.T) *mongodb.SessionProvider {
-	res, err := mongodb.NewSessionProvider("mongo://olia")
-	assert.Nil(t, err)
-	return res
+func newTestProvider(t *testing.T) *HandlerData {
+	t.Helper()
+	db, _, err := sqlmock.New()
+	require.Nil(t, err)
+
+	t.Cleanup(func() {
+		db.Close()
+	})
+
+	sqlxDB := sqlx.NewDb(db, "sqlmock")
+
+	return &HandlerData{DB: sqlxDB}
 }
 
 func newTestC(t *testing.T, configStr string) *viper.Viper {
