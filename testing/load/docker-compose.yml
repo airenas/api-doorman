@@ -47,6 +47,9 @@ services:
       DB_DSN: "postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable"
       PROJECTS: test,test1,tts,asr
       HASHSALT: ohcheiPhahBahPa2aephei6eiree5P
+      MAINADMIN_KEY: olia
+      MAINADMIN_MAXLIMIT: 100000000
+      MAINADMIN_FORCESHORTKEY: true
     restart: on-failure    
   
   test-api:

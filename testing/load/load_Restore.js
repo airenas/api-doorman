@@ -8,7 +8,7 @@ const testURL = 'http://host.docker.internal:8000';
 
 export let options = {
     thresholds: {
-      checks: ['rate==1'],
+        checks: ['rate==1'],
     },
 };
 
@@ -35,14 +35,15 @@ export function setup() {
     var url = admURL + '/key';
     const id = uuidv4();
     var payload = JSON.stringify({
-        validTo: '2050-11-24T11:07:00Z',
-        service: prj, 
+        validTo: '2034-11-24T11:07:00Z',
+        service: prj,
         credits: 1000,
-        id: id, 
+        id: id,
     });
     var params = {
         headers: {
             'Content-Type': 'application/json',
+            'Authorization': 'Key olia'
         },
     };
     let res = http.post(url, payload, params);
@@ -53,7 +54,12 @@ export function setup() {
 export function teardown(data) {
     var url = admURL + '/' + prj + '/key/' + data.id;
     console.log("Url: " + url);
-    let res = http.get(url);
+    var params = {
+        headers: {
+            'Authorization': 'Key olia'
+        },
+    };
+    let res = http.get(url, params);
     let jRes = res.json().key;
     let qv = jRes.quotaValue;
     if (!qv) {
