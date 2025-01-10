@@ -14,6 +14,7 @@ import (
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
+	"github.com/airenas/api-doorman/internal/pkg/model/permission"
 	"github.com/airenas/api-doorman/internal/pkg/test"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 	"github.com/airenas/api-doorman/testing/integration"
@@ -203,7 +204,7 @@ func TestAddCredits_FailOther(t *testing.T) {
 		MaxLimit:    1000,
 		MaxValidTo:  time.Now().AddDate(1, 0, 0),
 	})
-	
+
 	in := api.CreditsInput{OperationID: ulid.Make().String(), Credits: 10, Msg: "test"}
 	resp := invoke(t, newRequestWithAuth(t, http.MethodPatch, fmt.Sprintf("/key/%s/credits", key.ID), in, lKey))
 	checkCode(t, resp, http.StatusForbidden)
@@ -240,6 +241,22 @@ func TestGet_FailOther(t *testing.T) {
 
 	resp := invoke(t, newRequestWithAuth(t, http.MethodGet, "/key/"+key.ID, nil, lKey))
 	checkCode(t, resp, http.StatusForbidden)
+}
+
+func TestGet_OKSuperUser(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	lKey := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{permission.Everything.String()},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+	})
+
+	resp := invoke(t, newRequestWithAuth(t, http.MethodGet, "/key/"+key.ID, nil, lKey))
+	checkCode(t, resp, http.StatusOK)
 }
 
 func TestUpdate_Disabled(t *testing.T) {
@@ -332,6 +349,33 @@ func TestUpdate_Fail(t *testing.T) {
 	checkCode(t, resp, http.StatusBadRequest)
 }
 
+func TestUpdate_FailNoAuth(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	in := map[string]interface{}{"disabled": true}
+	resp := invoke(t, newRequestNoAuth(t, http.MethodPatch, fmt.Sprintf("/key/%s", key.ID), in))
+	checkCode(t, resp, http.StatusUnauthorized)
+}
+
+func TestUpdate_FailOtherUser(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	lKey := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+	})
+
+	in := map[string]interface{}{"disabled": true}
+	resp := invoke(t, newRequestWithAuth(t, http.MethodPatch, fmt.Sprintf("/key/%s", key.ID), in, lKey))
+	checkCode(t, resp, http.StatusForbidden)
+}
+
 func TestGet_ReturnsKey(t *testing.T) {
 	t.Parallel()
 
@@ -353,6 +397,15 @@ func TestGet_ReturnsKeyID(t *testing.T) {
 
 	assert.Equal(t, key.ID, resKey.ID)
 	assert.Equal(t, key.Service, resKey.Service)
+}
+
+func TestGetID_NoAuth(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	resp := invoke(t, newRequestNoAuth(t, http.MethodPost, "/keyID", api.Key{Key: key.Key}))
+	checkCode(t, resp, http.StatusUnauthorized)
 }
 
 func TestChangeKey_OK(t *testing.T) {
@@ -378,6 +431,15 @@ func TestChangeKey_OK(t *testing.T) {
 
 	assert.Equal(t, key.ID, resKey.ID)
 	assert.Equal(t, key.Service, resKey.Service)
+}
+
+func TestChangeKey_FailNoAuth(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	resp := invoke(t, newRequestNoAuth(t, http.MethodPost, fmt.Sprintf("/key/%s/change", key.ID), nil))
+	checkCode(t, resp, http.StatusUnauthorized)
 }
 
 func TestChangeKey_Fail(t *testing.T) {
@@ -477,6 +539,17 @@ func TestUsage_OKNoLog(t *testing.T) {
 	assert.Equal(t, 0.0, res.FailedCredits)
 	assert.Equal(t, 50.0, res.UsedCredits)
 	assert.Len(t, res.Logs, 0)
+}
+
+func TestUsage_FailNoAuth(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	now := time.Now()
+
+	resp := invoke(t, newRequestNoAuth(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=1", key.ID,
+		test.TimeToQueryStr(now.Add(-time.Hour)), test.TimeToQueryStr(now.Add(time.Second))), nil))
+	checkCode(t, resp, http.StatusUnauthorized)
 }
 
 type testReq struct {
