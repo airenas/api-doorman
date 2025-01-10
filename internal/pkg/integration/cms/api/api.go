@@ -15,6 +15,13 @@ type CreateInput struct {
 	Description  string     `json:"description,omitempty"`
 }
 
+type UpdateInput struct {
+	ValidTo     *time.Time `json:"validTo,omitempty"`
+	Disabled    *bool      `json:"disabled,omitempty"`
+	Description *string    `json:"description,omitempty"`
+	IPWhiteList *string    `json:"IPWhiteList,omitempty"`
+}
+
 // CreditsInput for add credits
 type CreditsInput struct {
 	OperationID string  `json:"operationID,omitempty"`

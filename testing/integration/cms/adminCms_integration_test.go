@@ -12,13 +12,16 @@ import (
 	"testing"
 	"time"
 
+	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/test"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 	"github.com/airenas/api-doorman/testing/integration"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
+	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,6 +30,7 @@ type config struct {
 	url        string
 	doormanURL string
 	httpClient *http.Client
+	db         *sqlx.DB
 }
 
 var cfg config
@@ -46,6 +50,12 @@ func TestMain(m *testing.M) {
 	tCtx, cf := context.WithTimeout(context.Background(), time.Second*20)
 	defer cf()
 	test.WaitForOpenOrFail(tCtx, cfg.url)
+	db, err := integration.NewDB()
+	if err != nil {
+		log.Fatal("FAIL: no DB")
+	}
+	defer db.Close()
+	cfg.db = db
 
 	os.Exit(m.Run())
 }
@@ -58,7 +68,7 @@ func TestLive(t *testing.T) {
 func TestCreate(t *testing.T) {
 	t.Parallel()
 
-	in := &api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100}
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100}
 	key := newKeyInput(t, in)
 	assert.NotEmpty(t, key.Key)
 
@@ -66,7 +76,7 @@ func TestCreate(t *testing.T) {
 	checkCode(t, resp, http.StatusBadRequest)
 
 	resp = invoke(t, newRequest(t, http.MethodPost, "/key",
-		api.CreateInput{ID: uuid.NewString(), OperationID: in.OperationID,
+		api.CreateInput{ID: ulid.Make().String(), OperationID: in.OperationID,
 			Service: "test", Credits: 100}))
 	checkCode(t, resp, http.StatusConflict)
 }
@@ -74,7 +84,7 @@ func TestCreate(t *testing.T) {
 func TestCreate_OKSaveRequests(t *testing.T) {
 	t.Parallel()
 
-	in := &api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100, SaveRequests: true}
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, SaveRequests: true}
 	key := newKeyInput(t, in)
 	assert.NotEmpty(t, key.Key)
 
@@ -82,6 +92,40 @@ func TestCreate_OKSaveRequests(t *testing.T) {
 	assert.Equal(t, in.Credits, res.TotalCredits)
 	assert.Equal(t, "", res.Key)
 	assert.True(t, res.SaveRequests)
+}
+
+func TestCreate_FailNoAuth(t *testing.T) {
+	t.Parallel()
+
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, SaveRequests: true}
+	resp := invoke(t, newRequestNoAuth(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusUnauthorized)
+}
+
+func TestCreate_FailNoProject(t *testing.T) {
+	t.Parallel()
+
+	key := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"tts"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+	})
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, SaveRequests: true}
+	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, key))
+	checkCode(t, resp, http.StatusForbidden)
+}
+
+func newAdminKey(t *testing.T, in *integration.InsertAdminParams) string {
+	key := ulid.Make().String()
+	inH := adminapi.KeyIn{Key: key}
+	resp := invoke(t, newRequest(t, http.MethodPost, "/hash", inH))
+	checkCode(t, resp, http.StatusOK)
+	b, _ := io.ReadAll(resp.Body)
+	in.KeyHash = string(b)
+
+	integration.InsertAdmin(t, cfg.db, in)
+	return key
 }
 
 func TestAddCredits(t *testing.T) {
@@ -129,14 +173,73 @@ func TestAddCredits_OKSameOpID(t *testing.T) {
 	assert.Equal(t, 1100.0, resG.TotalCredits)
 }
 
+func TestAddCredits_FailMaxLimit(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	resp := addCreditsResp(t, key, 100000000000, "")
+	checkCode(t, resp, http.StatusBadRequest)
+}
+
+func TestAddCredits_FailNoAuth(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	in := api.CreditsInput{OperationID: ulid.Make().String(), Credits: 10, Msg: "test"}
+	resp := invoke(t, newRequestNoAuth(t, http.MethodPatch, fmt.Sprintf("/key/%s/credits", key.ID), in))
+	checkCode(t, resp, http.StatusUnauthorized)
+}
+
+func TestAddCredits_FailOther(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	lKey := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+	})
+	
+	in := api.CreditsInput{OperationID: ulid.Make().String(), Credits: 10, Msg: "test"}
+	resp := invoke(t, newRequestWithAuth(t, http.MethodPatch, fmt.Sprintf("/key/%s/credits", key.ID), in, lKey))
+	checkCode(t, resp, http.StatusForbidden)
+}
+
 func TestGet(t *testing.T) {
 	t.Parallel()
-	in := api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100}
-	checkCode(t, invoke(t, newRequest(t, http.MethodPost, "/key", in)), http.StatusCreated)
+	key := newKey(t)
 
-	res := getKeyInfo(t, in.ID)
-	assert.Equal(t, in.Credits, res.TotalCredits)
+	res := getKeyInfo(t, key.ID)
 	assert.Equal(t, "", res.Key)
+}
+
+func TestGet_FailNoAuth(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	resp := invoke(t, newRequestNoAuth(t, http.MethodGet, "/key/"+key.ID, nil))
+	checkCode(t, resp, http.StatusUnauthorized)
+}
+
+func TestGet_FailOther(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	lKey := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+	})
+
+	resp := invoke(t, newRequestWithAuth(t, http.MethodGet, "/key/"+key.ID, nil, lKey))
+	checkCode(t, resp, http.StatusForbidden)
 }
 
 func TestUpdate_Disabled(t *testing.T) {
@@ -546,6 +649,12 @@ func newRequest(t *testing.T, method string, urlSuffix string, body interface{})
 	t.Helper()
 
 	return integration.AddAdmAuth(newRequestFull(t, method, cfg.url+urlSuffix, body))
+}
+
+func newRequestWithAuth(t *testing.T, method string, urlSuffix string, body interface{}, key string) *http.Request {
+	t.Helper()
+
+	return integration.AddAuth(newRequestFull(t, method, cfg.url+urlSuffix, body), key)
 }
 
 func newRequestNoAuth(t *testing.T, method string, urlSuffix string, body interface{}) *http.Request {

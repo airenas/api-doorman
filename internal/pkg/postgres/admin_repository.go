@@ -9,6 +9,7 @@ import (
 
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/model"
+	"github.com/airenas/api-doorman/internal/pkg/model/permission"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
@@ -58,17 +59,21 @@ func NewAdmimRepository(ctx context.Context, db *sqlx.DB, hasher Hasher) (*Admim
 	return &f, nil
 }
 
-func (r *AdmimRepository) Get(ctx context.Context, project string, id string) (*api.Key, error) {
-	log.Ctx(ctx).Debug().Str("id", id).Str("project", project).Msg("Get key")
+func (r *AdmimRepository) Get(ctx context.Context, user *model.User, id string) (*api.Key, error) {
+	log.Ctx(ctx).Debug().Str("id", id).Msg("Get key")
 	res, err := loadKeyRecord(ctx, r.db, id)
 	if err != nil {
 		return nil, mapErr(err)
 	}
+	if err := validateKeyAccess(user, res); err != nil {
+		return nil, err
+	}
+
 	return mapToAdminKey(res, ""), nil
 }
 
-func (r *AdmimRepository) GetLogs(ctx context.Context, project string, keyID string) ([]*api.Log, error) {
-	log.Ctx(ctx).Debug().Str("id", keyID).Str("project", project).Msg("Get key")
+func (r *AdmimRepository) GetLogs(ctx context.Context, user *model.User, keyID string) ([]*api.Log, error) {
+	log.Ctx(ctx).Debug().Str("id", keyID).Msg("Get key")
 
 	var res []*logRecord
 	err := r.db.SelectContext(ctx, &res, `
@@ -147,7 +152,7 @@ func (r *AdmimRepository) ValidateToken(ctx context.Context, token string) (*mod
 	hash := r.hasher.HashKey(token)
 	var res administratorRecord
 	err := r.db.GetContext(ctx, &res, `
-		SELECT id, disabled, max_valid_to, max_limit, projects, name
+		SELECT id, disabled, max_valid_to, max_limit, projects, name, permissions
 		FROM administrators
 		WHERE key_hash = $1`, hash)
 	if err != nil {
@@ -160,12 +165,26 @@ func (r *AdmimRepository) ValidateToken(ctx context.Context, token string) (*mod
 		return nil, fmt.Errorf("disabled: %w", model.ErrUnauthorized)
 	}
 	return &model.User{
-		ID:         res.ID,
-		Projects:   res.Projects,
-		MaxValidTo: res.MaxValidTo,
-		MaxLimit:   res.MaxLimit,
-		Name:       res.Name,
+		ID:          res.ID,
+		Projects:    res.Projects,
+		MaxValidTo:  res.MaxValidTo,
+		MaxLimit:    res.MaxLimit,
+		Name:        res.Name,
+		Permissions: loadPermissions(res.Permissions),
 	}, nil
+}
+
+func loadPermissions(stringArray pq.StringArray) map[permission.Enum]bool {
+	res := make(map[permission.Enum]bool)
+	for _, pStr := range stringArray {
+		perm, err := permission.Parse(pStr)
+		if err != nil {
+			log.Warn().Str("permission", pStr).Err(err).Msg("Can't parse permission")
+			continue
+		}
+		res[perm] = true
+	}
+	return res
 }
 
 func (r *AdmimRepository) AddAdmin(ctx context.Context, key string, user *model.User) error {
@@ -174,14 +193,22 @@ func (r *AdmimRepository) AddAdmin(ctx context.Context, key string, user *model.
 	hash := r.hasher.HashKey(key)
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO administrators
-			(id, key_hash, projects, max_valid_to, max_limit, name, created, updated)
+			(id, key_hash, projects, max_valid_to, max_limit, name, created, updated, permissions)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $7)
-		`, ulid.Make().String(), hash, pq.Array(user.Projects), user.MaxValidTo, user.MaxLimit, user.Name, now)
+			($1, $2, $3, $4, $5, $6, $7, $7, $8)
+		`, ulid.Make().String(), hash, pq.Array(user.Projects), user.MaxValidTo, user.MaxLimit, user.Name, now, pq.Array(mapToStr(user.Permissions)))
 	if err != nil {
 		return fmt.Errorf("insert admin: %w", mapErr(err))
 	}
 	return nil
+}
+
+func mapToStr(perms map[permission.Enum]bool) []string {
+	var res []string
+	for k := range perms {
+		res = append(res, k.String())
+	}
+	return res
 }
 
 func (r *AdmimRepository) Reset(ctx context.Context, project string, since time.Time, limit float64) error {
@@ -193,7 +220,7 @@ func (r *AdmimRepository) Reset(ctx context.Context, project string, since time.
 	}
 	defer rollback(tx)
 
-	settings, err := getProjectSetting(ctx, tx, project)
+	settings, err := getProjectSetting(ctx, tx, project, true /*mark for update*/)
 	if err != nil {
 		return fmt.Errorf("get project settings: %w", mapErr(err))
 	}
@@ -303,12 +330,13 @@ func updateProjectSetting(ctx context.Context, tx dbTx, project string, settings
 	return nil
 }
 
-func getProjectSetting(ctx context.Context, tx dbTx, project string) (*ProjectSettings, error) {
+func getProjectSetting(ctx context.Context, tx dbTx, project string, forUpdate bool) (*ProjectSettings, error) {
 	var data json.RawMessage
 	err := tx.QueryRowContext(ctx, `
 		SELECT data
 		FROM settings
 		WHERE id = $1
+		`+forUpdateStrOrEmpty(forUpdate)+`	
 		`, resetSettingKey(project)).Scan(&data)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -322,6 +350,13 @@ func getProjectSetting(ctx context.Context, tx dbTx, project string) (*ProjectSe
 		return nil, fmt.Errorf("unmarshal settings: %w", err)
 	}
 	return &res, nil
+}
+
+func forUpdateStrOrEmpty(forUpdate bool) string {
+	if forUpdate {
+		return "FOR UPDATE"
+	}
+	return ""
 }
 
 func resetSettingKey(project string) string {

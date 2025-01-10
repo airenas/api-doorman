@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"fmt"
 	slog "log"
 	"net/http"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms"
 	"github.com/airenas/api-doorman/internal/pkg/model"
+	"github.com/airenas/api-doorman/internal/pkg/model/permission"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/facebookgo/grace/gracehttp"
@@ -22,34 +22,16 @@ import (
 )
 
 type (
-	// KeyCreator creates key
-	KeyCreator interface {
-		Create(ctx context.Context, project string, data *adminapi.Key) (*adminapi.Key, error)
-	}
-
-	// KeyUpdater creates key
-	KeyUpdater interface {
-		Update(ctx context.Context, project string, id string, data map[string]interface{}) (*adminapi.Key, error)
-	}
-
 	// UsageRestorer restores key usage by requestID
 	UsageRestorer interface {
 		RestoreUsage(ctx context.Context, project string, manual bool, request string, errorMsg string) error
-	}
-
-	// KeyRetriever gets keys list from db
-	KeyRetriever interface {
-		List(ctx context.Context, project string) ([]*adminapi.Key, error)
-	}
-
-	// OneKeyRetriever retrieves one list from db
+	} // OneKeyRetriever retrieves one list from db
 	OneKeyRetriever interface {
-		Get(ctx context.Context, project string, id string) (*adminapi.Key, error)
+		Get(ctx context.Context, user *model.User, id string) (*adminapi.Key, error)
 	}
-
 	// LogRetriever retrieves one list from db
 	LogProvider interface {
-		GetLogs(ctx context.Context, project string, keyID string) ([]*adminapi.Log, error)
+		GetLogs(ctx context.Context, user *model.User, keyID string) ([]*adminapi.Log, error)
 		ListLogs(ctx context.Context, project string, to time.Time) ([]*adminapi.Log, error)
 		DeleteLogs(ctx context.Context, project string, to time.Time) (int /* count of deleted items*/, error)
 	}
@@ -74,13 +56,10 @@ type (
 
 	//Data is service operation data
 	Data struct {
-		Port int
-
-		KeySaver         KeyCreator
-		KeyGetter        KeyRetriever
-		OneKeyGetter     OneKeyRetriever
-		LogProvider      LogProvider
-		OneKeyUpdater    KeyUpdater
+		Port         int
+		OneKeyGetter OneKeyRetriever
+		LogProvider  LogProvider
+		// logProvider       LogProvider
 		UsageRestorer    UsageRestorer
 		UsageReseter     UsageReseter
 		ProjectValidator PrValidator
@@ -101,6 +80,12 @@ func StartWebServer(data *Data) error {
 	}
 	if data.Hasher == nil {
 		return errors.New("no hasher")
+	}
+	if data.OneKeyGetter == nil {
+		return errors.New("no OneKeyGetter")
+	}
+	if data.LogProvider == nil {
+		return errors.New("no LogProvider")
 	}
 
 	log.Info().Int("port", data.Port).Msg("Starting HTTP doorman admin service")
@@ -132,14 +117,11 @@ func initRoutes(data *Data) *echo.Echo {
 
 	e.GET("/live", live(data))
 	e.POST("/hash", makeHash(data))
-	e.GET("/:project/key-list", keyList(data))
 	e.GET("/:project/key/:key", keyInfo(data))
-	e.POST("/:project/key", keyAdd(data))
-	e.PATCH("/:project/key/:key", keyUpdate(data))
 	e.POST("/:project/restore/:requestID", restore(data))
 	e.POST("/:project/reset", reset(data))
-	e.GET("/:project/log", logList(data))
-	e.DELETE("/:project/log", logDelete(data))
+	// e.GET("/:project/log", logList(data))
+	// e.DELETE("/:project/log", logDelete(data))
 
 	cms.InitRoutes(e, data.CmsData)
 
@@ -150,170 +132,94 @@ func initRoutes(data *Data) *echo.Echo {
 	return e
 }
 
-func keyAdd(data *Data) func(echo.Context) error {
-	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		project := c.Param("project")
-		if err := validateProject(project, data.ProjectValidator); err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-		}
-		var input adminapi.Key
-		if err := utils.TakeJSONInput(c, &input); err != nil {
-			log.Error().Err(err).Send()
-			return err
-		}
+// func logList(data *Data) func(echo.Context) error {
+// 	return func(c echo.Context) error {
+// 		defer goapp.Estimate("Service method: " + c.Path())()
+// 		project := c.Param("project")
+// 		if err := validateProject(project, data.ProjectValidator); err != nil {
+// 			log.Error().Err(err).Send()
+// 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+// 		}
+// 		to, err := utils.ParseDateParam(c.QueryParam("to"))
+// 		if err != nil {
+// 			return err
+// 		}
+// 		if to == nil {
+// 			return echo.NewHTTPError(http.StatusBadRequest, "no 'to' query param")
+// 		}
+// 		res, err := data.LogProvider.ListLogs(c.Request().Context(), project, *to)
 
-		if input.Limit < 0.1 {
-			log.Error().Msgf("no limit")
-			return echo.NewHTTPError(http.StatusBadRequest, "no limit")
-		}
+// 		if err != nil {
+// 			return utils.ProcessError(err)
+// 		}
 
-		if input.ValidTo == nil || input.ValidTo.Before(time.Now()) {
-			log.Error().Msgf("wrong valid to")
-			return echo.NewHTTPError(http.StatusBadRequest, "wrong valid to")
-		}
+// 		return c.JSON(http.StatusOK, res)
+// 	}
+// }
 
-		keyResp, err := data.KeySaver.Create(c.Request().Context(), project, &input)
+// func logDelete(data *Data) func(echo.Context) error {
+// 	return func(c echo.Context) error {
+// 		defer goapp.Estimate("Service method: " + c.Path())()
+// 		project := c.Param("project")
+// 		if err := validateProject(project, data.ProjectValidator); err != nil {
+// 			log.Error().Err(err).Send()
+// 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+// 		}
+// 		to, err := utils.ParseDateParam(c.QueryParam("to"))
+// 		if err != nil {
+// 			return err
+// 		}
+// 		if to == nil {
+// 			return echo.NewHTTPError(http.StatusBadRequest, "no 'to' query param")
+// 		}
 
-		if err != nil {
-			return utils.ProcessError(err)
-		}
-		return c.JSON(http.StatusOK, keyResp)
-	}
-}
+// 		deleted, err := data.LogProvider.DeleteLogs(c.Request().Context(), project, *to)
+// 		if err != nil {
+// 			return utils.ProcessError(err)
+// 		}
 
-func keyList(data *Data) func(echo.Context) error {
-	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		project := c.Param("project")
-		if err := validateProject(project, data.ProjectValidator); err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-		}
-		keyResp, err := data.KeyGetter.List(c.Request().Context(), project)
-
-		if err != nil {
-			return utils.ProcessError(err)
-		}
-
-		return c.JSON(http.StatusOK, keyResp)
-	}
-}
-
-func logList(data *Data) func(echo.Context) error {
-	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		project := c.Param("project")
-		if err := validateProject(project, data.ProjectValidator); err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-		}
-		to, err := utils.ParseDateParam(c.QueryParam("to"))
-		if err != nil {
-			return err
-		}
-		if to == nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "no 'to' query param")
-		}
-		res, err := data.LogProvider.ListLogs(c.Request().Context(), project, *to)
-
-		if err != nil {
-			return utils.ProcessError(err)
-		}
-
-		return c.JSON(http.StatusOK, res)
-	}
-}
-
-func logDelete(data *Data) func(echo.Context) error {
-	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		project := c.Param("project")
-		if err := validateProject(project, data.ProjectValidator); err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-		}
-		to, err := utils.ParseDateParam(c.QueryParam("to"))
-		if err != nil {
-			return err
-		}
-		if to == nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "no 'to' query param")
-		}
-
-		deleted, err := data.LogProvider.DeleteLogs(c.Request().Context(), project, *to)
-		if err != nil {
-			return utils.ProcessError(err)
-		}
-
-		return c.JSONBlob(http.StatusOK, []byte(fmt.Sprintf(`{"deleted":%d}`, deleted)))
-	}
-}
+// 		return c.JSONBlob(http.StatusOK, []byte(fmt.Sprintf(`{"deleted":%d}`, deleted)))
+// 	}
+// }
 
 func keyInfo(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		key := c.Param("key")
-		if key == "" {
-			log.Error().Msgf("no key")
-			return echo.NewHTTPError(http.StatusBadRequest, "no key")
-		}
-		project := c.Param("project")
-		if err := validateProject(project, data.ProjectValidator); err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-		}
+		return utils.RunWithUser(c, func(e echo.Context, user *model.User) error {
+			key := c.Param("key")
+			if key == "" {
+				log.Error().Msgf("no key")
+				return echo.NewHTTPError(http.StatusBadRequest, "no key")
+			}
+			project := c.Param("project")
+			if err := validateProject(project, data.ProjectValidator); err != nil {
+				log.Error().Err(err).Send()
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			}
 
-		res := &adminapi.KeyInfoResp{}
-		var err error
-		res.Key, err = data.OneKeyGetter.Get(c.Request().Context(), project, key)
-		if err != nil {
-			return utils.ProcessError(err)
-		}
-
-		if c.QueryParam("full") == "1" {
-			res.Logs, err = data.LogProvider.GetLogs(c.Request().Context(), project, key)
+			res := &adminapi.KeyInfoResp{}
+			var err error
+			res.Key, err = data.OneKeyGetter.Get(c.Request().Context(), user, key)
 			if err != nil {
 				return utils.ProcessError(err)
 			}
-		}
-		return c.JSON(http.StatusOK, res)
-	}
-}
 
-func keyUpdate(data *Data) func(echo.Context) error {
-	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		key := c.Param("key")
-		if key == "" {
-			log.Error().Msgf("no key")
-			return echo.NewHTTPError(http.StatusBadRequest, "no key")
-		}
-		project := c.Param("project")
-		if err := validateProject(project, data.ProjectValidator); err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-		}
-		input := make(map[string]interface{})
-		if err := utils.TakeJSONInput(c, &input); err != nil {
-			log.Error().Err(err).Send()
-			return err
-		}
-
-		keyResp, err := data.OneKeyUpdater.Update(c.Request().Context(), project, key, input)
-
-		if err != nil {
-			return utils.ProcessError(err)
-		}
-
-		return c.JSON(http.StatusOK, keyResp)
+			if c.QueryParam("full") == "1" {
+				res.Logs, err = data.LogProvider.GetLogs(c.Request().Context(), user, key)
+				if err != nil {
+					return utils.ProcessError(err)
+				}
+			}
+			return c.JSON(http.StatusOK, res)
+		})
 	}
 }
 
 func makeHash(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
 		return utils.RunWithUser(c, func(e echo.Context, user *model.User) error {
+			if !user.HasPermission(permission.Everything) {
+				return echo.NewHTTPError(http.StatusForbidden)
+			}
 			var input adminapi.KeyIn
 			if err := utils.TakeJSONInput(c, &input); err != nil {
 				log.Error().Err(err).Send()
@@ -331,71 +237,80 @@ type restoreReq struct {
 
 func restore(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		rStr := c.Param("requestID")
-		if rStr == "" {
-			log.Error().Msgf("no requestID")
-			return echo.NewHTTPError(http.StatusBadRequest, "no requestID")
-		}
-		rID, manual, err := parseRequestID(rStr)
-		if err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusBadRequest, "wrong requestID format")
-		}
-		project := c.Param("project")
-		if err := validateProject(project, data.ProjectValidator); err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-		}
-		input := restoreReq{}
-		if err := utils.TakeJSONInput(c, &input); err != nil {
-			log.Error().Err(err).Send()
-			return err
-		}
+		return utils.RunWithUser(c, func(e echo.Context, user *model.User) error {
+			if !user.HasPermission(permission.RestoreUsage) {
+				return echo.NewHTTPError(http.StatusForbidden)
+			}
+			defer goapp.Estimate("Service method: " + c.Path())()
+			rStr := c.Param("requestID")
+			if rStr == "" {
+				log.Error().Msgf("no requestID")
+				return echo.NewHTTPError(http.StatusBadRequest, "no requestID")
+			}
+			rID, manual, err := parseRequestID(rStr)
+			if err != nil {
+				log.Error().Err(err).Send()
+				return echo.NewHTTPError(http.StatusBadRequest, "wrong requestID format")
+			}
+			project := c.Param("project")
+			if err := validateProject(project, data.ProjectValidator); err != nil {
+				log.Error().Err(err).Send()
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			}
+			input := restoreReq{}
+			if err := utils.TakeJSONInput(c, &input); err != nil {
+				log.Error().Err(err).Send()
+				return err
+			}
 
-		err = data.UsageRestorer.RestoreUsage(c.Request().Context(), project, manual, rID, input.Error)
-		if err != nil {
-			return utils.ProcessError(err)
-		}
-		return c.NoContent(http.StatusOK)
+			err = data.UsageRestorer.RestoreUsage(c.Request().Context(), project, manual, rID, input.Error)
+			if err != nil {
+				return utils.ProcessError(err)
+			}
+			return c.NoContent(http.StatusOK)
+		})
 	}
 }
 
 func reset(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		project := c.Param("project")
-		if err := validateProject(project, data.ProjectValidator); err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-		}
-		qStr := c.QueryParam("quota")
-		if qStr == "" {
-			log.Error().Msgf("no quota")
-			return echo.NewHTTPError(http.StatusBadRequest, "no quota")
-		}
-		quota, err := strconv.ParseFloat(qStr, 64)
-		if err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusBadRequest, "wrong quota '%s'", qStr)
-		}
-		since, err := utils.ParseDateParam(c.QueryParam("since"))
-		if err != nil {
-			log.Error().Err(err).Send()
-			return echo.NewHTTPError(http.StatusBadRequest, "wrong since '%s'", qStr)
-		}
-		if since == nil {
-			log.Error().Msgf("no since")
-			return echo.NewHTTPError(http.StatusBadRequest, "no since")
-		}
+		return utils.RunWithUser(c, func(ctx echo.Context, u *model.User) error {
+			if !u.HasPermission(permission.ResetMonthlyUsage) {
+				return echo.NewHTTPError(http.StatusForbidden)
+			}
+			project := c.Param("project")
+			if err := validateProject(project, data.ProjectValidator); err != nil {
+				log.Error().Err(err).Send()
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			}
+			qStr := c.QueryParam("quota")
+			if qStr == "" {
+				log.Error().Msgf("no quota")
+				return echo.NewHTTPError(http.StatusBadRequest, "no quota")
+			}
+			quota, err := strconv.ParseFloat(qStr, 64)
+			if err != nil {
+				log.Error().Err(err).Send()
+				return echo.NewHTTPError(http.StatusBadRequest, "wrong quota '%s'", qStr)
+			}
+			since, err := utils.ParseDateParam(c.QueryParam("since"))
+			if err != nil {
+				log.Error().Err(err).Send()
+				return echo.NewHTTPError(http.StatusBadRequest, "wrong since '%s'", qStr)
+			}
+			if since == nil {
+				log.Error().Msgf("no since")
+				return echo.NewHTTPError(http.StatusBadRequest, "no since")
+			}
 
-		err = data.UsageReseter.Reset(c.Request().Context(), project, *since, quota)
+			err = data.UsageReseter.Reset(c.Request().Context(), project, *since, quota)
 
-		if err != nil {
-			return utils.ProcessError(err)
-		}
+			if err != nil {
+				return utils.ProcessError(err)
+			}
 
-		return c.NoContent(http.StatusOK)
+			return c.NoContent(http.StatusOK)
+		})
 	}
 }
 

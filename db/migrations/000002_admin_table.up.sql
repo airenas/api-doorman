@@ -12,6 +12,7 @@ CREATE TABLE administrators (
     max_valid_to TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     max_limit DOUBLE PRECISION NOT NULL DEFAULT 0,
     projects TEXT[], 
+    permissions TEXT[], 
 
     disabled BOOLEAN NOT NULL DEFAULT FALSE,
     

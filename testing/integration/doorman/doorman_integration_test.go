@@ -13,6 +13,7 @@ import (
 
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
+	"github.com/airenas/api-doorman/internal/pkg/model/permission"
 	"github.com/airenas/api-doorman/internal/pkg/test"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 	"github.com/airenas/api-doorman/testing/integration"
@@ -105,11 +106,11 @@ func TestAccessCreate_FailValidTo(t *testing.T) {
 func TestAccessCreate_FailLimits(t *testing.T) {
 	t.Parallel()
 
-	in := api.CreateInput{ID: ulid.Make().String(),	OperationID: ulid.Make().String(), Service: "test", Credits: -100}
+	in := api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: -100}
 	resp := invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
 	checkCode(t, resp, http.StatusBadRequest)
 
-	in = api.CreateInput{ID: ulid.Make().String(),	OperationID: ulid.Make().String(), Service: "test", Credits: 10000000000000}
+	in = api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 10000000000000}
 	resp = invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
 	checkCode(t, resp, http.StatusBadRequest)
 }
@@ -170,7 +171,7 @@ func TestAccessCreate_Used(t *testing.T) {
 	assert.Equal(t, 0.0, res.FailedCredits)
 }
 
-func TestAccessCreate_UsedRestore(t *testing.T) {
+func TestRestore_OK(t *testing.T) {
 	t.Parallel()
 	id := uuid.NewString()
 	in := api.CreateInput{ID: id, OperationID: uuid.NewString(), Service: "test", Credits: 100}
@@ -199,7 +200,7 @@ func TestAccessCreate_UsedRestore(t *testing.T) {
 		fmt.Sprintf("/%s/restore/m:%s", "test", logs.Logs[0].RequestID), errReq{Error: "err"}))
 	checkCode(t, resp, http.StatusConflict)
 
-	resp = invoke(t, newAdminRequest(t, http.MethodGet, fmt.Sprintf("/key/%s?returnKey=1", id), in))
+	resp = invoke(t, newAdminRequest(t, http.MethodGet, fmt.Sprintf("/key/%s", id), in))
 	res = api.Key{}
 	decode(t, resp, &res)
 	assert.Equal(t, 0.0, res.UsedCredits)
@@ -238,7 +239,7 @@ func TestReset(t *testing.T) {
 	id2 := integration.InsertIPKey(t, cfg.db, "test")
 
 	since := time.Now().Add(time.Second)
-	resp := invoke(t, newAdminRequestNoAuth(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=50000&since=%s", test.TimeToQueryStr(since)), nil))
+	resp := invoke(t, newAdminRequest(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=50000&since=%s", test.TimeToQueryStr(since)), nil))
 	checkCode(t, resp, http.StatusOK)
 
 	key := getKeyInfo(t, id1)
@@ -250,7 +251,7 @@ func TestReset(t *testing.T) {
 	// try again
 	id3 := integration.InsertIPKey(t, cfg.db, "test")
 	integration.ResetSettings(t, cfg.db, "reset-test")
-	resp = invoke(t, newAdminRequestNoAuth(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=40000&since=%s", test.TimeToQueryStr(since)), nil))
+	resp = invoke(t, newAdminRequest(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=40000&since=%s", test.TimeToQueryStr(since)), nil))
 	checkCode(t, resp, http.StatusOK)
 
 	// not changed
@@ -260,6 +261,47 @@ func TestReset(t *testing.T) {
 	// new
 	key = getKeyInfo(t, id3)
 	assert.Equal(t, 40000.0, key.TotalCredits-key.UsedCredits)
+}
+
+func TestReset_FailNoAuth(t *testing.T) {
+	t.Parallel()
+
+	since := time.Now().Add(time.Second)
+	resp := invoke(t, newAdminRequestNoAuth(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=50000&since=%s", test.TimeToQueryStr(since)), nil))
+	checkCode(t, resp, http.StatusUnauthorized)
+
+	key := ulid.Make().String()
+	in := adminapi.KeyIn{Key: key}
+	resp = invoke(t, newAdminRequest(t, http.MethodPost, "/hash", in))
+	checkCode(t, resp, http.StatusOK)
+	b, _ := io.ReadAll(resp.Body)
+
+	integration.InsertAdmin(t, cfg.db, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		KeyHash:     string(b),
+		Permissions: []string{},
+	})
+	resp = invoke(t, newAdminRequestWithAuth(t, http.MethodPost, fmt.Sprintf("/test/reset?quota=50000&since=%s", test.TimeToQueryStr(since)), nil, key))
+	checkCode(t, resp, http.StatusForbidden)
+}
+
+func TestReset_OKHasPerm(t *testing.T) {
+	t.Parallel()
+
+	key := ulid.Make().String()
+	in := adminapi.KeyIn{Key: key}
+	resp := invoke(t, newAdminRequest(t, http.MethodPost, "/hash", in))
+	checkCode(t, resp, http.StatusOK)
+	b, _ := io.ReadAll(resp.Body)
+
+	integration.InsertAdmin(t, cfg.db, &integration.InsertAdminParams{
+		Projects:    []string{"tts"},
+		KeyHash:     string(b),
+		Permissions: []string{permission.ResetMonthlyUsage.String()},
+	})
+	since := time.Now().Add(time.Second)
+	resp = invoke(t, newAdminRequestWithAuth(t, http.MethodPost, fmt.Sprintf("/tts/reset?quota=50000&since=%s", test.TimeToQueryStr(since)), nil, key))
+	checkCode(t, resp, http.StatusOK)
 }
 
 func addAuth(req *http.Request, s string) *http.Request {
@@ -285,6 +327,16 @@ func newAdminRequest(t *testing.T, method string, urlSuffix string, body interfa
 		req.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	}
 	return integration.AddAdmAuth(req)
+}
+
+func newAdminRequestWithAuth(t *testing.T, method string, urlSuffix string, body interface{}, key string) *http.Request {
+	t.Helper()
+	req, err := http.NewRequest(method, cfg.url+urlSuffix, mocks.ToReader(body))
+	require.Nil(t, err, "not nil error = %v", err)
+	if body != nil {
+		req.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	}
+	return integration.AddAuth(req, key)
 }
 
 func newAdminRequestNoAuth(t *testing.T, method string, urlSuffix string, body interface{}) *http.Request {

@@ -8,7 +8,6 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
-	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -18,13 +17,13 @@ type (
 	// Integrator wraps integratoin functionality
 	Integrator interface {
 		Create(ctx context.Context, user *model.User, in *api.CreateInput) (*api.Key, bool /*created*/, error)
-		GetKey(ctx context.Context, id string) (*api.Key, error)
-		AddCredits(ctx context.Context, id string, in *api.CreditsInput) (*api.Key, error)
-		GetKeyID(ctx context.Context, id string) (*api.KeyID, error)
-		Usage(ctx context.Context, id string, from *time.Time, to *time.Time, full bool) (*api.Usage, error)
-		Update(ctx context.Context, id string, in map[string]interface{}) (*api.Key, error)
-		Change(ctx context.Context, id string) (*api.Key, error)
-		Changes(ctx context.Context, from *time.Time, projects []string) (*api.Changes, error)
+		GetKey(ctx context.Context, user *model.User, id string) (*api.Key, error)
+		AddCredits(ctx context.Context, user *model.User, id string, in *api.CreditsInput) (*api.Key, error)
+		GetKeyID(ctx context.Context, user *model.User, id string) (*api.KeyID, error)
+		Usage(ctx context.Context, user *model.User, id string, from *time.Time, to *time.Time, full bool) (*api.Usage, error)
+		Update(ctx context.Context, user *model.User, id string, in *api.UpdateInput) (*api.Key, error)
+		Change(ctx context.Context, user *model.User, id string) (*api.Key, error)
+		Changes(ctx context.Context, user *model.User, from *time.Time, projects []string) (*api.Changes, error)
 	}
 
 	// PrValidator validates if project is available
@@ -55,7 +54,6 @@ func InitRoutes(e *echo.Echo, data *Data) {
 func keyCreate(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
 		return utils.RunWithUser(c, func(ctx echo.Context, u *model.User) error {
-			defer goapp.Estimate("Service method: " + c.Path())()
 			var input api.CreateInput
 			if err := utils.TakeJSONInput(c, &input); err != nil {
 				log.Error().Err(err).Send()
@@ -81,80 +79,84 @@ func keyCreate(data *Data) func(echo.Context) error {
 
 func keyGet(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		keyID := c.Param("keyID")
-		if keyID == "" {
-			log.Error().Msgf("no key ID")
-			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
-		}
-		keyResp, err := data.Integrator.GetKey(c.Request().Context(), keyID)
-		if err != nil {
-			return utils.ProcessError(err)
-		}
-		if c.QueryParam("returnKey") != "1" {
-			keyResp.Key = ""
-		}
-		return c.JSON(http.StatusOK, keyResp)
+		return utils.RunWithUser(c, func(ctx echo.Context, u *model.User) error {
+			keyID := c.Param("keyID")
+			if keyID == "" {
+				log.Error().Msgf("no key ID")
+				return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
+			}
+			keyResp, err := data.Integrator.GetKey(c.Request().Context(), u, keyID)
+			if err != nil {
+				return utils.ProcessError(err)
+			}
+			if c.QueryParam("returnKey") != "1" {
+				keyResp.Key = ""
+			}
+			return c.JSON(http.StatusOK, keyResp)
+		})
 	}
 }
 
 func keyUpdate(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		keyID := c.Param("keyID")
-		if keyID == "" {
-			log.Error().Msgf("no key ID")
-			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
-		}
-		input := make(map[string]interface{})
-		if err := utils.TakeJSONInput(c, &input); err != nil {
-			log.Error().Err(err).Send()
-			return err
-		}
-		keyResp, err := data.Integrator.Update(c.Request().Context(), keyID, input)
-		if err != nil {
-			return utils.ProcessError(err)
-		}
-		return c.JSON(http.StatusOK, keyResp)
+		return utils.RunWithUser(c, func(ctx echo.Context, u *model.User) error {
+			keyID := c.Param("keyID")
+			if keyID == "" {
+				log.Error().Msgf("no key ID")
+				return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
+			}
+			var input api.UpdateInput
+			if err := utils.TakeJSONInput(c, &input); err != nil {
+				log.Error().Err(err).Send()
+				return err
+			}
+			keyResp, err := data.Integrator.Update(c.Request().Context(), u, keyID, &input)
+			if err != nil {
+				return utils.ProcessError(err)
+			}
+			return c.JSON(http.StatusOK, keyResp)
+		})
 	}
 }
 
 func keyAddCredits(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		keyID := c.Param("keyID")
-		if keyID == "" {
-			log.Error().Msgf("no key ID")
-			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
-		}
-		var input api.CreditsInput
-		if err := utils.TakeJSONInput(c, &input); err != nil {
-			log.Error().Err(err).Send()
-			return err
-		}
-		keyResp, err := data.Integrator.AddCredits(c.Request().Context(), keyID, &input)
-		if err != nil {
-			return utils.ProcessError(err)
-		}
-		return c.JSON(http.StatusOK, keyResp)
+		return utils.RunWithUser(c, func(ctx echo.Context, u *model.User) error {
+			keyID := c.Param("keyID")
+			if keyID == "" {
+				log.Error().Msgf("no key ID")
+				return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
+			}
+			var input api.CreditsInput
+			if err := utils.TakeJSONInput(c, &input); err != nil {
+				log.Error().Err(err).Send()
+				return err
+			}
+			keyResp, err := data.Integrator.AddCredits(c.Request().Context(), u, keyID, &input)
+			if err != nil {
+				return utils.ProcessError(err)
+			}
+			return c.JSON(http.StatusOK, keyResp)
+		})
 	}
 }
 
 func keyChange(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		keyID := c.Param("keyID")
-		if keyID == "" {
-			log.Error().Msg("no key ID")
-			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
-		}
+		return utils.RunWithUser(c, func(ctx echo.Context, u *model.User) error {
+			keyID := c.Param("keyID")
+			if keyID == "" {
+				log.Error().Msg("no key ID")
+				return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
+			}
 
-		keyResp, err := data.Integrator.Change(c.Request().Context(), keyID)
-		if err != nil {
-			return utils.ProcessError(err)
-		}
+			keyResp, err := data.Integrator.Change(c.Request().Context(), u, keyID)
+			if err != nil {
+				return utils.ProcessError(err)
+			}
 
-		return c.JSON(http.StatusOK, keyResp)
+			return c.JSON(http.StatusOK, keyResp)
+		})
 	}
 }
 
@@ -164,63 +166,66 @@ type keyByIDInput struct {
 
 func keyGetID(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		var input keyByIDInput
-		if err := utils.TakeJSONInput(c, &input); err != nil {
-			log.Error().Err(err).Send()
-			return err
-		}
-		if input.Key == "" {
-			log.Error().Msg("no key")
-			return echo.NewHTTPError(http.StatusBadRequest, "no key")
-		}
-		keyResp, err := data.Integrator.GetKeyID(c.Request().Context(), input.Key)
-		if err != nil {
-			return utils.ProcessError(err)
-		}
+		return utils.RunWithUser(c, func(ctx echo.Context, u *model.User) error {
+			var input keyByIDInput
+			if err := utils.TakeJSONInput(c, &input); err != nil {
+				log.Error().Err(err).Send()
+				return err
+			}
+			if input.Key == "" {
+				log.Error().Msg("no key")
+				return echo.NewHTTPError(http.StatusBadRequest, "no key")
+			}
+			keyResp, err := data.Integrator.GetKeyID(c.Request().Context(), u, input.Key)
+			if err != nil {
+				return utils.ProcessError(err)
+			}
 
-		return c.JSON(http.StatusOK, keyResp)
+			return c.JSON(http.StatusOK, keyResp)
+		})
 	}
 }
 
 func keyUsage(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		keyID := c.Param("keyID")
-		if keyID == "" {
-			log.Error().Msgf("no key ID")
-			return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
-		}
-		from, err := utils.ParseDateParam(c.QueryParam("from"))
-		if err != nil {
-			return err
-		}
-		to, err := utils.ParseDateParam(c.QueryParam("to"))
-		if err != nil {
-			return err
-		}
-		usageResp, err := data.Integrator.Usage(c.Request().Context(), keyID, from, to, c.QueryParam("full") == "1")
-		if err != nil {
-			return utils.ProcessError(err)
-		}
+		return utils.RunWithUser(c, func(ctx echo.Context, u *model.User) error {
+			keyID := c.Param("keyID")
+			if keyID == "" {
+				log.Error().Msgf("no key ID")
+				return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
+			}
+			from, err := utils.ParseDateParam(c.QueryParam("from"))
+			if err != nil {
+				return err
+			}
+			to, err := utils.ParseDateParam(c.QueryParam("to"))
+			if err != nil {
+				return err
+			}
+			usageResp, err := data.Integrator.Usage(c.Request().Context(), u, keyID, from, to, c.QueryParam("full") == "1")
+			if err != nil {
+				return utils.ProcessError(err)
+			}
 
-		return c.JSON(http.StatusOK, usageResp)
+			return c.JSON(http.StatusOK, usageResp)
+		})
 	}
 }
 
 func keysChanges(data *Data) func(echo.Context) error {
 	return func(c echo.Context) error {
-		defer goapp.Estimate("Service method: " + c.Path())()
-		from, err := utils.ParseDateParam(c.QueryParam("from"))
-		if err != nil {
-			return err
-		}
-		changesResp, err := data.Integrator.Changes(c.Request().Context(), from, data.ProjectValidator.Projects())
-		if err != nil {
-			return utils.ProcessError(err)
-		}
+		return utils.RunWithUser(c, func(ctx echo.Context, u *model.User) error {
+			from, err := utils.ParseDateParam(c.QueryParam("from"))
+			if err != nil {
+				return err
+			}
+			changesResp, err := data.Integrator.Changes(c.Request().Context(), u, from, data.ProjectValidator.Projects())
+			if err != nil {
+				return utils.ProcessError(err)
+			}
 
-		return c.JSON(http.StatusOK, changesResp)
+			return c.JSON(http.StatusOK, changesResp)
+		})
 	}
 }
 

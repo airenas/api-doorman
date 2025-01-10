@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
+	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks2"
-	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/labstack/echo/v4"
 	"github.com/petergtz/pegomock/v4"
 	"github.com/pkg/errors"
@@ -76,7 +76,7 @@ func TestAddKey_Fail(t *testing.T) {
 		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, ins: false, err: errors.New("olia")},
 			inp:  mocks.ToReader(api.CreateInput{ID: "1", Service: "pr"}),
 			want: http.StatusInternalServerError},
-		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, ins: false, err: utils.NewWrongFieldError("aa", "msg")},
+		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, ins: false, err: model.NewWrongFieldError("aa", "msg")},
 			inp:  mocks.ToReader(api.CreateInput{ID: "1", Service: "pr"}),
 			want: http.StatusBadRequest},
 		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, ins: false, err: nil},
@@ -111,7 +111,7 @@ func TestGetKey(t *testing.T) {
 		{name: "OK", ret: ret{key: api.Key{Key: "kk"}, err: nil}, want: http.StatusOK},
 		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, err: errors.New("olia")},
 			want: http.StatusInternalServerError},
-		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, err: utils.ErrNoRecord},
+		{name: "Fail", ret: ret{key: api.Key{Key: "kk"}, err: model.ErrNoRecord},
 			want: http.StatusBadRequest},
 	}
 	for _, tt := range tests {
@@ -139,7 +139,7 @@ func TestKeyUsage(t *testing.T) {
 		{name: "OK", ret: ret{res: api.Usage{RequestCount: 1}, err: nil}, want: http.StatusOK},
 		{name: "Fail", ret: ret{res: api.Usage{RequestCount: 1}, err: errors.New("olia")},
 			want: http.StatusInternalServerError},
-		{name: "Fail", ret: ret{res: api.Usage{RequestCount: 1}, err: utils.ErrNoRecord},
+		{name: "Fail", ret: ret{res: api.Usage{RequestCount: 1}, err: model.ErrNoRecord},
 			want: http.StatusBadRequest},
 		{name: "From", ret: ret{res: api.Usage{RequestCount: 1}, err: nil},
 			params: map[string]string{"from": "2020-01-20T14:50:30Z"},
@@ -256,16 +256,16 @@ func TestAddCredits(t *testing.T) {
 		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: errors.New("olia")},
 			inp:  mocks.ToReader(api.CreditsInput{OperationID: "1", Credits: 100}),
 			want: http.StatusInternalServerError},
-		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: utils.NewWrongFieldError("aa", "msg")},
+		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: model.NewWrongFieldError("aa", "msg")},
 			inp:  mocks.ToReader(api.CreditsInput{OperationID: "1", Credits: 100}),
 			want: http.StatusBadRequest},
-		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: utils.ErrNoRecord},
+		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: model.ErrNoRecord},
 			inp:  mocks.ToReader(api.CreditsInput{OperationID: "1", Credits: 100}),
 			want: http.StatusBadRequest},
 		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: errors.New("olia")},
 			inp:  strings.NewReader("olia"),
 			want: http.StatusBadRequest},
-		{name: "Operation exists", ret: ret{res: api.Key{Key: "kk"}, err: utils.ErrOperationExists},
+		{name: "Operation exists", ret: ret{res: api.Key{Key: "kk"}, err: model.ErrOperationExists},
 			inp:  mocks.ToReader(api.CreditsInput{OperationID: "1", Credits: 100}),
 			want: http.StatusConflict},
 	}
@@ -295,10 +295,10 @@ func TestUpdate(t *testing.T) {
 		{name: "OK", ret: ret{res: api.Key{Key: "kk"}, err: nil},
 			inp:  mocks.ToReader(map[string]interface{}{}),
 			want: http.StatusOK},
-		{name: "No record", ret: ret{res: api.Key{Key: "kk"}, err: utils.ErrNoRecord},
+		{name: "No record", ret: ret{res: api.Key{Key: "kk"}, err: model.ErrNoRecord},
 			inp:  mocks.ToReader(map[string]interface{}{}),
 			want: http.StatusBadRequest},
-		{name: "Field error", ret: ret{res: api.Key{Key: "kk"}, err: utils.NewWrongFieldError("", "empty")},
+		{name: "Field error", ret: ret{res: api.Key{Key: "kk"}, err: model.NewWrongFieldError("", "empty")},
 			inp:  mocks.ToReader(map[string]interface{}{}),
 			want: http.StatusBadRequest},
 		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: errors.New("olia")},
@@ -332,7 +332,7 @@ func TestChange(t *testing.T) {
 	}{
 		{name: "OK", ret: ret{res: api.Key{Key: "kk"}, err: nil},
 			want: http.StatusOK},
-		{name: "No record", ret: ret{res: api.Key{Key: "kk"}, err: utils.ErrNoRecord},
+		{name: "No record", ret: ret{res: api.Key{Key: "kk"}, err: model.ErrNoRecord},
 			want: http.StatusBadRequest},
 		{name: "Fail", ret: ret{res: api.Key{Key: "kk"}, err: errors.New("olia")},
 			want: http.StatusInternalServerError},
@@ -370,7 +370,7 @@ func TestKeyGetID(t *testing.T) {
 		{name: "No key", ret: ret{res: api.KeyID{ID: "kk"}, err: errors.New("olia")},
 			inp:  mocks.ToReader(keyByIDInput{Key: "1"}),
 			want: http.StatusInternalServerError},
-		{name: "No key", ret: ret{res: api.KeyID{ID: "kk"}, err: utils.ErrNoRecord},
+		{name: "No key", ret: ret{res: api.KeyID{ID: "kk"}, err: model.ErrNoRecord},
 			inp:  mocks.ToReader(keyByIDInput{Key: "1"}),
 			want: http.StatusBadRequest},
 	}

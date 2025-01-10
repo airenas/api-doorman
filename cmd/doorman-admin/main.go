@@ -10,6 +10,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/handler"
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms"
 	"github.com/airenas/api-doorman/internal/pkg/model"
+	"github.com/airenas/api-doorman/internal/pkg/model/permission"
 	"github.com/airenas/api-doorman/internal/pkg/postgres"
 	"github.com/airenas/api-doorman/internal/pkg/reset"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
@@ -54,9 +55,8 @@ func mainInt(ctx context.Context) error {
 	data := admin.Data{}
 	data.Hasher = hasher
 	data.Port = goapp.Config.GetInt("port")
-	data.KeyGetter, data.KeySaver, data.OneKeyUpdater = repo, repo, repo
-	data.OneKeyGetter, data.UsageRestorer = repo, repo
-	data.LogProvider = repo
+	data.UsageRestorer = repo
+	data.OneKeyGetter, data.LogProvider = repo, repo
 	authmw, err := handler.NewAuthMiddleware(repo)
 	if err != nil {
 		return fmt.Errorf("init auth middleware: %w", err)
@@ -127,9 +127,10 @@ func tryAddInitialAdmin(ctx context.Context, config *viper.Viper, repo *postgres
 
 	log.Ctx(ctx).Info().Msg("Try to add initial admin")
 	err := repo.AddAdmin(ctx, key, &model.User{Name: "Main",
-		MaxLimit:   config.GetFloat64("mainAdmin.maxLimit"),
-		MaxValidTo: time.Now().AddDate(10, 0, 0),
-		Projects:   projects})
+		MaxLimit:    config.GetFloat64("mainAdmin.maxLimit"),
+		MaxValidTo:  time.Now().AddDate(10, 0, 0),
+		Permissions: map[permission.Enum]bool{permission.Everything: true},
+		Projects:    projects})
 	if err != nil {
 		if errors.Is(err, model.ErrDuplicate) {
 			log.Ctx(ctx).Info().Msg("Initial admin exists")

@@ -10,7 +10,8 @@ import (
 type keyRecord struct {
 	ID               string
 	Project          string
-	KeyHash          string `db:"key_hash"` // or IP
+	AdminID          sql.NullString `db:"adm_id"`
+	KeyHash          string         `db:"key_hash"` // or IP
 	Manual           bool
 	ValidTo          time.Time `db:"valid_to"`
 	Limit            float64   `db:"quota_limit"`
@@ -52,6 +53,7 @@ type ProjectSettings struct {
 type administratorRecord struct {
 	ID          string
 	Projects    pq.StringArray
+	Permissions pq.StringArray
 	KeyHash     string    `db:"key_hash"`
 	MaxValidTo  time.Time `db:"max_valid_to"`
 	MaxLimit    float64   `db:"max_limit"`
