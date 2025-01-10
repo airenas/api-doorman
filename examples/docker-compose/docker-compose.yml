@@ -70,7 +70,8 @@ services:
 
   postgres:
     # image:   postgres:17-alpine3.21
-    image: timescale/timescaledb:2.17.2-pg17-bitnami
+    image: timescale/timescaledb:2.17.2-pg17
+    # image: timescale/timescaledb:2.17.2-pg17-bitnami  - with bitnami does not work timezone
     container_name: postgres
     ports:
       - "5432:5432"
@@ -79,6 +80,7 @@ services:
     environment:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=doorman
+      - TZ=Europe/Vilnius
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s     
