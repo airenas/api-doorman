@@ -17,7 +17,6 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/test"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 	"github.com/airenas/api-doorman/testing/integration"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -125,8 +124,8 @@ func TestAccessCreate_FailWrong(t *testing.T) {
 
 func TestAccessCreate_FailDuplicate(t *testing.T) {
 	t.Parallel()
-	id := uuid.NewString()
-	in := api.CreateInput{ID: id, OperationID: uuid.NewString(), Service: "test", Credits: 100}
+	id := ulid.Make().String()
+	in := api.CreateInput{ID: id, OperationID: ulid.Make().String(), Service: "test", Credits: 100}
 	resp := invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
 	checkCode(t, resp, http.StatusCreated)
 	res := api.Key{}
@@ -135,7 +134,7 @@ func TestAccessCreate_FailDuplicate(t *testing.T) {
 
 	resp = invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
 	checkCode(t, resp, http.StatusBadRequest)
-	in.ID = uuid.NewString()
+	in.ID = ulid.Make().String()
 	resp = invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
 	checkCode(t, resp, http.StatusConflict)
 }
@@ -149,8 +148,8 @@ type errReq struct {
 
 func TestAccessCreate_Used(t *testing.T) {
 	t.Parallel()
-	id := uuid.NewString()
-	in := api.CreateInput{ID: id, OperationID: uuid.NewString(), Service: "test", Credits: 100}
+	id := ulid.Make().String()
+	in := api.CreateInput{ID: id, OperationID: ulid.Make().String(), Service: "test", Credits: 100}
 	resp := invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
 	checkCode(t, resp, http.StatusCreated)
 	res := api.Key{}
@@ -173,8 +172,8 @@ func TestAccessCreate_Used(t *testing.T) {
 
 func TestRestore_OK(t *testing.T) {
 	t.Parallel()
-	id := uuid.NewString()
-	in := api.CreateInput{ID: id, OperationID: uuid.NewString(), Service: "test", Credits: 100}
+	id := ulid.Make().String()
+	in := api.CreateInput{ID: id, OperationID: ulid.Make().String(), Service: "test", Credits: 100}
 	resp := invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
 	checkCode(t, resp, http.StatusCreated)
 	res := api.Key{}

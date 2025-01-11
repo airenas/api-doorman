@@ -18,7 +18,6 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/test"
 	"github.com/airenas/api-doorman/internal/pkg/test/mocks"
 	"github.com/airenas/api-doorman/testing/integration"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -160,7 +159,7 @@ func TestAddCredits_OKSameOpID(t *testing.T) {
 
 	key := newKey(t)
 
-	id := uuid.NewString()
+	id := ulid.Make().String()
 	resp := addCreditsResp(t, key, 1000, id)
 	checkCode(t, resp, http.StatusOK)
 
@@ -452,7 +451,7 @@ func TestChangeKey_Fail(t *testing.T) {
 func TestKey_NotFound(t *testing.T) {
 	t.Parallel()
 	checkCode(t, invoke(t, newRequest(t, http.MethodGet,
-		fmt.Sprintf("/key/%s", uuid.NewString()), nil)), http.StatusBadRequest)
+		fmt.Sprintf("/key/%s", ulid.Make().String()), nil)), http.StatusBadRequest)
 }
 
 func TestUsage_Empty(t *testing.T) {
@@ -552,6 +551,104 @@ func TestUsage_FailNoAuth(t *testing.T) {
 	checkCode(t, resp, http.StatusUnauthorized)
 }
 
+func TestStats_OK(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	addCredits(t, key, 1000)
+
+	for i := 0; i < 10; i++ {
+		newCallService(t, key.Key, 50, http.StatusOK)
+	}
+
+	_, err := cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('daily_logs', '2025-01-01', $1::timestamptz)`, time.Now())
+	require.NoError(t, err)
+	_, err = cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('monthly_logs', '2024-01-01', $1::timestamptz)`, time.Now())
+	require.NoError(t, err)
+
+	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=daily", key.ID), nil))
+	checkCode(t, resp, http.StatusOK)
+	res := []*api.Bucket{}
+	decode(t, resp, &res)
+	require.Len(t, res, 1)
+	assert.Equal(t, 10, res[0].RequestCount)
+	assert.Equal(t, 500.0, res[0].UsedQuota)
+	assert.Equal(t, 0.0, res[0].FailedQuota)
+	assert.Equal(t, 0, res[0].FailedRequests)
+
+	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=monthly", key.ID), nil))
+	checkCode(t, resp, http.StatusOK)
+	res = []*api.Bucket{}
+	decode(t, resp, &res)
+	require.Len(t, res, 1)
+	assert.Equal(t, 10, res[0].RequestCount)
+	assert.Equal(t, 500.0, res[0].UsedQuota)
+	assert.Equal(t, 0.0, res[0].FailedQuota)
+	assert.Equal(t, 0, res[0].FailedRequests)
+}
+
+// func TestUsage_OKWithFailures(t *testing.T) {
+// 	t.Parallel()
+
+// 	key := newKey(t)
+// 	addCredits(t, key, 400)
+// 	now := time.Now()
+
+// 	for i := 0; i < 10; i++ {
+// 		newCallService(t, key.Key, 50, http.StatusOK)
+// 	}
+
+// 	for i := 0; i < 20; i++ {
+// 		newCallService(t, key.Key, 10, http.StatusForbidden)
+// 	}
+
+// 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=1", key.ID,
+// 		test.TimeToQueryStr(now.Add(-time.Hour)), test.TimeToQueryStr(now.Add(time.Second))), nil))
+// 	checkCode(t, resp, http.StatusOK)
+// 	res := api.Usage{}
+// 	decode(t, resp, &res)
+// 	assert.Equal(t, 30, res.RequestCount)
+// 	assert.Equal(t, 200.0, res.FailedCredits)
+// 	assert.Equal(t, 500.0, res.UsedCredits)
+// 	assert.Len(t, res.Logs, 30)
+// }
+
+func TestStats_OKDate(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	now := time.Now()
+
+	addCredits(t, key, 1000)
+
+	for i := 0; i < 5; i++ {
+		newCallService(t, key.Key, 10, http.StatusOK)
+	}
+
+	_, err := cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('daily_logs', '2025-01-01', $1::timestamptz)`, time.Now())
+	require.NoError(t, err)
+	
+	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=daily&from=%s&to=%s", key.ID,
+		test.TimeToQueryStr(now.AddDate(0, 0, -2)), test.TimeToQueryStr(now.AddDate(0, 0, 1))), nil))
+	checkCode(t, resp, http.StatusOK)
+	res := []*api.Bucket{}
+	decode(t, resp, &res)
+	require.Len(t, res, 1)
+	assert.Equal(t, 10, res[0].RequestCount)
+	assert.Equal(t, 500.0, res[0].UsedQuota)
+	assert.Equal(t, 0.0, res[0].FailedQuota)
+	assert.Equal(t, 0, res[0].FailedRequests)
+}
+
+func TestStats_FailNoAuth(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+
+	resp := invoke(t, newRequestNoAuth(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=monthly", key.ID), nil))
+	checkCode(t, resp, http.StatusUnauthorized)
+}
+
 type testReq struct {
 	Text string `json:"text"`
 }
@@ -567,7 +664,7 @@ func newCallService(t *testing.T, key string, size int, code int) {
 func TestKeysChanges(t *testing.T) {
 	t.Parallel()
 
-	tDescr := uuid.NewString()
+	tDescr := ulid.Make().String()
 
 	from := time.Now().Add(-time.Millisecond) // make sure we are in past at least by 1ms
 	key := newKeyChanges(t, tDescr)
@@ -660,7 +757,7 @@ func decode(t *testing.T, resp *http.Response, to interface{}) {
 func addCredits(t *testing.T, key *api.Key, quota float64) *api.Key {
 	t.Helper()
 
-	resp := addCreditsResp(t, key, quota, uuid.NewString())
+	resp := addCreditsResp(t, key, quota, ulid.Make().String())
 	checkCode(t, resp, http.StatusOK)
 	res := api.Key{}
 	decode(t, resp, &res)
@@ -671,7 +768,7 @@ func addCreditsResp(t *testing.T, key *api.Key, quota float64, opID string) *htt
 	t.Helper()
 
 	if opID == "" {
-		opID = uuid.NewString()
+		opID = ulid.Make().String()
 	}
 
 	in := api.CreditsInput{OperationID: opID, Credits: quota, Msg: "test"}
@@ -697,14 +794,14 @@ func updateResp(t *testing.T, id string, in map[string]interface{}) *http.Respon
 func newKeyChanges(t *testing.T, description string) *api.Key {
 	t.Helper()
 
-	return newKeyInput(t, &api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100,
+	return newKeyInput(t, &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100,
 		Description: description})
 }
 
 func newKey(t *testing.T) *api.Key {
 	t.Helper()
 
-	return newKeyInput(t, &api.CreateInput{ID: uuid.NewString(), OperationID: uuid.NewString(), Service: "test", Credits: 100})
+	return newKeyInput(t, &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100})
 }
 
 func newKeyInput(t *testing.T, in *api.CreateInput) *api.Key {
