@@ -561,10 +561,8 @@ func TestStats_OK(t *testing.T) {
 		newCallService(t, key.Key, 50, http.StatusOK)
 	}
 
-	_, err := cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('daily_logs', '2025-01-01', $1::timestamptz)`, time.Now().AddDate(0, 0, 10))
-	require.NoError(t, err)
-	_, err = cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('monthly_logs', '2024-01-01', $1::timestamptz)`, time.Now().AddDate(0, 2, 0))
-	require.NoError(t, err)
+	integration.RefreshView(t, cfg.db, "daily_logs")
+	integration.RefreshView(t, cfg.db, "monthly_logs")
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=daily", key.ID), nil))
 	checkCode(t, resp, http.StatusOK)
@@ -601,10 +599,8 @@ func TestStats_OKWithFailures(t *testing.T) {
 		newCallService(t, key.Key, 10, http.StatusForbidden)
 	}
 
-	_, err := cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('daily_logs', '2025-01-01', $1::timestamptz)`, time.Now().AddDate(0, 0, 10))
-	require.NoError(t, err)
-	_, err = cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('monthly_logs', '2024-01-01', $1::timestamptz)`, time.Now().AddDate(0, 2, 0))
-	require.NoError(t, err)
+	integration.RefreshView(t, cfg.db, "daily_logs")
+	integration.RefreshView(t, cfg.db, "monthly_logs")
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=daily", key.ID), nil))
 	checkCode(t, resp, http.StatusOK)
@@ -639,8 +635,7 @@ func TestStats_OKDate(t *testing.T) {
 		newCallService(t, key.Key, 10, http.StatusOK)
 	}
 
-	_, err := cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('daily_logs', '2025-01-01', $1::timestamptz)`, time.Now().AddDate(0, 0, 10))
-	require.NoError(t, err)
+	integration.RefreshView(t, cfg.db, "daily_logs")
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=daily&from=%s&to=%s", key.ID,
 		test.TimeToQueryStr(now.AddDate(0, 0, -2)), test.TimeToQueryStr(now.AddDate(0, 0, 1))), nil))

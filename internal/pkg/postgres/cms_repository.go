@@ -235,37 +235,37 @@ func (r *CMSRepository) Usage(ctx context.Context, user *model.User, id string, 
 	return apiRes, nil
 }
 
-func (r *CMSRepository) Changes(ctx context.Context, user *model.User, from *time.Time, projects []string) (*api.Changes, error) {
-	log.Ctx(ctx).Debug().Msg("Get changes")
+// func (r *CMSRepository) Changes(ctx context.Context, user *model.User, from *time.Time, projects []string) (*api.Changes, error) {
+// 	log.Ctx(ctx).Debug().Msg("Get changes")
 
-	where, values := makeDatesFilter("updated", 2 /*start id*/, from, nil)
-	sValues := make([]interface{}, 0, len(values)+1)
-	sValues = append(sValues, user.ID)
-	sValues = append(sValues, values...)
+// 	where, values := makeDatesFilter("updated", 2 /*start id*/, from, nil)
+// 	sValues := make([]interface{}, 0, len(values)+1)
+// 	sValues = append(sValues, user.ID)
+// 	sValues = append(sValues, values...)
 
-	to := time.Now().Add(-time.Millisecond) // make sure we will not loose some updates, so add -1 ms
-	var res []*keyRecord
-	err := r.db.SelectContext(ctx, &res, `
-		SELECT `+_keyFields+` 
-		FROM keys 
-		WHERE manual = TRUE AND 
-			adm_id = $1
-		`+where+`			
-		`, sValues...)
-	if err != nil {
-		return nil, mapErr(err)
-	}
-	log.Ctx(ctx).Debug().Int("count", len(res)).Msg("Got keys")
-	apiRes := &api.Changes{
-		Data: make([]*api.Key, 0, len(res)),
-		From: from,
-		Till: &to,
-	}
-	for _, r := range res {
-		apiRes.Data = append(apiRes.Data, mapToKey(r, ""))
-	}
-	return apiRes, nil
-}
+// 	to := time.Now().Add(-time.Millisecond) // make sure we will not loose some updates, so add -1 ms
+// 	var res []*keyRecord
+// 	err := r.db.SelectContext(ctx, &res, `
+// 		SELECT `+_keyFields+`
+// 		FROM keys
+// 		WHERE manual = TRUE AND
+// 			adm_id = $1
+// 		`+where+`
+// 		`, sValues...)
+// 	if err != nil {
+// 		return nil, mapErr(err)
+// 	}
+// 	log.Ctx(ctx).Debug().Int("count", len(res)).Msg("Got keys")
+// 	apiRes := &api.Changes{
+// 		Data: make([]*api.Key, 0, len(res)),
+// 		From: from,
+// 		Till: &to,
+// 	}
+// 	for _, r := range res {
+// 		apiRes.Data = append(apiRes.Data, mapToKey(r, ""))
+// 	}
+// 	return apiRes, nil
+// }
 
 func (r *CMSRepository) Stats(ctx context.Context, user *model.User, in *api.StatParams) ([]*api.Bucket, error) {
 	log.Ctx(ctx).Trace().Any("data", in).Msg("Get stats")
