@@ -5,9 +5,10 @@ WITH (timescaledb.continuous) AS
 SELECT 
     time_bucket('1 day', date) AS day,
     key_id,
-    COUNT(*) AS total_logs,
-    SUM(quota_value) FILTER (WHERE fail) AS quota_value_failed,
-    SUM(quota_value) FILTER (WHERE NOT fail) AS quota_value
+    COUNT(*) AS request_count,
+    COUNT(*) FILTER (WHERE fail) AS failed_requests,
+    SUM(quota_value) FILTER (WHERE fail) AS failed_quota,
+    SUM(quota_value) FILTER (WHERE NOT fail) AS used_quota
 FROM logs
 GROUP BY day, key_id
 WITH NO DATA;

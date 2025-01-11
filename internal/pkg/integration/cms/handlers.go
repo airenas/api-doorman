@@ -2,11 +2,13 @@ package cms
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/model"
+	"github.com/airenas/api-doorman/internal/pkg/model/usage"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
@@ -24,6 +26,7 @@ type (
 		Update(ctx context.Context, user *model.User, id string, in *api.UpdateInput) (*api.Key, error)
 		Change(ctx context.Context, user *model.User, id string) (*api.Key, error)
 		Changes(ctx context.Context, user *model.User, from *time.Time, projects []string) (*api.Changes, error)
+		Stats(ctx context.Context, user *model.User, in *api.StatParams) ([]*api.Bucket, error)
 	}
 
 	// PrValidator validates if project is available
@@ -49,6 +52,7 @@ func InitRoutes(e *echo.Echo, data *Data) {
 	e.POST("/key/:keyID/change", keyChange(data))
 	e.GET("/key/:keyID/usage", keyUsage(data))
 	e.GET("/keys/changes", keysChanges(data))
+	e.GET("/key/:keyID/stats", keyStats(data))
 }
 
 func keyCreate(data *Data) func(echo.Context) error {
@@ -203,6 +207,42 @@ func keyUsage(data *Data) func(echo.Context) error {
 				return err
 			}
 			usageResp, err := data.Integrator.Usage(c.Request().Context(), u, keyID, from, to, c.QueryParam("full") == "1")
+			if err != nil {
+				return utils.ProcessError(err)
+			}
+
+			return c.JSON(http.StatusOK, usageResp)
+		})
+	}
+}
+
+func keyStats(data *Data) func(echo.Context) error {
+	return func(c echo.Context) error {
+		return utils.RunWithUser(c, func(ctx echo.Context, u *model.User) error {
+			keyID := c.Param("keyID")
+			if keyID == "" {
+				log.Error().Msgf("no key ID")
+				return echo.NewHTTPError(http.StatusBadRequest, "no key ID")
+			}
+			from, err := utils.ParseDateParam(c.QueryParam("from"))
+			if err != nil {
+				return err
+			}
+			to, err := utils.ParseDateParam(c.QueryParam("to"))
+			if err != nil {
+				return err
+			}
+			uTypeStr := c.QueryParam("type")
+			uType, err := usage.Parse(uTypeStr)
+			if err != nil {
+				return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("can't parse type '%s'", uTypeStr))
+			}
+			usageResp, err := data.Integrator.Stats(c.Request().Context(), u, &api.StatParams{
+				ID: keyID,
+				From: from,	
+				To: to,
+				Type: uType,
+			})
 			if err != nil {
 				return utils.ProcessError(err)
 			}

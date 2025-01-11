@@ -63,3 +63,11 @@ type administratorRecord struct {
 	Created     time.Time
 	Updated     time.Time
 }
+
+type bucketRecord struct {
+	At             time.Time         `db:"at"`
+	RequestCount   sql.Null[int]     `db:"request_count"`
+	FailedQuota    sql.Null[float64] `db:"failed_quota"`
+	UsedQuota      sql.Null[float64] `db:"used_quota"`
+	FailedRequests sql.Null[int]     `db:"failed_requests"`
+}

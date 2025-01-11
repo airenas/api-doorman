@@ -2,6 +2,8 @@ package api
 
 import (
 	"time"
+
+	"github.com/airenas/api-doorman/internal/pkg/model/usage"
 )
 
 // CreateInput for create key request
@@ -78,4 +80,19 @@ type Log struct {
 	IP          string     `json:"ip,omitempty"`
 	Fail        bool       `json:"fail,omitempty"`
 	Response    int        `json:"response,omitempty"`
+}
+
+type StatParams struct {
+	ID   string
+	From *time.Time
+	To   *time.Time
+	Type usage.Enum
+}
+
+type Bucket struct {
+	At             time.Time `json:"at,omitempty"`
+	RequestCount   int       `json:"requestCount,omitempty"`
+	FailedQuota    float64   `json:"failedQuota,omitempty"`
+	UsedQuota      float64   `json:"usedQuota,omitempty"`
+	FailedRequests int       `json:"failedRequests,omitempty"`
 }

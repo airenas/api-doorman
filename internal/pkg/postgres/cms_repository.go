@@ -10,6 +10,7 @@ import (
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
 	"github.com/airenas/api-doorman/internal/pkg/model"
+	"github.com/airenas/api-doorman/internal/pkg/model/usage"
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/jmoiron/sqlx"
@@ -193,7 +194,7 @@ func validateKeyAccess(user *model.User, res *keyRecord) error {
 func (r *CMSRepository) Usage(ctx context.Context, user *model.User, id string, from *time.Time, to *time.Time, full bool) (*api.Usage, error) {
 	log.Ctx(ctx).Debug().Str("id", id).Msg("Get logs")
 
-	where, values := makeDatesFilter(from, to)
+	where, values := makeDatesFilter("date", 2 /*start id*/, from, to)
 	sValues := make([]interface{}, 0, len(values)+1)
 	sValues = append(sValues, id)
 	sValues = append(sValues, values...)
@@ -237,7 +238,7 @@ func (r *CMSRepository) Usage(ctx context.Context, user *model.User, id string, 
 func (r *CMSRepository) Changes(ctx context.Context, user *model.User, from *time.Time, projects []string) (*api.Changes, error) {
 	log.Ctx(ctx).Debug().Msg("Get changes")
 
-	where, values := makeKeyUpdatedFilter(from)
+	where, values := makeDatesFilter("updated", 2 /*start id*/, from, nil)
 	sValues := make([]interface{}, 0, len(values)+1)
 	sValues = append(sValues, user.ID)
 	sValues = append(sValues, values...)
@@ -266,6 +267,61 @@ func (r *CMSRepository) Changes(ctx context.Context, user *model.User, from *tim
 	return apiRes, nil
 }
 
+func (r *CMSRepository) Stats(ctx context.Context, user *model.User, in *api.StatParams) ([]*api.Bucket, error) {
+	log.Ctx(ctx).Trace().Any("data", in).Msg("Get stats")
+	if err := user.ValidateID(in.ID); err != nil {
+		return nil, err
+	}
+	tbl, dField, err := getStatsTableField(in.Type)
+	if err != nil {
+		return nil, err
+	}
+
+	where, values := makeDatesFilter(dField, 2 /*start id*/, in.From, in.To)
+	sValues := make([]interface{}, 0, len(values)+1)
+	sValues = append(sValues, in.ID)
+	sValues = append(sValues, values...)
+
+	var res []*bucketRecord
+	err = r.db.SelectContext(ctx, &res, `
+		SELECT `+dField+` as at,
+			request_count, failed_quota, used_quota, failed_requests
+		FROM `+tbl+`
+		WHERE 
+			key_id = $1
+		`+where+`			
+		`, sValues...)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	log.Ctx(ctx).Debug().Int("count", len(res)).Msg("Got buckets")
+	apiRes := make([]*api.Bucket, 0, len(res))
+	for _, r := range res {
+		apiRes = append(apiRes, mapToBucket(r))
+	}
+	return apiRes, nil
+}
+
+func getStatsTableField(enum usage.Enum) (string /*table*/, string /*field*/, error) {
+	switch enum {
+	case usage.Daily:
+		return "daily_logs", "day", nil
+	case usage.Monthly:
+		return "monthly_logs", "month", nil
+	}
+	return "", "", model.NewWrongFieldError("type", "wrong type")
+}
+
+func mapToBucket(r *bucketRecord) *api.Bucket {
+	return &api.Bucket{
+		At:             r.At,
+		RequestCount:   r.RequestCount.V,
+		UsedQuota:      r.UsedQuota.V,
+		FailedQuota:    r.FailedQuota.V,
+		FailedRequests: r.FailedRequests.V,
+	}
+}
+
 func (r *CMSRepository) validateQuota(ctx context.Context, tx dbTx, user *model.User, credits float64) error {
 	assigned, err := r.getAssignedQuota(ctx, tx, user.ID)
 	if err != nil {
@@ -290,25 +346,19 @@ func (r *CMSRepository) getAssignedQuota(ctx context.Context, tx dbTx, id string
 	return res, nil
 }
 
-func makeDatesFilter(from *time.Time, to *time.Time) (string, []interface{}) {
+func makeDatesFilter(field string, startIndex int, from *time.Time, to *time.Time) (string, []interface{}) {
 	var values []interface{}
 	var res string
 	if from != nil {
-		res += " AND date >= $2"
+		res += fmt.Sprintf(" AND %s >= $%d", field, startIndex)
 		values = append(values, *from)
+		startIndex++
 	}
 	if to != nil {
-		res += " AND date < $3"
+		res += fmt.Sprintf(" AND %s < $%d", field, startIndex)
 		values = append(values, *to)
 	}
 	return res, values
-}
-
-func makeKeyUpdatedFilter(from *time.Time) (string, []interface{}) {
-	if from != nil {
-		return " AND updated >= $2", []interface{}{*from}
-	}
-	return "", nil
 }
 
 func loadKeyRecord(ctx context.Context, db dbTx, id string) (*keyRecord, error) {
