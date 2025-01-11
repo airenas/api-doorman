@@ -14,8 +14,10 @@ help:
 #####################################################################################
 ## start all containers for testing
 start: 
-	docker compose up -d dbmigration doorman-admin doorman test-api 
+	docker compose up -d dbmigration test-api 
+	docker compose up dbmigration
 	docker compose up -d doorman --wait doorman --timeout 10
+	docker compose up -d doorman-admin --wait doorman-admin --timeout 10
 .PHONY: start
 ## clean everything, stops docker containers and removes them
 clean:
