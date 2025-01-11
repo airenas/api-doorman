@@ -36,24 +36,24 @@ info:
 load: info
 	docker run --add-host=host.docker.internal:$(DOCKER_IP) \
 		--env EXPECTED_REQ=$(req) \
-	    -i loadimpact/k6 run --vus $(vu) --iterations $(req) - <load_OK.js
+	    -i grafana/k6 run --vus $(vu) --iterations $(req) - <load_OK.js
 .PHONY: load
 
 load-fail: info
 	docker run --add-host=host.docker.internal:$(DOCKER_IP) \
 	   --env EXPECTED_REQ=$(req) \
-	   -i loadimpact/k6 run --vus $(vu) --iterations $(req) - <load_Fail.js		
+	   -i grafana/k6 run --vus $(vu) --iterations $(req) - <load_Fail.js		
 .PHONY: load-fail
 
 load-restore: info
 	docker run --add-host=host.docker.internal:$(DOCKER_IP) \
-	   -i loadimpact/k6 run --vus $(vu) --iterations $(req) - <load_Restore.js	
+	   -i grafana/k6 run --vus $(vu) --iterations $(req) - <load_Restore.js	
 .PHONY: load-restore
 
 load-discount: info
 	docker run --add-host=host.docker.internal:$(DOCKER_IP) \
 		--env EXPECTED_REQ=$(req) \
-	    -i loadimpact/k6 run --vus $(vu) --iterations $(req) - <load_Discount.js
+	    -i grafana/k6 run --vus $(vu) --iterations $(req) - <load_Discount.js
 .PHONY: load-discount
 ## run all load tests suite
 all: load load-fail load-restore load-discount
