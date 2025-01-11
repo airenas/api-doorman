@@ -25,7 +25,6 @@ type (
 		Usage(ctx context.Context, user *model.User, id string, from *time.Time, to *time.Time, full bool) (*api.Usage, error)
 		Update(ctx context.Context, user *model.User, id string, in *api.UpdateInput) (*api.Key, error)
 		Change(ctx context.Context, user *model.User, id string) (*api.Key, error)
-		Changes(ctx context.Context, user *model.User, from *time.Time, projects []string) (*api.Changes, error)
 		Stats(ctx context.Context, user *model.User, in *api.StatParams) ([]*api.Bucket, error)
 	}
 
@@ -51,7 +50,6 @@ func InitRoutes(e *echo.Echo, data *Data) {
 	e.PATCH("/key/:keyID/credits", keyAddCredits(data))
 	e.POST("/key/:keyID/change", keyChange(data))
 	e.GET("/key/:keyID/usage", keyUsage(data))
-	e.GET("/keys/changes", keysChanges(data))
 	e.GET("/key/:keyID/stats", keyStats(data))
 }
 
@@ -248,23 +246,6 @@ func keyStats(data *Data) func(echo.Context) error {
 			}
 
 			return c.JSON(http.StatusOK, usageResp)
-		})
-	}
-}
-
-func keysChanges(data *Data) func(echo.Context) error {
-	return func(c echo.Context) error {
-		return utils.RunWithUser(c, func(ctx echo.Context, u *model.User) error {
-			from, err := utils.ParseDateParam(c.QueryParam("from"))
-			if err != nil {
-				return err
-			}
-			changesResp, err := data.Integrator.Changes(c.Request().Context(), u, from, data.ProjectValidator.Projects())
-			if err != nil {
-				return utils.ProcessError(err)
-			}
-
-			return c.JSON(http.StatusOK, changesResp)
 		})
 	}
 }

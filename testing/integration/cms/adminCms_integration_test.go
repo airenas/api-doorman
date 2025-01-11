@@ -592,7 +592,7 @@ func TestStats_OKWithFailures(t *testing.T) {
 
 	key := newKey(t)
 	addCredits(t, key, 400)
-	
+
 	for i := 0; i < 10; i++ {
 		newCallService(t, key.Key, 50, http.StatusOK)
 	}
@@ -600,7 +600,6 @@ func TestStats_OKWithFailures(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		newCallService(t, key.Key, 10, http.StatusForbidden)
 	}
-
 
 	_, err := cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('daily_logs', '2025-01-01', $1::timestamptz)`, time.Now().AddDate(0, 0, 10))
 	require.NoError(t, err)
@@ -695,55 +694,6 @@ func newCallService(t *testing.T, key string, size int, code int) {
 	checkCode(t, resp, code)
 }
 
-func TestKeysChanges(t *testing.T) {
-	t.Parallel()
-
-	tDescr := ulid.Make().String()
-
-	from := time.Now().Add(-time.Millisecond) // make sure we are in past at least by 1ms
-	key := newKeyChanges(t, tDescr)
-
-	resp := invoke(t, newRequest(t, http.MethodGet, "/keys/changes", nil))
-	checkCode(t, resp, http.StatusOK)
-	res := api.Changes{}
-	decode(t, resp, &res)
-	require.NotEmpty(t, filterByDescription(res.Data, tDescr))
-	assert.Equal(t, key.ID, filterByDescription(res.Data, tDescr)[0].ID, "%v", res)
-	assert.Nil(t, res.From)
-	assert.NotNil(t, res.Till)
-
-	_ = newKeyChanges(t, tDescr)
-	resp = invoke(t, newRequest(t, http.MethodGet, "/keys/changes", nil))
-	checkCode(t, resp, http.StatusOK)
-
-	res = api.Changes{}
-	decode(t, resp, &res)
-	assert.Equal(t, 2, len(filterByDescription(res.Data, tDescr)))
-
-	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s", test.TimeToQueryStr(from)), nil))
-	checkCode(t, resp, http.StatusOK)
-	res = api.Changes{}
-	decode(t, resp, &res)
-	assert.Equal(t, 2, len(filterByDescription(res.Data, tDescr)))
-	assert.Equal(t, from.Unix(), res.From.Unix())
-
-	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s",
-		test.TimeToQueryStr(res.Till.Add(time.Millisecond))), nil))
-	checkCode(t, resp, http.StatusOK)
-	res = api.Changes{}
-	decode(t, resp, &res)
-	assert.Equal(t, 0, len(filterByDescription(res.Data, tDescr)))
-	// create one more and see if it appears in changes list
-	_ = newKeyChanges(t, tDescr)
-	checkCode(t, resp, http.StatusOK)
-	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/keys/changes?from=%s",
-		test.TimeToQueryStr(*res.Till)), nil))
-	checkCode(t, resp, http.StatusOK)
-	res = api.Changes{}
-	decode(t, resp, &res)
-	assert.Equal(t, 1, len(filterByDescription(res.Data, tDescr)))
-}
-
 func getKeyInfo(t *testing.T, s string) *api.Key {
 	t.Helper()
 
@@ -752,16 +702,6 @@ func getKeyInfo(t *testing.T, s string) *api.Key {
 	res := api.Key{}
 	decode(t, resp, &res)
 	return &res
-}
-
-func filterByDescription(keys []*api.Key, description string) []*api.Key {
-	var res []*api.Key
-	for _, d := range keys {
-		if d.Description == description {
-			res = append(res, d)
-		}
-	}
-	return res
 }
 
 func invoke(t *testing.T, r *http.Request) *http.Response {
@@ -823,13 +763,6 @@ func updateResp(t *testing.T, id string, in map[string]interface{}) *http.Respon
 	t.Helper()
 
 	return invoke(t, newRequest(t, http.MethodPatch, fmt.Sprintf("/key/%s", id), in))
-}
-
-func newKeyChanges(t *testing.T, description string) *api.Key {
-	t.Helper()
-
-	return newKeyInput(t, &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100,
-		Description: description})
 }
 
 func newKey(t *testing.T) *api.Key {
