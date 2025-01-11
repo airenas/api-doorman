@@ -561,9 +561,9 @@ func TestStats_OK(t *testing.T) {
 		newCallService(t, key.Key, 50, http.StatusOK)
 	}
 
-	_, err := cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('daily_logs', '2025-01-01', $1::timestamptz)`, time.Now())
+	_, err := cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('daily_logs', '2025-01-01', $1::timestamptz)`, time.Now().AddDate(0, 0, 10))
 	require.NoError(t, err)
-	_, err = cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('monthly_logs', '2024-01-01', $1::timestamptz)`, time.Now())
+	_, err = cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('monthly_logs', '2024-01-01', $1::timestamptz)`, time.Now().AddDate(0, 2, 0))
 	require.NoError(t, err)
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=daily", key.ID), nil))
@@ -587,31 +587,46 @@ func TestStats_OK(t *testing.T) {
 	assert.Equal(t, 0, res[0].FailedRequests)
 }
 
-// func TestUsage_OKWithFailures(t *testing.T) {
-// 	t.Parallel()
+func TestStats_OKWithFailures(t *testing.T) {
+	t.Parallel()
 
-// 	key := newKey(t)
-// 	addCredits(t, key, 400)
-// 	now := time.Now()
+	key := newKey(t)
+	addCredits(t, key, 400)
+	
+	for i := 0; i < 10; i++ {
+		newCallService(t, key.Key, 50, http.StatusOK)
+	}
 
-// 	for i := 0; i < 10; i++ {
-// 		newCallService(t, key.Key, 50, http.StatusOK)
-// 	}
+	for i := 0; i < 20; i++ {
+		newCallService(t, key.Key, 10, http.StatusForbidden)
+	}
 
-// 	for i := 0; i < 20; i++ {
-// 		newCallService(t, key.Key, 10, http.StatusForbidden)
-// 	}
 
-// 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/usage?from=%s&to=%s&full=1", key.ID,
-// 		test.TimeToQueryStr(now.Add(-time.Hour)), test.TimeToQueryStr(now.Add(time.Second))), nil))
-// 	checkCode(t, resp, http.StatusOK)
-// 	res := api.Usage{}
-// 	decode(t, resp, &res)
-// 	assert.Equal(t, 30, res.RequestCount)
-// 	assert.Equal(t, 200.0, res.FailedCredits)
-// 	assert.Equal(t, 500.0, res.UsedCredits)
-// 	assert.Len(t, res.Logs, 30)
-// }
+	_, err := cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('daily_logs', '2025-01-01', $1::timestamptz)`, time.Now().AddDate(0, 0, 10))
+	require.NoError(t, err)
+	_, err = cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('monthly_logs', '2024-01-01', $1::timestamptz)`, time.Now().AddDate(0, 2, 0))
+	require.NoError(t, err)
+
+	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=daily", key.ID), nil))
+	checkCode(t, resp, http.StatusOK)
+	res := []*api.Bucket{}
+	decode(t, resp, &res)
+	require.Len(t, res, 1)
+	assert.Equal(t, 30, res[0].RequestCount)
+	assert.Equal(t, 500.0, res[0].UsedQuota)
+	assert.Equal(t, 200.0, res[0].FailedQuota)
+	assert.Equal(t, 20, res[0].FailedRequests)
+
+	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=monthly", key.ID), nil))
+	checkCode(t, resp, http.StatusOK)
+	res = []*api.Bucket{}
+	decode(t, resp, &res)
+	require.Len(t, res, 1)
+	assert.Equal(t, 30, res[0].RequestCount)
+	assert.Equal(t, 500.0, res[0].UsedQuota)
+	assert.Equal(t, 200.0, res[0].FailedQuota)
+	assert.Equal(t, 20, res[0].FailedRequests)
+}
 
 func TestStats_OKDate(t *testing.T) {
 	t.Parallel()
@@ -625,19 +640,23 @@ func TestStats_OKDate(t *testing.T) {
 		newCallService(t, key.Key, 10, http.StatusOK)
 	}
 
-	_, err := cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('daily_logs', '2025-01-01', $1::timestamptz)`, time.Now())
+	_, err := cfg.db.ExecContext(context.Background(), `CALL refresh_continuous_aggregate('daily_logs', '2025-01-01', $1::timestamptz)`, time.Now().AddDate(0, 0, 10))
 	require.NoError(t, err)
-	
+
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=daily&from=%s&to=%s", key.ID,
 		test.TimeToQueryStr(now.AddDate(0, 0, -2)), test.TimeToQueryStr(now.AddDate(0, 0, 1))), nil))
 	checkCode(t, resp, http.StatusOK)
 	res := []*api.Bucket{}
 	decode(t, resp, &res)
 	require.Len(t, res, 1)
-	assert.Equal(t, 10, res[0].RequestCount)
-	assert.Equal(t, 500.0, res[0].UsedQuota)
+	assert.Equal(t, 5, res[0].RequestCount)
+	assert.Equal(t, 50.0, res[0].UsedQuota)
 	assert.Equal(t, 0.0, res[0].FailedQuota)
 	assert.Equal(t, 0, res[0].FailedRequests)
+
+	resp = invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=monthly&from=%s&to=%s", key.ID,
+		test.TimeToQueryStr(now.AddDate(0, 0, -2)), test.TimeToQueryStr(now.AddDate(0, 0, 1))), nil))
+	checkCode(t, resp, http.StatusOK)
 }
 
 func TestStats_FailNoAuth(t *testing.T) {
@@ -647,6 +666,21 @@ func TestStats_FailNoAuth(t *testing.T) {
 
 	resp := invoke(t, newRequestNoAuth(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=monthly", key.ID), nil))
 	checkCode(t, resp, http.StatusUnauthorized)
+}
+
+func TestStats_FailOtherUser(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	lKey := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+	})
+
+	resp := invoke(t, newRequestWithAuth(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=monthly", key.ID), nil, lKey))
+	checkCode(t, resp, http.StatusForbidden)
 }
 
 type testReq struct {

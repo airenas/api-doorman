@@ -238,9 +238,9 @@ func keyStats(data *Data) func(echo.Context) error {
 				return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("can't parse type '%s'", uTypeStr))
 			}
 			usageResp, err := data.Integrator.Stats(c.Request().Context(), u, &api.StatParams{
-				ID: keyID,
-				From: from,	
-				To: to,
+				ID:   keyID,
+				From: from,
+				To:   to,
 				Type: uType,
 			})
 			if err != nil {
