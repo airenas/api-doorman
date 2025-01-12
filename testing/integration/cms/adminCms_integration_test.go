@@ -677,6 +677,22 @@ func TestStats_FailOtherUser(t *testing.T) {
 	checkCode(t, resp, http.StatusForbidden)
 }
 
+func TestStats_OKNonSuperUser(t *testing.T) {
+	t.Parallel()
+
+	lKey := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+	})
+
+	key := newKeyWithAuth(t, lKey)
+
+	resp := invoke(t, newRequestWithAuth(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=monthly", key.ID), nil, lKey))
+	checkCode(t, resp, http.StatusOK)
+}
+
 type testReq struct {
 	Text string `json:"text"`
 }
@@ -770,6 +786,23 @@ func newKeyInput(t *testing.T, in *api.CreateInput) *api.Key {
 	t.Helper()
 
 	resp := invoke(t, newRequest(t, http.MethodPost, "/key", in))
+	checkCode(t, resp, http.StatusCreated)
+	res := api.Key{}
+	decode(t, resp, &res)
+	assert.NotEmpty(t, res.Key)
+	return &res
+}
+
+func newKeyWithAuth(t *testing.T, key string) *api.Key {
+	t.Helper()
+
+	return newKeyInputWithAuth(t, &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100}, key)
+}
+
+func newKeyInputWithAuth(t *testing.T, in *api.CreateInput, key string) *api.Key {
+	t.Helper()
+
+	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, key))
 	checkCode(t, resp, http.StatusCreated)
 	res := api.Key{}
 	decode(t, resp, &res)

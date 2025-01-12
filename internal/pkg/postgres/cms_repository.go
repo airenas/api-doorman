@@ -269,7 +269,11 @@ func (r *CMSRepository) Usage(ctx context.Context, user *model.User, id string, 
 
 func (r *CMSRepository) Stats(ctx context.Context, user *model.User, in *api.StatParams) ([]*api.Bucket, error) {
 	log.Ctx(ctx).Trace().Any("data", in).Msg("Get stats")
-	if err := user.ValidateID(in.ID); err != nil {
+	key, err := loadKeyRecord(ctx, r.db, in.ID)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	if err := validateKeyAccess(user, key); err != nil {
 		return nil, err
 	}
 	tbl, dField, err := getStatsTableField(in.Type)
