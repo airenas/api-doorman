@@ -19,4 +19,7 @@ SELECT add_continuous_aggregate_policy('daily_logs',
     end_offset => INTERVAL '1 hour',
     schedule_interval => INTERVAL '1 hour');
 
+-- turn realtime select feature on
+ALTER MATERIALIZED VIEW daily_logs set (timescaledb.materialized_only = false);
+
 CREATE INDEX idx_daily_logs_key_id ON daily_logs (key_id);

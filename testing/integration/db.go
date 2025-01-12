@@ -67,9 +67,9 @@ func InsertAdmin(t *testing.T, db *sqlx.DB, params *InsertAdminParams) {
 	require.NoError(t, err)
 }
 
-func RefreshView(t *testing.T, db *sqlx.DB, view string) {
-	t.Helper()
-	// need to add some months to the date to refresh monthly logs
-	_, err := db.Exec(`CALL refresh_continuous_aggregate($1, '2025-01-01', $2::timestamptz)`, view, time.Now().AddDate(0, 2, 0))
-	require.NoError(t, err)
-}
+// func RefreshView(t *testing.T, db *sqlx.DB, view string) {
+// 	t.Helper()
+// 	// need to add some months to the date to refresh monthly logs
+// 	_, err := db.Exec(`CALL refresh_continuous_aggregate($1, '2025-01-01', $2::timestamptz)`, view, time.Now().AddDate(0, 2, 0))
+// 	require.NoError(t, err)
+// }

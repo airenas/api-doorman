@@ -561,8 +561,8 @@ func TestStats_OK(t *testing.T) {
 		newCallService(t, key.Key, 50, http.StatusOK)
 	}
 
-	integration.RefreshView(t, cfg.db, "daily_logs")
-	integration.RefreshView(t, cfg.db, "monthly_logs")
+	// integration.RefreshView(t, cfg.db, "daily_logs")
+	// integration.RefreshView(t, cfg.db, "monthly_logs")
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=daily", key.ID), nil))
 	checkCode(t, resp, http.StatusOK)
@@ -599,8 +599,8 @@ func TestStats_OKWithFailures(t *testing.T) {
 		newCallService(t, key.Key, 10, http.StatusForbidden)
 	}
 
-	integration.RefreshView(t, cfg.db, "daily_logs")
-	integration.RefreshView(t, cfg.db, "monthly_logs")
+	// integration.RefreshView(t, cfg.db, "daily_logs")
+	// integration.RefreshView(t, cfg.db, "monthly_logs")
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=daily", key.ID), nil))
 	checkCode(t, resp, http.StatusOK)
@@ -635,7 +635,7 @@ func TestStats_OKDate(t *testing.T) {
 		newCallService(t, key.Key, 10, http.StatusOK)
 	}
 
-	integration.RefreshView(t, cfg.db, "daily_logs")
+	// integration.RefreshView(t, cfg.db, "daily_logs")
 
 	resp := invoke(t, newRequest(t, http.MethodGet, fmt.Sprintf("/key/%s/stats?type=daily&from=%s&to=%s", key.ID,
 		test.TimeToQueryStr(now.AddDate(0, 0, -2)), test.TimeToQueryStr(now.AddDate(0, 0, 1))), nil))
