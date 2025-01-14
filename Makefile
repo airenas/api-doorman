@@ -25,8 +25,8 @@ docker/doorman-admin/build:
 	cd build/doorman-admin && $(MAKE) dbuild
 .PHONY: docker/doorman-admin/build
 ## build doorman-admin-migration
-docker/api-doorman-dbmigration/build: 
-	cd build/api-doorman-dbmigration && $(MAKE) dbuild
+docker/doorman-dbmigration/build: 
+	cd build/doorman-dbmigration && $(MAKE) dbuild
 .PHONY: docker/doorman-admin/build
 ## build doorman
 docker/doorman/build: 
