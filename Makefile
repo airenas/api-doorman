@@ -41,7 +41,7 @@ docker/doorman/scan:
 	cd build/doorman && $(MAKE) dscan		
 .PHONY: docker/doorman/scan
 ## build all docker images
-docker/build/all: docker/doorman-admin/build docker/doorman/build docker/api-doorman-dbmigration/build
+docker/build/all: docker/doorman-admin/build docker/doorman/build docker/doorman-dbmigration/build
 .PHONY: docker/build/all
 #####################################################################################
 ## run integration tests
