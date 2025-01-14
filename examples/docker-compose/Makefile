@@ -57,6 +57,15 @@ test/api/key:
 ########################################################################################################
 psql:
 	docker compose exec -e PGPASSWORD=postgres postgres psql -U postgres -h localhost -d doorman
+########################################################################################################
+psql2/backup:
+	docker compose exec -e PGPASSWORD=postgres postgres pg_dump -U postgres -h localhost doorman -Fc > backup.dump	
+psql2:
+	docker compose exec -e PGPASSWORD=postgres postgres2 psql -U postgres -h localhost -d doorman	
+psql2/restore:
+	docker compose exec -T -e PGPASSWORD=postgres postgres2 psql -U postgres -h localhost -d doorman -c "SELECT timescaledb_pre_restore();"
+	cat backup.dump | docker compose exec -T -e PGPASSWORD=postgres postgres2 pg_restore -U postgres -h localhost -d doorman -Fc
+	docker compose exec -T -e PGPASSWORD=postgres postgres2 psql -U postgres -h localhost -d doorman -c "SELECT timescaledb_post_restore();"
 #####################################################################################
 ## test cms integration - add new key
 test/cms/add-key:
