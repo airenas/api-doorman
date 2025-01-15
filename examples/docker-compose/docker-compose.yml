@@ -99,7 +99,7 @@ services:
   dbmigration:
     build:
       context: ../../
-      dockerfile: ./build/api-doorman-dbmigration/Dockerfile
+      dockerfile: ./build/doorman-dbmigration/Dockerfile
     command:
       [
         '-path',

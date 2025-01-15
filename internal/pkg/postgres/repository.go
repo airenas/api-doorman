@@ -50,7 +50,8 @@ func (r *Repository) hash(key string, manual bool) string {
 
 // IsValid validates key
 func (r *Repository) IsValid(ctx context.Context, key string, IP string, manual bool) (bool, string, []string, error) {
-	log.Debug().Msg("Validating key")
+	hash := r.hash(key, manual)
+	log.Ctx(ctx).Trace().Str("project", r.project).Str("key_hash", hash).Bool("manual", manual).Msg("Validating key")
 
 	var res keyRecord
 	err := r.db.GetContext(ctx, &res, `
@@ -58,10 +59,11 @@ func (r *Repository) IsValid(ctx context.Context, key string, IP string, manual 
 		FROM keys 
 		WHERE project = $1 AND 
 			key_hash = $2 AND 
-			manual = $3`, r.project, r.hash(key, manual), manual)
+			manual = $3
+		LIMIT 1`, r.project, hash, manual)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			log.Info().Msg("No key")
+			log.Ctx(ctx).Debug().Msg("No key")
 			return false, "", nil, nil
 		}
 		return false, "", nil, fmt.Errorf("can't get key: %w", mapErr(err))
@@ -94,7 +96,8 @@ func validateKey(key *keyRecord, IP string) (bool, error) {
 
 // SaveValidate add qv to quota and validates with quota limit
 func (r *Repository) SaveValidate(ctx context.Context, key string, ip string, manual bool, qv float64) (bool, float64, float64, error) {
-	log.Debug().Msg("Validating key")
+	hash := r.hash(key, manual)
+	log.Ctx(ctx).Trace().Str("project", r.project).Str("key_hash", hash).Bool("manual", manual).Msg("Validating key")
 
 	tx, err := r.db.Beginx()
 	if err != nil {
@@ -108,7 +111,8 @@ func (r *Repository) SaveValidate(ctx context.Context, key string, ip string, ma
 		FROM keys 
 		WHERE project = $1 AND 
 			key_hash = $2 AND 
-			manual = $3 LIMIT 1`, r.project, r.hash(key, manual), manual)
+			manual = $3 
+		LIMIT 1`, r.project, hash, manual)
 	if err != nil {
 		return false, 0, 0, err
 	}
