@@ -528,7 +528,9 @@ func mapToKey(keyR *keyRecord, key string) *api.Key {
 		IPWhiteList:   keyR.IPWhiteList.String,
 		SaveRequests:  mapToSaveRequests(keyR.Tags),
 		Description:   keyR.Description.String,
-		Key:           key,
+		Manual:        keyR.Manual,
+
+		Key: key,
 	}
 	return res
 }
@@ -598,6 +600,14 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 func (r *CMSRepository) changeKey(ctx context.Context, tx dbTx, id string, key string) (*keyRecord, error) {
 	log.Ctx(ctx).Trace().Str("id", id).Msg("Change key")
 
+	keyRec, err := loadKeyRecord(ctx, tx, id)
+	if err != nil {
+		return nil, err
+	}
+	if !keyRec.Manual {
+		return nil, model.NewWrongFieldError("manual", "not manual key")
+	}
+
 	now := time.Now()
 	hash := r.hasher.HashKey(key)
 	sRes, err := tx.ExecContext(ctx, `
@@ -618,7 +628,7 @@ func (r *CMSRepository) changeKey(ctx context.Context, tx dbTx, id string, key s
 		return nil, err
 	}
 
-	return loadKeyRecord(ctx, tx, id)
+	return keyRec, nil
 }
 
 type createOperationInput struct {

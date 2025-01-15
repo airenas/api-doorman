@@ -448,6 +448,15 @@ func TestChangeKey_OK(t *testing.T) {
 	assert.Equal(t, key.Service, resKey.Service)
 }
 
+func TestChangeKey_FailNonManual(t *testing.T) {
+	t.Parallel()
+
+	id := integration.InsertIPKey(t, cfg.db, "test")
+
+	resp := invoke(t, newRequest(t, http.MethodPost, fmt.Sprintf("/key/%s/change", id), nil))
+	checkCode(t, resp, http.StatusBadRequest)
+}
+
 func TestChangeKey_FailNoAuth(t *testing.T) {
 	t.Parallel()
 

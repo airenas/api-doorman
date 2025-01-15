@@ -43,6 +43,7 @@ type Key struct {
 	IPWhiteList  string     `json:"IPWhiteList,omitempty"`
 	SaveRequests bool       `json:"saveRequests,omitempty"`
 	Description  string     `json:"description,omitempty"`
+	Manual       bool       `json:"manual,omitempty"`
 
 	TotalCredits  float64 `json:"totalCredits,omitempty"`
 	UsedCredits   float64 `json:"usedCredits,omitempty"`
