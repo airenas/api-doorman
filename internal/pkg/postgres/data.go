@@ -43,6 +43,14 @@ type logRecord struct {
 	ErrorMsg  string `db:"error_msg"`
 }
 
+type operationRecord struct {
+	ID         string
+	KeyID      string  `db:"key_id"`
+	QuotaValue float64 `db:"quota_value"`
+	Date       time.Time
+	Msg        sql.NullString
+}
+
 type ProjectSettings struct {
 	Project      string
 	ResetStarted time.Time `json:"resetStarted,omitempty"`

@@ -133,7 +133,7 @@ func TestAccessCreate_FailDuplicate(t *testing.T) {
 	assert.NotEmpty(t, res.Key)
 
 	resp = invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
-	checkCode(t, resp, http.StatusBadRequest)
+	checkCode(t, resp, http.StatusConflict)
 	in.ID = ulid.Make().String()
 	resp = invoke(t, newAdminRequest(t, http.MethodPost, "/key", in))
 	checkCode(t, resp, http.StatusConflict)

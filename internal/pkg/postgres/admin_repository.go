@@ -33,16 +33,6 @@ func (a *AdmimRepository) ListLogs(ctx context.Context, project string, to time.
 	panic("unimplemented")
 }
 
-// Create implements admin.KeyCreator.
-func (a *AdmimRepository) Create(ctx context.Context, project string, data *api.Key) (*api.Key, error) {
-	panic("unimplemented")
-}
-
-// Update implements admin.KeyUpdater.
-func (a *AdmimRepository) Update(ctx context.Context, project string, id string, data map[string]interface{}) (*api.Key, error) {
-	panic("unimplemented")
-}
-
 // List implements admin.KeyRetriever.
 func (a *AdmimRepository) List(ctx context.Context, project string) ([]*api.Key, error) {
 	panic("unimplemented")
@@ -278,7 +268,7 @@ func (r *AdmimRepository) Reset(ctx context.Context, project string, since time.
 func reset(ctx context.Context, tx dbTx, id string, at time.Time, quotaInc float64) error {
 	log.Ctx(ctx).Debug().Str("id", id).Time("at", at).Float64("quotaInc", quotaInc).Msg("reset usage")
 
-	_, err := newOperation(ctx, tx, &createOperationInput{opID: ulid.Make().String(), key_id: id, date: time.Now(), quota_value: quotaInc, msg: "monthly reset"})
+	_, err := newOperation(ctx, tx, &createOperationInput{opID: ulid.Make().String(), keyID: id, date: time.Now(), quotaValue: quotaInc, msg: "monthly reset"})
 	if err != nil {
 		return err
 	}

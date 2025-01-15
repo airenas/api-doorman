@@ -73,12 +73,12 @@ func TestCreate(t *testing.T) {
 	assert.NotEmpty(t, key.Key)
 
 	resp := invoke(t, newRequest(t, http.MethodPost, "/key", in))
-	checkCode(t, resp, http.StatusBadRequest)
+	checkCode(t, resp, http.StatusConflict)
 
 	resp = invoke(t, newRequest(t, http.MethodPost, "/key",
 		api.CreateInput{ID: ulid.Make().String(), OperationID: in.OperationID,
-			Service: "test", Credits: 100}))
-	checkCode(t, resp, http.StatusConflict)
+			Service: "test", Credits: 200}))
+	checkCode(t, resp, http.StatusBadRequest)
 }
 
 func TestCreate_OKSaveRequests(t *testing.T) {
@@ -92,6 +92,22 @@ func TestCreate_OKSaveRequests(t *testing.T) {
 	assert.Equal(t, in.Credits, res.TotalCredits)
 	assert.Equal(t, "", res.Key)
 	assert.True(t, res.SaveRequests)
+}
+
+func TestCreate_OKAllfields(t *testing.T) {
+	t.Parallel()
+
+	to := time.Now().Add(time.Hour)
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(),
+		Service: "test", Credits: 100, Description: "olia", SaveRequests: true,
+		IPWhiteList: "1.1.1.1/32", Disabled: true, ValidTo: &to}
+	key := newKeyInput(t, in)
+	assert.NotEmpty(t, key.Key)
+	assert.Equal(t, to.Unix(), key.ValidTo.Unix())
+	assert.Equal(t, "olia", key.Description)
+	assert.Equal(t, "1.1.1.1/32", key.IPWhiteList)
+	assert.True(t, key.Disabled)
+	assert.True(t, key.SaveRequests)
 }
 
 func TestCreate_FailNoAuth(t *testing.T) {
@@ -166,8 +182,8 @@ func TestAddCredits_OKSameOpID(t *testing.T) {
 	resp = addCreditsResp(t, key, 1000, id)
 	checkCode(t, resp, http.StatusOK)
 
-	resp = addCreditsResp(t, key, 1000, id)
-	checkCode(t, resp, http.StatusOK)
+	resp = addCreditsResp(t, key, 2000, id)
+	checkCode(t, resp, http.StatusBadRequest)
 
 	resG := getKeyInfo(t, key.ID)
 	assert.Equal(t, 1100.0, resG.TotalCredits)

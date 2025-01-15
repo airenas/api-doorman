@@ -76,6 +76,9 @@ func ProcessError(err error) error {
 	if errors.Is(err, model.ErrOperationExists) {
 		return echo.NewHTTPError(http.StatusConflict, "duplicate operation")
 	}
+	if errors.Is(err, model.ErrOperationDiffers) {
+		return echo.NewHTTPError(http.StatusBadRequest, "operation is not the same")
+	}
 	if errors.Is(err, model.ErrUnauthorized) {
 		return echo.NewHTTPError(http.StatusUnauthorized)
 	}

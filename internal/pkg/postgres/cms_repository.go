@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"math"
@@ -14,7 +15,6 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/jmoiron/sqlx"
-	"github.com/lib/pq"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 )
@@ -68,9 +68,6 @@ func (r *CMSRepository) Create(ctx context.Context, user *model.User, in *api.Cr
 		return nil, false, err
 	}
 
-	if in.OperationID == "" {
-		in.OperationID = ulid.Make().String()
-	}
 	if in.ID == "" {
 		in.ID = ulid.Make().String()
 	}
@@ -137,6 +134,9 @@ func (r *CMSRepository) AddCredits(ctx context.Context, user *model.User, id str
 }
 
 func (r *CMSRepository) Update(ctx context.Context, user *model.User, id string, in *api.UpdateInput) (*api.Key, error) {
+	if err := validateUpdate(in); err != nil {
+		return nil, err
+	}
 	if _, err := user.ValidateDate(in.ValidTo); err != nil {
 		return nil, err
 	}
@@ -391,7 +391,7 @@ func loadKeyRecordByHash(ctx context.Context, db dbTx, hash string) (*keyRecord,
 	return &res, nil
 }
 
-func prepareKeyUpdates(in *api.UpdateInput, now time.Time) (string, []interface{}, error) {
+func prepareKeyUpdates(in *api.UpdateInput) (string, []interface{}, error) {
 	var values []interface{}
 	var updates []string
 
@@ -404,16 +404,10 @@ func prepareKeyUpdates(in *api.UpdateInput, now time.Time) (string, []interface{
 		values = append(values, *in.Disabled)
 	}
 	if in.IPWhiteList != nil {
-		if err := utils.ValidateIPsCIDR(*in.IPWhiteList); err != nil {
-			return "", nil, model.NewWrongFieldError("IPWhiteList", "wrong IP CIDR format")
-		}
 		updates = append(updates, "ip_white_list")
 		values = append(values, *in.IPWhiteList)
 	}
 	if in.ValidTo != nil {
-		if in.ValidTo.Before(now) {
-			return "", nil, model.NewWrongFieldError("validTo", "past date")
-		}
 		updates = append(updates, "valid_to")
 		values = append(values, *in.ValidTo)
 	}
@@ -455,7 +449,7 @@ func (r *CMSRepository) addQuota(ctx context.Context, db dbTx, user *model.User,
 
 	now := time.Now()
 
-	has, err := newOperation(ctx, db, &createOperationInput{opID: in.OperationID, key_id: id, date: now, quota_value: in.Credits, msg: "Add Credits"})
+	has, err := newOperation(ctx, db, &createOperationInput{opID: in.OperationID, keyID: id, date: now, quotaValue: in.Credits, msg: "Add Credits"})
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +487,7 @@ func (r *CMSRepository) update(ctx context.Context, db dbTx, user *model.User, i
 		return nil, err
 	}
 
-	updates, values, err := prepareKeyUpdates(in, now)
+	updates, values, err := prepareKeyUpdates(in)
 	if err != nil {
 		return nil, err
 	}
@@ -567,17 +561,13 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 	}
 
 	now := time.Now()
-	hash := r.hasher.HashKey(key)
-	log.Ctx(ctx).Trace().Str("id", in.ID).Str("key", key).Msg("Create key record")
-	_, err := tx.ExecContext(ctx, `
-	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated, disabled, tags, description, adm_id)
-	VALUES ($1, $2, $3, TRUE, $4, $5, $6, $6, FALSE, $7, $8, $9)
-	`, in.ID, in.Service, hash, in.Credits, validTo, now, tags, in.Description, userID)
-	if err != nil {
-		return nil, fmt.Errorf("create key: %w", mapErr(err))
-	}
-
-	has, err := newOperation(ctx, tx, &createOperationInput{opID: in.OperationID, key_id: in.ID, date: now, quota_value: in.Credits, msg: "Create Key"})
+	has, err := validateOperation(ctx, tx, &createOperationInput{
+		opID:       in.OperationID,
+		keyID:      "",
+		date:       now,
+		quotaValue: in.Credits,
+		msg:        "Create Key",
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -585,15 +575,24 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 		return nil, model.ErrOperationExists
 	}
 
-	return &keyRecord{
-		ID:      in.ID,
-		Project: in.Service,
-		Limit:   in.Credits,
-		ValidTo: validTo,
-		Created: now,
-		Updated: now,
-		Tags:    pq.StringArray(tags),
-	}, nil
+	hash := r.hasher.HashKey(key)
+	log.Ctx(ctx).Trace().Str("id", in.ID).Str("key", key).Msg("Create key record")
+	_, err = tx.ExecContext(ctx, `
+	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated, disabled, tags, description, adm_id, ip_white_list)
+	VALUES ($1, $2, $3, TRUE, $4, $5, $6, $6, $7, $8, $9, $10, $11)
+	`, in.ID, in.Service, hash, in.Credits, validTo, now, in.Disabled, tags, in.Description, userID, in.IPWhiteList)
+	if err != nil {
+		return nil, fmt.Errorf("create key: %w", mapErr(err))
+	}
+
+	has, err = newOperation(ctx, tx, &createOperationInput{opID: in.OperationID, keyID: in.ID, date: now, quotaValue: in.Credits, msg: "Create Key"})
+	if err != nil {
+		return nil, err
+	}
+	if has {
+		return nil, model.ErrOperationExists
+	}
+	return loadKeyRecord(ctx, tx, in.ID)
 }
 
 func (r *CMSRepository) changeKey(ctx context.Context, tx dbTx, id string, key string) (*keyRecord, error) {
@@ -614,7 +613,7 @@ func (r *CMSRepository) changeKey(ctx context.Context, tx dbTx, id string, key s
 		return nil, model.ErrNoRecord
 	}
 
-	_, err = newOperation(ctx, tx, &createOperationInput{opID: ulid.Make().String(), key_id: id, date: now, quota_value: 0, msg: "Change Key"})
+	_, err = newOperation(ctx, tx, &createOperationInput{opID: ulid.Make().String(), keyID: id, date: now, quotaValue: 0, msg: "Change Key"})
 	if err != nil {
 		return nil, err
 	}
@@ -623,19 +622,43 @@ func (r *CMSRepository) changeKey(ctx context.Context, tx dbTx, id string, key s
 }
 
 type createOperationInput struct {
-	opID        string
-	key_id      string
-	date        time.Time
-	quota_value float64
-	msg         string
+	opID       string
+	keyID      string
+	date       time.Time
+	quotaValue float64
+	msg        string
 }
 
-func newOperation(ctx context.Context, tx sqlx.ExecerContext, in *createOperationInput) (bool /*exists operation*/, error) {
+func validateOperation(ctx context.Context, tx dbTx, in *createOperationInput) (bool /*exists operation*/, error) {
+	log.Ctx(ctx).Trace().Any("data", in).Msg("Validate operation record")
+
+	var opRec operationRecord
+	err := tx.GetContext(ctx, &opRec, `
+	SELECT id, key_id, quota_value, msg
+	FROM operations
+	WHERE id = $1
+	`, in.opID)
+	if err != nil && err != sql.ErrNoRows {
+		return false, fmt.Errorf("get operation: %w", mapErr(err))
+	} else if err == nil {
+		if (in.keyID == "" || opRec.KeyID == in.keyID) && opRec.QuotaValue == in.quotaValue && opRec.Msg.String == in.msg {
+			return true, nil
+		}
+		return false, model.ErrOperationDiffers
+	}
+	return false, nil
+}
+
+func newOperation(ctx context.Context, tx dbTx, in *createOperationInput) (bool /*exists operation*/, error) {
 	log.Ctx(ctx).Trace().Any("data", in).Msg("Create operation record")
-	_, err := tx.ExecContext(ctx, `
+	res, err := validateOperation(ctx, tx, in)
+	if err != nil || res {
+		return res, err
+	}
+	_, err = tx.ExecContext(ctx, `
 	INSERT INTO operations (id, key_id, date, quota_value, msg)
 	VALUES ($1, $2, $3, $4, $5)
-	`, in.opID, in.key_id, in.date, in.quota_value, in.msg)
+	`, in.opID, in.keyID, in.date, in.quotaValue, in.msg)
 	if err != nil {
 		if isDuplicate(err) {
 			return true, nil
@@ -654,6 +677,23 @@ func validateInput(input *api.CreateInput) error {
 	}
 	if input.Credits <= 0.1 {
 		return model.NewWrongFieldError("credits", "less than 0.1")
+	}
+	if input.IPWhiteList != "" {
+		if err := utils.ValidateIPsCIDR(input.IPWhiteList); err != nil {
+			return model.NewWrongFieldError("IPWhiteList", "wrong IP CIDR format")
+		}
+	}
+	return nil
+}
+
+func validateUpdate(input *api.UpdateInput) error {
+	if input.ValidTo != nil && input.ValidTo.Before(time.Now()) {
+		return model.NewWrongFieldError("validTo", "past date")
+	}
+	if input.IPWhiteList != nil {
+		if err := utils.ValidateIPsCIDR(*input.IPWhiteList); err != nil {
+			return model.NewWrongFieldError("IPWhiteList", "wrong IP CIDR format")
+		}
 	}
 	return nil
 }

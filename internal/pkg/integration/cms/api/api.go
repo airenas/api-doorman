@@ -15,6 +15,8 @@ type CreateInput struct {
 	ValidTo      *time.Time `json:"validTo,omitempty"`
 	SaveRequests bool       `json:"saveRequests,omitempty"`
 	Description  string     `json:"description,omitempty"`
+	Disabled     bool       `json:"disabled,omitempty"`
+	IPWhiteList  string     `json:"IPWhiteList,omitempty"`
 }
 
 type UpdateInput struct {

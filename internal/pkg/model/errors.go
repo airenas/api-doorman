@@ -17,6 +17,9 @@ var ErrDuplicate = errors.New("duplicate record")
 // ErrOperationExists indicates existing operation for the record
 var ErrOperationExists = errors.New("operation exists")
 
+// ErrOperationDiffers indicates operation with the id is not the same
+var ErrOperationDiffers = errors.New("operation differs")
+
 var ErrUnauthorized = errors.New("unauthorized")
 var ErrNoAccess = errors.New("no access")
 
