@@ -48,6 +48,10 @@ jobs:
         
       - name: Build and push
         uses: docker/build-push-action@v4
+        env:
+          DOCKER_CONTENT_TRUST: 1
+          DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE: ${{ secrets.DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE }}
+          DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE: ${{ secrets.DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE }}
         with:
           context: .
           file: ./build/${{ matrix.container }}/Dockerfile
