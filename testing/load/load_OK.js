@@ -48,6 +48,7 @@ export function setup() {
         },
     };
     let res = http.post(url, payload, params);
+    console.log("Response body: ", res.body);
     console.log("Test key: " + res.json().key);
     return { key: res.json().key, id: id };
 }

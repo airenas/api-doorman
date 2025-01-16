@@ -110,6 +110,30 @@ func TestCreate_OKAllfields(t *testing.T) {
 	assert.True(t, key.SaveRequests)
 }
 
+func TestCreate_OKNoOperation(t *testing.T) {
+	t.Parallel()
+
+	to := time.Now().Add(time.Hour)
+	in := &api.CreateInput{ID: ulid.Make().String(), Service: "test", Credits: 100, Description: "olia", SaveRequests: true,
+		IPWhiteList: "1.1.1.1/32", Disabled: true, ValidTo: &to}
+	_ = newKeyInput(t, in)
+	in = &api.CreateInput{ID: ulid.Make().String(), Service: "test", Credits: 100, Description: "olia", SaveRequests: true,
+		IPWhiteList: "1.1.1.1/32", Disabled: true, ValidTo: &to}
+	_ = newKeyInput(t, in)
+}
+
+func TestCreate_OKNoID(t *testing.T) {
+	t.Parallel()
+
+	to := time.Now().Add(time.Hour)
+	in := &api.CreateInput{Service: "test", Credits: 100, Description: "olia", SaveRequests: true,
+		IPWhiteList: "1.1.1.1/32", Disabled: true, ValidTo: &to}
+	_ = newKeyInput(t, in)
+	in = &api.CreateInput{Service: "test", Credits: 100, Description: "olia", SaveRequests: true,
+		IPWhiteList: "1.1.1.1/32", Disabled: true, ValidTo: &to}
+	_ = newKeyInput(t, in)
+}
+
 func TestCreate_FailNoAuth(t *testing.T) {
 	t.Parallel()
 
@@ -118,7 +142,7 @@ func TestCreate_FailNoAuth(t *testing.T) {
 	checkCode(t, resp, http.StatusUnauthorized)
 }
 
-func TestCreate_FailNoProject(t *testing.T) {
+func TestCreate_FailWrongProject(t *testing.T) {
 	t.Parallel()
 
 	key := newAdminKey(t, &integration.InsertAdminParams{

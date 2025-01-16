@@ -563,23 +563,27 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 	}
 
 	now := time.Now()
-	has, err := validateOperation(ctx, tx, &createOperationInput{
-		opID:       in.OperationID,
-		keyID:      "",
-		date:       now,
-		quotaValue: in.Credits,
-		msg:        "Create Key",
-	})
-	if err != nil {
-		return nil, err
-	}
-	if has {
-		return nil, model.ErrOperationExists
+	if in.OperationID != "" {
+		has, err := validateOperation(ctx, tx, &createOperationInput{
+			opID:       in.OperationID,
+			keyID:      "",
+			date:       now,
+			quotaValue: in.Credits,
+			msg:        "Create Key",
+		})
+		if err != nil {
+			return nil, err
+		}
+		if has {
+			return nil, model.ErrOperationExists
+		}
+	} else {
+		in.OperationID = ulid.Make().String()
 	}
 
 	hash := r.hasher.HashKey(key)
 	log.Ctx(ctx).Trace().Str("id", in.ID).Str("key", key).Msg("Create key record")
-	_, err = tx.ExecContext(ctx, `
+	_, err := tx.ExecContext(ctx, `
 	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated, disabled, tags, description, adm_id, ip_white_list)
 	VALUES ($1, $2, $3, TRUE, $4, $5, $6, $6, $7, $8, $9, $10, $11)
 	`, in.ID, in.Service, hash, in.Credits, validTo, now, in.Disabled, tags, in.Description, userID, in.IPWhiteList)
@@ -587,7 +591,7 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 		return nil, fmt.Errorf("create key: %w", mapErr(err))
 	}
 
-	has, err = newOperation(ctx, tx, &createOperationInput{opID: in.OperationID, keyID: in.ID, date: now, quotaValue: in.Credits, msg: "Create Key"})
+	has, err := newOperation(ctx, tx, &createOperationInput{opID: in.OperationID, keyID: in.ID, date: now, quotaValue: in.Credits, msg: "Create Key"})
 	if err != nil {
 		return nil, err
 	}
