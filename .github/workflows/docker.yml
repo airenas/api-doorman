@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        container: [doorman, doorman-admin, doorman-dbmigration]
+        container: [doorman, doorman-admin, doorman-dbmigration, doorman-backuper]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
