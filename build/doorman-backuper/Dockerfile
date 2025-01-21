@@ -12,6 +12,7 @@ ENV S3_BUCKET=doorman-db
 ENV S3_KEEP=30
 ENV S3_REGION=us-east-1
 ENV S3_URL=http://minio:9000
+ENV S3_PATH=backups
 
 ENV NOTIFY_TELEGRAM_ON_SUCCESS=false
 
