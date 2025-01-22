@@ -8,15 +8,15 @@ import (
 
 // CreateInput for create key request
 type CreateInput struct {
-	ID           string     `json:"id,omitempty"`
-	OperationID  string     `json:"operationID,omitempty"`
-	Service      string     `json:"service,omitempty"`
-	Credits      float64    `json:"credits,omitempty"`
-	ValidTo      *time.Time `json:"validTo,omitempty"`
-	SaveRequests bool       `json:"saveRequests,omitempty"`
-	Description  string     `json:"description,omitempty"`
-	Disabled     bool       `json:"disabled,omitempty"`
-	IPWhiteList  string     `json:"IPWhiteList,omitempty"`
+	ID          string     `json:"id,omitempty"`
+	OperationID string     `json:"operationID,omitempty"`
+	Service     string     `json:"service,omitempty"`
+	Credits     float64    `json:"credits,omitempty"`
+	ValidTo     *time.Time `json:"validTo,omitempty"`
+	Description string     `json:"description,omitempty"`
+	Disabled    bool       `json:"disabled,omitempty"`
+	IPWhiteList string     `json:"IPWhiteList,omitempty"`
+	Tags        []string   `json:"tags,omitempty"`
 }
 
 type UpdateInput struct {
@@ -24,6 +24,7 @@ type UpdateInput struct {
 	Disabled    *bool      `json:"disabled,omitempty"`
 	Description *string    `json:"description,omitempty"`
 	IPWhiteList *string    `json:"IPWhiteList,omitempty"`
+	Tags        []string   `json:"tags,omitempty"`
 }
 
 // CreditsInput for add credits
@@ -35,15 +36,15 @@ type CreditsInput struct {
 
 // Key structure for key data
 type Key struct {
-	ID           string     `json:"id,omitempty"`
-	Key          string     `json:"key,omitempty"`
-	Service      string     `json:"service,omitempty"`
-	ValidTo      *time.Time `json:"validTo,omitempty"`
-	Disabled     bool       `json:"disabled,omitempty"`
-	IPWhiteList  string     `json:"IPWhiteList,omitempty"`
-	SaveRequests bool       `json:"saveRequests,omitempty"`
-	Description  string     `json:"description,omitempty"`
-	Manual       bool       `json:"manual,omitempty"`
+	ID          string     `json:"id,omitempty"`
+	Key         string     `json:"key,omitempty"`
+	Service     string     `json:"service,omitempty"`
+	ValidTo     *time.Time `json:"validTo,omitempty"`
+	Disabled    bool       `json:"disabled,omitempty"`
+	IPWhiteList string     `json:"IPWhiteList,omitempty"`
+	Description string     `json:"description,omitempty"`
+	Manual      bool       `json:"manual,omitempty"`
+	Tags        []string   `json:"tags,omitempty"`
 
 	TotalCredits  float64 `json:"totalCredits,omitempty"`
 	UsedCredits   float64 `json:"usedCredits,omitempty"`

@@ -36,32 +36,6 @@ func TestFillHeader_Fail(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, resp.Code)
 }
 
-func TestHeaderValue(t *testing.T) {
-	h, v, err := headerValue("")
-	assert.Nil(t, err)
-	assert.Equal(t, "", h)
-	assert.Equal(t, "", v)
-	h, v, err = headerValue("aaa:oooo")
-	assert.Nil(t, err)
-	assert.Equal(t, "aaa", h)
-	assert.Equal(t, "oooo", v)
-	h, v, err = headerValue(":aaa:oooo")
-	assert.Nil(t, err)
-	assert.Equal(t, "", h)
-	assert.Equal(t, "aaa:oooo", v)
-	h, v, err = headerValue("aaaa:")
-	assert.Nil(t, err)
-	assert.Equal(t, "aaaa", h)
-	assert.Equal(t, "", v)
-}
-
-func TestHeaderValue_Fail(t *testing.T) {
-	h, v, err := headerValue("asdasd")
-	assert.NotNil(t, err)
-	assert.Equal(t, "", h)
-	assert.Equal(t, "", v)
-}
-
 func TestFillKeyHeader(t *testing.T) {
 	req, ctx := customContext(httptest.NewRequest("POST", "/duration", nil))
 	ctx.Key = "olia"

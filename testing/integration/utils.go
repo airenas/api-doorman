@@ -18,3 +18,7 @@ func AddAuth(req *http.Request, s string) *http.Request {
 	req.Header.Add(echo.HeaderAuthorization, "Key "+s)
 	return req
 }
+
+func Ptr[T any](in T) *T {
+	return &in
+}

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/model/permission"
+	"github.com/airenas/api-doorman/internal/pkg/utils/tag"
 )
 
 type User struct {
@@ -15,6 +16,7 @@ type User struct {
 	MaxLimit    float64
 	Projects    []string
 	Permissions map[permission.Enum]bool
+	AllowedTags map[string]bool
 	CurrentIP   string
 }
 
@@ -46,6 +48,22 @@ func (u *User) ValidateID(id string) error {
 	}
 	if u.ID != id {
 		return ErrNoAccess
+	}
+	return nil
+}
+
+func (u *User) ValidateTags(tags []string) error {
+	if u.HasPermission(permission.Everything) {
+		return nil
+	}
+	for _, t := range tags {
+		k, _, err := tag.Parse(t)
+		if err != nil {
+			return err
+		}
+		if !u.AllowedTags[k] {
+			return NewNoAccessError("tag", k)
+		}
 	}
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/airenas/api-doorman/internal/pkg/utils/tag"
 	"github.com/rs/zerolog/log"
 )
 
@@ -40,7 +41,7 @@ const tagStartValue = "x-header-out:"
 func headerOutValue(hs string) (string, string, error) {
 	if strings.HasPrefix(hs, tagStartValue) {
 		kv := strings.TrimSpace(hs[len(tagStartValue):])
-		return headerValue(kv)
+		return tag.Parse(kv)
 	}
 	return "", "", nil
 }

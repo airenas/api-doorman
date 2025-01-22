@@ -81,17 +81,18 @@ func TestCreate(t *testing.T) {
 	checkCode(t, resp, http.StatusBadRequest)
 }
 
-func TestCreate_OKSaveRequests(t *testing.T) {
+func TestCreate_OKSaveTags(t *testing.T) {
 	t.Parallel()
 
-	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, SaveRequests: true}
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, Tags: []string{"a:b", "c:olia"}}
 	key := newKeyInput(t, in)
 	assert.NotEmpty(t, key.Key)
 
 	res := getKeyInfo(t, in.ID)
 	assert.Equal(t, in.Credits, res.TotalCredits)
 	assert.Equal(t, "", res.Key)
-	assert.True(t, res.SaveRequests)
+	assert.Contains(t, res.Tags, "a:b")
+	assert.Contains(t, res.Tags, "c:olia")
 }
 
 func TestCreate_OKAllfields(t *testing.T) {
@@ -99,7 +100,7 @@ func TestCreate_OKAllfields(t *testing.T) {
 
 	to := time.Now().Add(time.Hour)
 	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(),
-		Service: "test", Credits: 100, Description: "olia", SaveRequests: true,
+		Service: "test", Credits: 100, Description: "olia", Tags: []string{"a:b"},
 		IPWhiteList: "1.1.1.1/32", Disabled: true, ValidTo: &to}
 	key := newKeyInput(t, in)
 	assert.NotEmpty(t, key.Key)
@@ -107,17 +108,17 @@ func TestCreate_OKAllfields(t *testing.T) {
 	assert.Equal(t, "olia", key.Description)
 	assert.Equal(t, "1.1.1.1/32", key.IPWhiteList)
 	assert.True(t, key.Disabled)
-	assert.True(t, key.SaveRequests)
+	assert.Contains(t, key.Tags, "a:b")
 }
 
 func TestCreate_OKNoOperation(t *testing.T) {
 	t.Parallel()
 
 	to := time.Now().Add(time.Hour)
-	in := &api.CreateInput{ID: ulid.Make().String(), Service: "test", Credits: 100, Description: "olia", SaveRequests: true,
+	in := &api.CreateInput{ID: ulid.Make().String(), Service: "test", Credits: 100, Description: "olia",
 		IPWhiteList: "1.1.1.1/32", Disabled: true, ValidTo: &to}
 	_ = newKeyInput(t, in)
-	in = &api.CreateInput{ID: ulid.Make().String(), Service: "test", Credits: 100, Description: "olia", SaveRequests: true,
+	in = &api.CreateInput{ID: ulid.Make().String(), Service: "test", Credits: 100, Description: "olia",
 		IPWhiteList: "1.1.1.1/32", Disabled: true, ValidTo: &to}
 	_ = newKeyInput(t, in)
 }
@@ -126,10 +127,10 @@ func TestCreate_OKNoID(t *testing.T) {
 	t.Parallel()
 
 	to := time.Now().Add(time.Hour)
-	in := &api.CreateInput{Service: "test", Credits: 100, Description: "olia", SaveRequests: true,
+	in := &api.CreateInput{Service: "test", Credits: 100, Description: "olia",
 		IPWhiteList: "1.1.1.1/32", Disabled: true, ValidTo: &to}
 	_ = newKeyInput(t, in)
-	in = &api.CreateInput{Service: "test", Credits: 100, Description: "olia", SaveRequests: true,
+	in = &api.CreateInput{Service: "test", Credits: 100, Description: "olia",
 		IPWhiteList: "1.1.1.1/32", Disabled: true, ValidTo: &to}
 	_ = newKeyInput(t, in)
 }
@@ -137,7 +138,7 @@ func TestCreate_OKNoID(t *testing.T) {
 func TestCreate_FailNoAuth(t *testing.T) {
 	t.Parallel()
 
-	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, SaveRequests: true}
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100}
 	resp := invoke(t, newRequestNoAuth(t, http.MethodPost, "/key", in))
 	checkCode(t, resp, http.StatusUnauthorized)
 }
@@ -152,7 +153,7 @@ func TestCreate_FailIPWhiteList(t *testing.T) {
 		MaxValidTo:  time.Now().AddDate(1, 0, 0),
 		IPWhiteList: "1.1.1.1/32",
 	})
-	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, SaveRequests: true}
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100}
 	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, key))
 	checkCode(t, resp, http.StatusUnauthorized)
 }
@@ -167,9 +168,43 @@ func TestCreate_OKIPWhiteList(t *testing.T) {
 		MaxValidTo:  time.Now().AddDate(1, 0, 0),
 		IPWhiteList: "1.1.1.1/32,2.2.2.2/0",
 	})
-	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, SaveRequests: true}
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100}
 	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, key))
 	checkCode(t, resp, http.StatusCreated)
+}
+
+func TestCreate_OKAllowedTags(t *testing.T) {
+	t.Parallel()
+
+	key := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+		AllowedTags: []string{"x-a", "x-b"},
+	})
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, Tags: []string{"x-a:1", "x-b:2"}}
+	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, key))
+	checkCode(t, resp, http.StatusCreated)
+	res := api.Key{}
+	decode(t, resp, &res)
+	assert.Contains(t, res.Tags, "x-a:1")
+	assert.Contains(t, res.Tags, "x-b:2")
+}
+
+func TestCreate_FailAllowedTags(t *testing.T) {
+	t.Parallel()
+
+	key := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+		AllowedTags: []string{"x-a", "x-b"},
+	})
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, Tags: []string{"x-oooo:1", "x-b:2"}}
+	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, key))
+	checkCode(t, resp, http.StatusForbidden)
 }
 
 func TestCreate_FailWrongProject(t *testing.T) {
@@ -181,7 +216,7 @@ func TestCreate_FailWrongProject(t *testing.T) {
 		MaxLimit:    1000,
 		MaxValidTo:  time.Now().AddDate(1, 0, 0),
 	})
-	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, SaveRequests: true}
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100}
 	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, key))
 	checkCode(t, resp, http.StatusForbidden)
 }
@@ -372,6 +407,67 @@ func TestUpdate_ValidTo(t *testing.T) {
 	assert.Equal(t, now.Add(time.Hour).Unix(), res.ValidTo.Unix())
 }
 
+func TestUpdate_OKTags(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	assert.Len(t, key.Tags, 0)
+
+	in := &api.UpdateInput{Tags: []string{"a:b", "c:olia"}}
+	key = update(t, key.ID, in)
+	assert.Len(t, key.Tags, 2)
+	assert.Contains(t, key.Tags, "a:b")
+	assert.Contains(t, key.Tags, "c:olia")
+
+	res := getKeyInfo(t, key.ID)
+	assert.Len(t, res.Tags, 2)
+	assert.Contains(t, res.Tags, "a:b")
+	assert.Contains(t, res.Tags, "c:olia")
+}
+
+func TestUpdate_OKUpdateTags(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	assert.Len(t, key.Tags, 0)
+
+	key = update(t, key.ID, &api.UpdateInput{Tags: []string{"a:olia", "b:ooo"}})
+	assert.Len(t, key.Tags, 2)
+	assert.Contains(t, key.Tags, "a:olia")
+	assert.Contains(t, key.Tags, "b:ooo")
+
+	key = update(t, key.ID, &api.UpdateInput{Tags: []string{"a:olia-upd"}})
+	assert.Len(t, key.Tags, 2)
+	assert.Contains(t, key.Tags, "a:olia-upd")
+	assert.Contains(t, key.Tags, "b:ooo")
+}
+
+func TestUpdate_FailBadTag(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	assert.Len(t, key.Tags, 0)
+
+	resp := updateResp(t, key.ID, &api.UpdateInput{Tags: []string{"a"}})
+	checkCode(t, resp, http.StatusBadRequest)
+}
+
+func TestUpdate_OKDeleteTags(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	assert.Len(t, key.Tags, 0)
+
+	key = update(t, key.ID, &api.UpdateInput{Tags: []string{"a:olia", "b:ooo"}})
+	assert.Len(t, key.Tags, 2)
+	assert.Contains(t, key.Tags, "a:olia")
+	assert.Contains(t, key.Tags, "b:ooo")
+
+	key = update(t, key.ID, &api.UpdateInput{Tags: []string{"a:"}})
+	assert.Len(t, key.Tags, 1)
+	assert.Contains(t, key.Tags, "b:ooo")
+}
+
 func TestUpdate_All(t *testing.T) {
 	t.Parallel()
 
@@ -379,13 +475,18 @@ func TestUpdate_All(t *testing.T) {
 
 	now := time.Now()
 
-	key = update(t, key.ID, map[string]interface{}{"validTo": now.Add(time.Hour), "disabled": true, "IPWhiteList": "192.123.123.1/32", "description": "olia"})
+	in := &api.UpdateInput{Disabled: integration.Ptr(true), ValidTo: integration.Ptr(now.Add(time.Hour)),
+		IPWhiteList: integration.Ptr("192.123.123.1/32"), Description: integration.Ptr("olia"), Tags: []string{"a:b", "c:olia"}}
+
+	key = update(t, key.ID, in)
 	assert.Equal(t, now.Add(time.Hour).Unix(), key.ValidTo.Unix())
 	res := getKeyInfo(t, key.ID)
 	assert.Equal(t, now.Add(time.Hour).Unix(), res.ValidTo.Unix())
 	assert.True(t, res.Disabled)
 	assert.Equal(t, "192.123.123.1/32", res.IPWhiteList)
 	assert.Equal(t, "olia", res.Description)
+	assert.Contains(t, res.Tags, "a:b")
+	assert.Contains(t, res.Tags, "c:olia")
 }
 
 func TestUpdate_FailValidTo(t *testing.T) {
@@ -442,6 +543,48 @@ func TestUpdate_FailOtherUser(t *testing.T) {
 
 	in := map[string]interface{}{"disabled": true}
 	resp := invoke(t, newRequestWithAuth(t, http.MethodPatch, fmt.Sprintf("/key/%s", key.ID), in, lKey))
+	checkCode(t, resp, http.StatusForbidden)
+}
+
+func TestUpdate_OKAllowedTags(t *testing.T) {
+	t.Parallel()
+
+	lKey := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+		AllowedTags: []string{"x-a", "x-b"},
+	})
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, Tags: []string{"x-a:1", "x-b:2"}}
+	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, lKey))
+	checkCode(t, resp, http.StatusCreated)
+	key := api.Key{}
+	decode(t, resp, &key)
+
+	inUp := &api.UpdateInput{Tags: []string{"x-a:b"}}
+	resp = invoke(t, newRequestWithAuth(t, http.MethodPatch, fmt.Sprintf("/key/%s", key.ID), inUp, lKey))
+	checkCode(t, resp, http.StatusOK)
+}
+
+func TestUpdate_FailAllowedTags(t *testing.T) {
+	t.Parallel()
+
+	lKey := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+	})
+
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100}
+	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, lKey))
+	checkCode(t, resp, http.StatusCreated)
+	key := api.Key{}
+	decode(t, resp, &key)
+
+	inUp := &api.UpdateInput{Tags: []string{"a:b"}}
+	resp = invoke(t, newRequestWithAuth(t, http.MethodPatch, fmt.Sprintf("/key/%s", key.ID), inUp, lKey))
 	checkCode(t, resp, http.StatusForbidden)
 }
 
@@ -839,7 +982,7 @@ func addCreditsResp(t *testing.T, key *api.Key, quota float64, opID string) *htt
 	return invoke(t, newRequest(t, http.MethodPatch, fmt.Sprintf("/key/%s/credits", key.ID), in))
 }
 
-func update(t *testing.T, id string, in map[string]interface{}) *api.Key {
+func update(t *testing.T, id string, in interface{}) *api.Key {
 	t.Helper()
 
 	resp := updateResp(t, id, in)
@@ -849,7 +992,7 @@ func update(t *testing.T, id string, in map[string]interface{}) *api.Key {
 	return &res
 }
 
-func updateResp(t *testing.T, id string, in map[string]interface{}) *http.Response {
+func updateResp(t *testing.T, id string, in interface{}) *http.Response {
 	t.Helper()
 
 	return invoke(t, newRequest(t, http.MethodPatch, fmt.Sprintf("/key/%s", id), in))

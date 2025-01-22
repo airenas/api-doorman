@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"unicode/utf8"
 
+	"github.com/airenas/api-doorman/internal/pkg/utils/tag"
 	"github.com/pkg/errors"
 )
 
@@ -55,7 +56,7 @@ func isDiscount(ctx *customData) bool {
 		return *ctx.Discount
 	}
 	for _, t := range ctx.Tags {
-		h, v, err := headerValue(t)
+		h, v, err := tag.Parse(t)
 		if err == nil && h == allowSaveHeader {
 			return v == allowSaveValue
 		}

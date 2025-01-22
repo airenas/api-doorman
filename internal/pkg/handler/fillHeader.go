@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/pkg/errors"
+	"github.com/airenas/api-doorman/internal/pkg/utils/tag"
 	"github.com/rs/zerolog/log"
 )
 
@@ -28,7 +28,7 @@ func FillHeader(next http.Handler) http.Handler {
 func (h *fillHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rn, ctx := customContext(r)
 	for _, hs := range ctx.Tags {
-		h, v, err := headerValue(hs)
+		h, v, err := tag.Parse(hs)
 		if err != nil {
 			http.Error(w, "Service error", http.StatusInternalServerError)
 			log.Error().Err(err).Msg("Can't parse header value from tag")
@@ -39,16 +39,6 @@ func (h *fillHeader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	h.next.ServeHTTP(w, rn)
-}
-
-func headerValue(hs string) (string, string, error) {
-	if idx := strings.IndexByte(hs, ':'); idx >= 0 {
-		return strings.TrimSpace(hs[:idx]), strings.TrimSpace(hs[idx+1:]), nil
-	}
-	if (strings.TrimSpace(hs)) == "" {
-		return "", "", nil
-	}
-	return "", "", errors.Errorf("Wrong header value, no ':' in '%s'", hs)
 }
 
 func (h *fillHeader) Info(pr string) string {

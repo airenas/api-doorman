@@ -75,6 +75,7 @@ type administratorRecord struct {
 	MaxValidTo  time.Time      `db:"max_valid_to"`
 	MaxLimit    float64        `db:"max_limit"`
 	IPWhiteList sql.NullString `db:"ip_white_list"`
+	AllowedTags pq.StringArray `db:"allowed_tags"`
 	Name        string
 	Disabled    bool
 	Description sql.NullString

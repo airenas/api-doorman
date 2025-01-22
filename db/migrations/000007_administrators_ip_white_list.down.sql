@@ -1,1 +1,0 @@
-ALTER TABLE administrators DROP COLUMN ip_white_list;

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
@@ -142,7 +143,7 @@ func (r *AdmimRepository) ValidateToken(ctx context.Context, token string, ip st
 	hash := r.hasher.HashKey(token)
 	var res administratorRecord
 	err := r.db.GetContext(ctx, &res, `
-		SELECT id, disabled, max_valid_to, max_limit, projects, name, permissions, ip_white_list
+		SELECT id, disabled, max_valid_to, max_limit, projects, name, permissions, ip_white_list, allowed_tags
 		FROM administrators
 		WHERE key_hash = $1`, hash)
 	if err != nil {
@@ -169,6 +170,7 @@ func (r *AdmimRepository) ValidateToken(ctx context.Context, token string, ip st
 		MaxLimit:    res.MaxLimit,
 		Name:        res.Name,
 		Permissions: loadPermissions(res.Permissions),
+		AllowedTags: loadAllowedTags(res.AllowedTags),
 		CurrentIP:   ip,
 	}, nil
 }
@@ -182,6 +184,15 @@ func loadPermissions(stringArray pq.StringArray) map[permission.Enum]bool {
 			continue
 		}
 		res[perm] = true
+	}
+	return res
+}
+
+func loadAllowedTags(in pq.StringArray) map[string]bool {
+	res := make(map[string]bool)
+	for _, pStr := range in {
+		s := strings.ToLower(strings.TrimSpace(pStr))
+		res[s] = true
 	}
 	return res
 }

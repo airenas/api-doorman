@@ -14,6 +14,7 @@ import (
 	"github.com/airenas/api-doorman/internal/pkg/model/usage"
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/airenas/api-doorman/internal/pkg/utils/tag"
 	"github.com/jmoiron/sqlx"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
@@ -26,8 +27,7 @@ type CMSRepository struct {
 }
 
 const (
-	_saveRequestTag = "x-tts-collect-data:always"
-	_keyFields      = `id, project, manual, quota_limit, 
+	_keyFields = `id, project, manual, quota_limit, 
 	quota_value, valid_to, disabled, ip_white_list, tags, created, updated, 
 	last_used, last_ip, quota_value_failed, description, external_id, adm_id`
 )
@@ -58,6 +58,9 @@ func (r *CMSRepository) Create(ctx context.Context, user *model.User, in *api.Cr
 	defer rollback(tx)
 
 	if err := user.ValidateProject(in.Service); err != nil {
+		return nil, false, err
+	}
+	if err := user.ValidateTags(in.Tags); err != nil {
 		return nil, false, err
 	}
 	validTo, err := user.ValidateDate(in.ValidTo)
@@ -140,7 +143,9 @@ func (r *CMSRepository) Update(ctx context.Context, user *model.User, id string,
 	if _, err := user.ValidateDate(in.ValidTo); err != nil {
 		return nil, err
 	}
-
+	if err := user.ValidateTags(in.Tags); err != nil {
+		return nil, err
+	}
 	tx, err := r.db.Beginx()
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
@@ -391,7 +396,7 @@ func loadKeyRecordByHash(ctx context.Context, db dbTx, hash string) (*keyRecord,
 	return &res, nil
 }
 
-func prepareKeyUpdates(in *api.UpdateInput) (string, []interface{}, error) {
+func prepareKeyUpdates(in *api.UpdateInput, key *keyRecord) (string, []interface{}, error) {
 	var values []interface{}
 	var updates []string
 
@@ -411,10 +416,45 @@ func prepareKeyUpdates(in *api.UpdateInput) (string, []interface{}, error) {
 		updates = append(updates, "valid_to")
 		values = append(values, *in.ValidTo)
 	}
+	if len(in.Tags) > 0 {
+		tags, err := mergeTags(key.Tags, in.Tags)
+		if err != nil {
+			return "", nil, fmt.Errorf("merge tags: %w", err)
+		}
+		updates = append(updates, "tags")
+		values = append(values, tags)
+	}
 	if len(updates) == 0 {
 		return "", nil, model.NewWrongFieldError("", "no updates")
 	}
 	return makeUpdateSQL(updates), values, nil
+}
+
+func mergeTags(old, update []string) ([]string, error) {
+	all := make(map[string]string)
+	for _, t := range old {
+		k, v, err := tag.Parse(t)
+		if err != nil {
+			return nil, err
+		}
+		all[k] = v
+	}
+	for _, t := range update {
+		k, v, err := tag.Parse(t)
+		if err != nil {
+			return nil, err
+		}
+		if v == "" {
+			delete(all, k)
+		} else {
+			all[k] = v
+		}
+	}
+	res := make([]string, 0, len(all))
+	for k, v := range all {
+		res = append(res, fmt.Sprintf("%s:%s", k, v))
+	}
+	return res, nil
 }
 
 func makeUpdateSQL(updates []string) string {
@@ -487,7 +527,7 @@ func (r *CMSRepository) update(ctx context.Context, db dbTx, user *model.User, i
 		return nil, err
 	}
 
-	updates, values, err := prepareKeyUpdates(in)
+	updates, values, err := prepareKeyUpdates(in, key)
 	if err != nil {
 		return nil, err
 	}
@@ -526,9 +566,9 @@ func mapToKey(keyR *keyRecord, key string) *api.Key {
 		Created:       toTimePtr(&keyR.Created),
 		Updated:       toTimePtr(&keyR.Updated),
 		IPWhiteList:   keyR.IPWhiteList.String,
-		SaveRequests:  mapToSaveRequests(keyR.Tags),
 		Description:   keyR.Description.String,
 		Manual:        keyR.Manual,
+		Tags:          keyR.Tags,
 
 		Key: key,
 	}
@@ -545,22 +585,8 @@ func mapLog(log *logRecord) *api.Log {
 	return res
 }
 
-func mapToSaveRequests(tags []string) bool {
-	for _, s := range tags {
-		if s == _saveRequestTag {
-			return true
-		}
-	}
-	return false
-}
-
 func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, user *model.User, in *api.CreateInput, key string, validTo time.Time) (*keyRecord, error) {
 	log.Ctx(ctx).Trace().Str("id", in.ID).Str("operationID", in.OperationID).Str("service", in.Service).Msg("Create operation record")
-
-	var tags []string
-	if in.SaveRequests {
-		tags = append(tags, _saveRequestTag)
-	}
 
 	now := time.Now()
 	if in.OperationID != "" {
@@ -587,7 +613,7 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, user *m
 	_, err := tx.ExecContext(ctx, `
 	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated, disabled, tags, description, adm_id, ip_white_list)
 	VALUES ($1, $2, $3, TRUE, $4, $5, $6, $6, $7, $8, $9, $10, $11)
-	`, in.ID, in.Service, hash, in.Credits, validTo, now, in.Disabled, tags, in.Description, user.ID, in.IPWhiteList)
+	`, in.ID, in.Service, hash, in.Credits, validTo, now, in.Disabled, in.Tags, in.Description, user.ID, in.IPWhiteList)
 	if err != nil {
 		return nil, fmt.Errorf("create key: %w", mapErr(err))
 	}
@@ -704,6 +730,16 @@ func validateInput(input *api.CreateInput) error {
 			return model.NewWrongFieldError("IPWhiteList", "wrong IP CIDR format")
 		}
 	}
+	return validateTags(input.Tags)
+}
+
+func validateTags(tags []string) error {
+	for _, t := range tags {
+		_, _, err := tag.Parse(t)
+		if err != nil {
+			return model.NewWrongFieldError("tags", fmt.Sprintf("wrong tag: %s", t))
+		}
+	}
 	return nil
 }
 
@@ -716,7 +752,7 @@ func validateUpdate(input *api.UpdateInput) error {
 			return model.NewWrongFieldError("IPWhiteList", "wrong IP CIDR format")
 		}
 	}
-	return nil
+	return validateTags(input.Tags)
 }
 
 func validateCreditsInput(input *api.CreditsInput) error {
