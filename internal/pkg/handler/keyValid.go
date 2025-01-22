@@ -11,7 +11,7 @@ import (
 
 // KeyValidator validator
 type KeyValidator interface {
-	IsValid(context.Context, string, string, bool) (bool, string, []string, error)
+	IsValid(ctx context.Context, key string, ip string, manual bool) (bool /*valid*/, string /*id*/, []string /*tags*/, error)
 }
 
 type keyValid struct {

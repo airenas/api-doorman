@@ -71,9 +71,10 @@ type administratorRecord struct {
 	ID          string
 	Projects    pq.StringArray
 	Permissions pq.StringArray
-	KeyHash     string    `db:"key_hash"`
-	MaxValidTo  time.Time `db:"max_valid_to"`
-	MaxLimit    float64   `db:"max_limit"`
+	KeyHash     string         `db:"key_hash"`
+	MaxValidTo  time.Time      `db:"max_valid_to"`
+	MaxLimit    float64        `db:"max_limit"`
+	IPWhiteList sql.NullString `db:"ip_white_list"`
 	Name        string
 	Disabled    bool
 	Description sql.NullString
@@ -89,9 +90,9 @@ type bucketRecord struct {
 	FailedRequests sql.Null[int]     `db:"failed_requests"`
 }
 
-////////////////////////////
+// //////////////////////////
 // convertion for operationData
-////////////////////////////
+// //////////////////////////
 func (od operationData) Value() (driver.Value, error) {
 	return json.Marshal(od)
 }

@@ -142,7 +142,7 @@ func (r *AdmimRepository) ValidateToken(ctx context.Context, token string, ip st
 	hash := r.hasher.HashKey(token)
 	var res administratorRecord
 	err := r.db.GetContext(ctx, &res, `
-		SELECT id, disabled, max_valid_to, max_limit, projects, name, permissions
+		SELECT id, disabled, max_valid_to, max_limit, projects, name, permissions, ip_white_list
 		FROM administrators
 		WHERE key_hash = $1`, hash)
 	if err != nil {
@@ -154,6 +154,14 @@ func (r *AdmimRepository) ValidateToken(ctx context.Context, token string, ip st
 	if res.Disabled {
 		return nil, fmt.Errorf("disabled: %w", model.ErrUnauthorized)
 	}
+	ok, err := utils.ValidateIPInWhiteList(res.IPWhiteList.String, ip)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	if !ok {
+		return nil, fmt.Errorf("%w: ip %s is not allowed: %s", model.ErrUnauthorized, ip, res.IPWhiteList.String)
+	}
+	
 	return &model.User{
 		ID:          res.ID,
 		Projects:    res.Projects,
