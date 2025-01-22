@@ -91,7 +91,7 @@ type bucketRecord struct {
 }
 
 // //////////////////////////
-// convertion for operationData
+// conversion for operationData
 // //////////////////////////
 func (od operationData) Value() (driver.Value, error) {
 	return json.Marshal(od)

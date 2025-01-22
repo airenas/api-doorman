@@ -161,7 +161,7 @@ func (r *AdmimRepository) ValidateToken(ctx context.Context, token string, ip st
 	if !ok {
 		return nil, fmt.Errorf("%w: ip %s is not allowed: %s", model.ErrUnauthorized, ip, res.IPWhiteList.String)
 	}
-	
+
 	return &model.User{
 		ID:          res.ID,
 		Projects:    res.Projects,
