@@ -10,6 +10,7 @@ services:
       MAINADMIN_KEY: olia
       MAINADMIN_MAXLIMIT: 100000000
       MAINADMIN_FORCESHORTKEY: true
+      IPEXTRACTTYPE: lastForwardFor
     restart: on-failure
     depends_on:
       postgres:
