@@ -137,7 +137,7 @@ func (r *AdmimRepository) RestoreUsage(ctx context.Context, project string, manu
 	return nil
 }
 
-func (r *AdmimRepository) ValidateToken(ctx context.Context, token string) (*model.User, error) {
+func (r *AdmimRepository) ValidateToken(ctx context.Context, token string, ip string) (*model.User, error) {
 	log.Ctx(ctx).Trace().Msg("Validating token")
 	hash := r.hasher.HashKey(token)
 	var res administratorRecord
@@ -161,6 +161,7 @@ func (r *AdmimRepository) ValidateToken(ctx context.Context, token string) (*mod
 		MaxLimit:    res.MaxLimit,
 		Name:        res.Name,
 		Permissions: loadPermissions(res.Permissions),
+		CurrentIP:   ip,
 	}, nil
 }
 

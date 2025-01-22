@@ -76,7 +76,7 @@ func (r *CMSRepository) Create(ctx context.Context, user *model.User, in *api.Cr
 		return nil, false, fmt.Errorf("generate key: %w", err)
 	}
 
-	res, err := r.createKeyWithQuota(ctx, tx, in, key, user.ID, validTo)
+	res, err := r.createKeyWithQuota(ctx, tx, user, in, key, validTo)
 	if err != nil {
 		return nil, false, err
 	}
@@ -169,7 +169,7 @@ func (r *CMSRepository) Change(ctx context.Context, user *model.User, id string)
 		return nil, fmt.Errorf("generate key: %w", err)
 	}
 
-	res, err := r.changeKey(ctx, tx, id, key)
+	res, err := r.changeKey(ctx, tx, user, id, key)
 	if err != nil {
 		return nil, err
 	}
@@ -449,7 +449,7 @@ func (r *CMSRepository) addQuota(ctx context.Context, db dbTx, user *model.User,
 
 	now := time.Now()
 
-	has, err := newOperation(ctx, db, &createOperationInput{opID: in.OperationID, keyID: id, date: now, quotaValue: in.Credits, msg: "Add Credits"})
+	has, err := newOperation(ctx, db, &createOperationInput{opID: in.OperationID, keyID: id, date: now, quotaValue: in.Credits, msg: "Add Credits", opData: newOpData(user)})
 	if err != nil {
 		return nil, err
 	}
@@ -554,7 +554,7 @@ func mapToSaveRequests(tags []string) bool {
 	return false
 }
 
-func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api.CreateInput, key string, userID string, validTo time.Time) (*keyRecord, error) {
+func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, user *model.User, in *api.CreateInput, key string, validTo time.Time) (*keyRecord, error) {
 	log.Ctx(ctx).Trace().Str("id", in.ID).Str("operationID", in.OperationID).Str("service", in.Service).Msg("Create operation record")
 
 	var tags []string
@@ -570,6 +570,7 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 			date:       now,
 			quotaValue: in.Credits,
 			msg:        "Create Key",
+			opData:     newOpData(user),
 		})
 		if err != nil {
 			return nil, err
@@ -586,12 +587,13 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 	_, err := tx.ExecContext(ctx, `
 	INSERT INTO keys (id, project, key_hash, manual, quota_limit, valid_to, created, updated, disabled, tags, description, adm_id, ip_white_list)
 	VALUES ($1, $2, $3, TRUE, $4, $5, $6, $6, $7, $8, $9, $10, $11)
-	`, in.ID, in.Service, hash, in.Credits, validTo, now, in.Disabled, tags, in.Description, userID, in.IPWhiteList)
+	`, in.ID, in.Service, hash, in.Credits, validTo, now, in.Disabled, tags, in.Description, user.ID, in.IPWhiteList)
 	if err != nil {
 		return nil, fmt.Errorf("create key: %w", mapErr(err))
 	}
 
-	has, err := newOperation(ctx, tx, &createOperationInput{opID: in.OperationID, keyID: in.ID, date: now, quotaValue: in.Credits, msg: "Create Key"})
+	has, err := newOperation(ctx, tx, &createOperationInput{opID: in.OperationID, keyID: in.ID, date: now,
+		quotaValue: in.Credits, msg: "Create Key", opData: newOpData(user)})
 	if err != nil {
 		return nil, err
 	}
@@ -601,7 +603,7 @@ func (r *CMSRepository) createKeyWithQuota(ctx context.Context, tx dbTx, in *api
 	return loadKeyRecord(ctx, tx, in.ID)
 }
 
-func (r *CMSRepository) changeKey(ctx context.Context, tx dbTx, id string, key string) (*keyRecord, error) {
+func (r *CMSRepository) changeKey(ctx context.Context, tx dbTx, user *model.User, id string, key string) (*keyRecord, error) {
 	log.Ctx(ctx).Trace().Str("id", id).Msg("Change key")
 
 	keyRec, err := loadKeyRecord(ctx, tx, id)
@@ -627,12 +629,16 @@ func (r *CMSRepository) changeKey(ctx context.Context, tx dbTx, id string, key s
 		return nil, model.ErrNoRecord
 	}
 
-	_, err = newOperation(ctx, tx, &createOperationInput{opID: ulid.Make().String(), keyID: id, date: now, quotaValue: 0, msg: "Change Key"})
+	_, err = newOperation(ctx, tx, &createOperationInput{opID: ulid.Make().String(), keyID: id, date: now, quotaValue: 0, msg: "Change Key", opData: newOpData(user)})
 	if err != nil {
 		return nil, err
 	}
 
 	return keyRec, nil
+}
+
+func newOpData(user *model.User) *operationData {
+	return &operationData{IP: user.CurrentIP, AdminID: user.ID}
 }
 
 type createOperationInput struct {
@@ -641,6 +647,7 @@ type createOperationInput struct {
 	date       time.Time
 	quotaValue float64
 	msg        string
+	opData     *operationData
 }
 
 func validateOperation(ctx context.Context, tx dbTx, in *createOperationInput) (bool /*exists operation*/, error) {
@@ -670,9 +677,9 @@ func newOperation(ctx context.Context, tx dbTx, in *createOperationInput) (bool 
 		return res, err
 	}
 	_, err = tx.ExecContext(ctx, `
-	INSERT INTO operations (id, key_id, date, quota_value, msg)
-	VALUES ($1, $2, $3, $4, $5)
-	`, in.opID, in.keyID, in.date, in.quotaValue, in.msg)
+	INSERT INTO operations (id, key_id, date, quota_value, msg, data)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	`, in.opID, in.keyID, in.date, in.quotaValue, in.msg, in.opData)
 	if err != nil {
 		if isDuplicate(err) {
 			return true, nil

@@ -2,6 +2,9 @@ package postgres
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/lib/pq"
@@ -49,6 +52,12 @@ type operationRecord struct {
 	QuotaValue float64 `db:"quota_value"`
 	Date       time.Time
 	Msg        sql.NullString
+	Data       *operationData
+}
+
+type operationData struct {
+	IP      string `json:"ip,omitempty"`
+	AdminID string `json:"adm_id,omitempty"`
 }
 
 type ProjectSettings struct {
@@ -78,4 +87,20 @@ type bucketRecord struct {
 	FailedQuota    sql.Null[float64] `db:"failed_quota"`
 	UsedQuota      sql.Null[float64] `db:"used_quota"`
 	FailedRequests sql.Null[int]     `db:"failed_requests"`
+}
+
+////////////////////////////
+// convertion for operationData
+////////////////////////////
+func (od operationData) Value() (driver.Value, error) {
+	return json.Marshal(od)
+}
+
+func (od *operationData) Scan(value interface{}) error {
+	b, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+
+	return json.Unmarshal(b, &od)
 }

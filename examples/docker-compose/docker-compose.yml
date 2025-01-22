@@ -42,6 +42,7 @@ services:
       PROXY_TTS_QUOTA_DISCOUNT: 0.80
       PROXY_TTS_QUOTA_DEFAULT: 100
       LOGGER_LEVEL: TRACE
+      IPEXTRACTTYPE: lastForwardFor
     restart: unless-stopped
 
   doorman-admin:
@@ -56,6 +57,7 @@ services:
       MAINADMIN_KEY: olia
       MAINADMIN_MAXLIMIT: 100000000
       MAINADMIN_FORCESHORTKEY: true
+      IPEXTRACTTYPE: lastForwardFor
 
     restart: unless-stopped
   

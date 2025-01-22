@@ -80,6 +80,11 @@ func mainInt(ctx context.Context) error {
 	}
 	data.CmsData.Integrator = cms
 
+	utils.DefaultIPExtractor, err = utils.NewIPExtractor(goapp.Config.GetString("ipExtractType"))
+	if err != nil {
+		return fmt.Errorf("init IP extractor: %w", err)
+	}
+
 	printBanner()
 
 	tData := reset.TimerData{}

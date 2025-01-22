@@ -15,6 +15,7 @@ type User struct {
 	MaxLimit    float64
 	Projects    []string
 	Permissions map[permission.Enum]bool
+	CurrentIP   string
 }
 
 func (u *User) ValidateDate(to *time.Time) (time.Time, error) {
