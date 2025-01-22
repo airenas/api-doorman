@@ -181,7 +181,7 @@ func TestCreate_OKAllowedTags(t *testing.T) {
 		Permissions: []string{},
 		MaxLimit:    1000,
 		MaxValidTo:  time.Now().AddDate(1, 0, 0),
-		AllowedTags: []string{"x-a", "x-b"},
+		AllowedTags: []string{"x-a:in[1]", "x-b:in[2]"},
 	})
 	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, Tags: []string{"x-a:1", "x-b:2"}}
 	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, key))
@@ -200,11 +200,26 @@ func TestCreate_FailAllowedTags(t *testing.T) {
 		Permissions: []string{},
 		MaxLimit:    1000,
 		MaxValidTo:  time.Now().AddDate(1, 0, 0),
-		AllowedTags: []string{"x-a", "x-b"},
+		AllowedTags: []string{"x-a:in[1]", "x-b:in[2]"},
 	})
 	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, Tags: []string{"x-oooo:1", "x-b:2"}}
 	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, key))
 	checkCode(t, resp, http.StatusForbidden)
+}
+
+func TestCreate_FailTagValue(t *testing.T) {
+	t.Parallel()
+
+	key := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+		AllowedTags: []string{"x-a:in[1,aaa]", "x-b:in[2]"},
+	})
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, Tags: []string{"x-a:wrong", "x-b:2"}}
+	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, key))
+	checkCode(t, resp, http.StatusBadRequest)
 }
 
 func TestCreate_FailWrongProject(t *testing.T) {
@@ -554,7 +569,7 @@ func TestUpdate_OKAllowedTags(t *testing.T) {
 		Permissions: []string{},
 		MaxLimit:    1000,
 		MaxValidTo:  time.Now().AddDate(1, 0, 0),
-		AllowedTags: []string{"x-a", "x-b"},
+		AllowedTags: []string{"x-a:in[1,b]", "x-b:in[2]"},
 	})
 	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, Tags: []string{"x-a:1", "x-b:2"}}
 	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, lKey))
@@ -586,6 +601,31 @@ func TestUpdate_FailAllowedTags(t *testing.T) {
 	inUp := &api.UpdateInput{Tags: []string{"a:b"}}
 	resp = invoke(t, newRequestWithAuth(t, http.MethodPatch, fmt.Sprintf("/key/%s", key.ID), inUp, lKey))
 	checkCode(t, resp, http.StatusForbidden)
+}
+
+func TestUpdate_FailTagValue(t *testing.T) {
+	t.Parallel()
+
+	lKey := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+		AllowedTags: []string{"x-a:in[1,b]", "x-b:between[1,1000]"},
+	})
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, Tags: []string{"x-a:1", "x-b:2"}}
+	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, lKey))
+	checkCode(t, resp, http.StatusCreated)
+	key := api.Key{}
+	decode(t, resp, &key)
+
+	inUp := &api.UpdateInput{Tags: []string{"x-a:c"}}
+	resp = invoke(t, newRequestWithAuth(t, http.MethodPatch, fmt.Sprintf("/key/%s", key.ID), inUp, lKey))
+	checkCode(t, resp, http.StatusBadRequest)
+
+	inUp = &api.UpdateInput{Tags: []string{"x-b:1001"}}
+	resp = invoke(t, newRequestWithAuth(t, http.MethodPatch, fmt.Sprintf("/key/%s", key.ID), inUp, lKey))
+	checkCode(t, resp, http.StatusBadRequest)
 }
 
 func TestGet_ReturnsKey(t *testing.T) {

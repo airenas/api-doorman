@@ -16,7 +16,7 @@ type User struct {
 	MaxLimit    float64
 	Projects    []string
 	Permissions map[permission.Enum]bool
-	AllowedTags map[string]bool
+	AllowedTags map[string]string
 	CurrentIP   string
 }
 
@@ -53,16 +53,17 @@ func (u *User) ValidateID(id string) error {
 }
 
 func (u *User) ValidateTags(tags []string) error {
-	if u.HasPermission(permission.Everything) {
-		return nil
-	}
 	for _, t := range tags {
-		k, _, err := tag.Parse(t)
+		k, v, err := tag.Parse(t)
 		if err != nil {
 			return err
 		}
-		if !u.AllowedTags[k] {
-			return NewNoAccessError("tag", k)
+		av, ok := u.AllowedTags[k]
+		if !ok && !u.HasPermission(permission.Everything) {
+			return NewNoAccessError("tags", k)
+		}
+		if err := tag.ValidateValue(av, v); err != nil {
+			return fmt.Errorf("%w: %w", NewWrongFieldError("tags", fmt.Sprintf("value '%s' for tag %s is not allowed. Condition: %s", v, k, av)), err)
 		}
 	}
 	return nil

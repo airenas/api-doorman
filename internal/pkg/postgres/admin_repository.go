@@ -5,13 +5,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/airenas/api-doorman/internal/pkg/model/permission"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
+	"github.com/airenas/api-doorman/internal/pkg/utils/tag"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/oklog/ulid/v2"
@@ -188,11 +188,15 @@ func loadPermissions(stringArray pq.StringArray) map[permission.Enum]bool {
 	return res
 }
 
-func loadAllowedTags(in pq.StringArray) map[string]bool {
-	res := make(map[string]bool)
+func loadAllowedTags(in pq.StringArray) map[string]string {
+	res := make(map[string]string)
 	for _, pStr := range in {
-		s := strings.ToLower(strings.TrimSpace(pStr))
-		res[s] = true
+		k, v, err := tag.Parse(pStr)
+		if err != nil {
+			log.Warn().Str("tag", pStr).Err(err).Msg("Can't parse tag")
+			continue
+		}
+		res[k] = v
 	}
 	return res
 }
