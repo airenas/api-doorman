@@ -52,6 +52,7 @@ type InsertAdminParams struct {
 	MaxLimit    float64
 	MaxValidTo  time.Time
 	Disabled    bool
+	IPWhiteList string
 }
 
 func InsertAdmin(t *testing.T, db *sqlx.DB, params *InsertAdminParams) {
@@ -60,10 +61,10 @@ func InsertAdmin(t *testing.T, db *sqlx.DB, params *InsertAdminParams) {
 	now := time.Now()
 	_, err := db.Exec(`
 		INSERT INTO administrators
-			(id, key_hash, projects, max_valid_to, max_limit, name, created, updated, permissions)
+			(id, key_hash, projects, max_valid_to, max_limit, name, created, updated, permissions, ip_white_list)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $7, $8)
-		`, ulid.Make().String(), params.KeyHash, pq.Array(params.Projects), params.MaxValidTo, params.MaxLimit, "test", now, pq.Array(params.Permissions))
+			($1, $2, $3, $4, $5, $6, $7, $7, $8, $9)
+		`, ulid.Make().String(), params.KeyHash, pq.Array(params.Projects), params.MaxValidTo, params.MaxLimit, "test", now, pq.Array(params.Permissions), params.IPWhiteList)
 	require.NoError(t, err)
 }
 

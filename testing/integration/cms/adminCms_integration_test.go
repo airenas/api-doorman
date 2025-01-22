@@ -142,6 +142,36 @@ func TestCreate_FailNoAuth(t *testing.T) {
 	checkCode(t, resp, http.StatusUnauthorized)
 }
 
+func TestCreate_FailIPWhiteList(t *testing.T) {
+	t.Parallel()
+
+	key := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+		IPWhiteList: "1.1.1.1/32",
+	})
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, SaveRequests: true}
+	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, key))
+	checkCode(t, resp, http.StatusUnauthorized)
+}
+
+func TestCreate_OKIPWhiteList(t *testing.T) {
+	t.Parallel()
+
+	key := newAdminKey(t, &integration.InsertAdminParams{
+		Projects:    []string{"test"},
+		Permissions: []string{},
+		MaxLimit:    1000,
+		MaxValidTo:  time.Now().AddDate(1, 0, 0),
+		IPWhiteList: "1.1.1.1/32,2.2.2.2/0",
+	})
+	in := &api.CreateInput{ID: ulid.Make().String(), OperationID: ulid.Make().String(), Service: "test", Credits: 100, SaveRequests: true}
+	resp := invoke(t, newRequestWithAuth(t, http.MethodPost, "/key", in, key))
+	checkCode(t, resp, http.StatusCreated)
+}
+
 func TestCreate_FailWrongProject(t *testing.T) {
 	t.Parallel()
 
