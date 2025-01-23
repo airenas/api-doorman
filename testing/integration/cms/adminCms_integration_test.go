@@ -293,12 +293,37 @@ func TestAddCredits_OKSameOpID(t *testing.T) {
 	assert.Equal(t, 1100.0, resG.TotalCredits)
 }
 
+func TestAddCredits_OKSameOpIDNegativeVal(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t) // 100
+
+	id := ulid.Make().String()
+	resp := addCreditsResp(t, key, -80, id) // 20
+	checkCode(t, resp, http.StatusOK)
+
+	resp = addCreditsResp(t, key, -80, id) // 20 - same op id
+	checkCode(t, resp, http.StatusOK)
+
+	resp = addCreditsResp(t, key, -80, "") // new op 20-80
+	checkCode(t, resp, http.StatusBadRequest)
+}
+
 func TestAddCredits_FailMaxLimit(t *testing.T) {
 	t.Parallel()
 
 	key := newKey(t)
 
 	resp := addCreditsResp(t, key, 100000000000, "")
+	checkCode(t, resp, http.StatusBadRequest)
+}
+
+func TestAddCredits_FailNegative(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t) // 100
+
+	resp := addCreditsResp(t, key, -1000, "")
 	checkCode(t, resp, http.StatusBadRequest)
 }
 

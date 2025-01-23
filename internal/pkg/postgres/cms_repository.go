@@ -477,16 +477,6 @@ func (r *CMSRepository) addQuota(ctx context.Context, db dbTx, user *model.User,
 		return nil, err
 	}
 
-	if in.Credits > 0 {
-		if err := r.validateQuota(ctx, db, user, in.Credits); err != nil {
-			return nil, err
-		}
-	}
-
-	if in.Credits < 0 && key.Limit+in.Credits < key.QuotaValue {
-		return nil, model.NewWrongFieldError("credits", "(limit - change) is less than used")
-	}
-
 	now := time.Now()
 
 	has, err := newOperation(ctx, db, &createOperationInput{opID: in.OperationID, keyID: id, date: now, quotaValue: in.Credits, msg: "Add Credits", opData: newOpData(user)})
@@ -495,6 +485,16 @@ func (r *CMSRepository) addQuota(ctx context.Context, db dbTx, user *model.User,
 	}
 	if has {
 		return key, model.ErrOperationExists
+	}
+
+	if in.Credits > 0 {
+		if err := r.validateQuota(ctx, db, user, in.Credits); err != nil {
+			return nil, err
+		}
+	}
+
+	if in.Credits < 0 && key.Limit+in.Credits < key.QuotaValue {
+		return nil, model.NewWrongFieldError("credits", "(limit - change) is less than used")
 	}
 
 	var limit float64
