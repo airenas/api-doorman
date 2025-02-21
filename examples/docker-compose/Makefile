@@ -6,13 +6,8 @@ help:
 	@cat ${MAKEFILE_LIST} | grep -e "^## " -A 1 | grep -v '\-\-' | sed 's/^##//' | cut -f1 -d":" | \
 		awk '{info=$$0; getline; print "  " $$0 ": " info;}' | column -t -s ':' 
 #####################################################################################
-.mongo:
-	mkdir -p $@
-
 ## start all test containers
-start: | .mongo
-	docker compose up -d mongo
-	$(MAKE) mongo-prepare 
+start: 
 	docker compose up -d
 
 ## stop containers
@@ -21,7 +16,7 @@ stop:
 
 ## clean everything. Perhaps you should run 'sudo make clean'
 clean: stop
-	rm -rf .mongo
+	docker compose down -v --remove-orphans
 #####################################################################################
 key?=u2OA9U4yLB
 prj?=test

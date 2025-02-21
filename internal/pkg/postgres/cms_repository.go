@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms/api"
+	mapi "github.com/airenas/api-doorman/internal/pkg/migration/api"
 	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/airenas/api-doorman/internal/pkg/model/usage"
 	"github.com/airenas/api-doorman/internal/pkg/randkey"
@@ -309,6 +310,62 @@ func (r *CMSRepository) Stats(ctx context.Context, user *model.User, in *api.Sta
 		apiRes = append(apiRes, mapToBucket(r))
 	}
 	return apiRes, nil
+}
+
+func (r *CMSRepository) CreatePlain(ctx context.Context, user *model.User, in []*mapi.Key, project string, dryRun bool) error {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer rollback(tx)
+
+	i := 0
+	for _, d := range in {
+		log.Info().Str("id", d.KeyID).Msg("Processing")
+		if d.Key == "" {
+			return model.NewWrongFieldError("key", "empty")
+		}
+		keyRecord := &keyRecord{
+			ID:               ulid.Make().String(),
+			KeyHash:          r.hasher.HashKey(d.Key),
+			Project:          project,
+			Manual:           d.Manual,
+			Limit:            d.Limit,
+			QuotaValue:       d.QuotaValue,
+			QuotaValueFailed: d.QuotaFailed,
+			ValidTo:          d.ValidTo,
+			Created:          d.Created,
+			Updated:          d.Updated,
+			Disabled:         d.Disabled,
+			Tags:             d.Tags,
+			IPWhiteList:      toNullStr(d.IPWhiteList),
+			Description:      toNullStr(d.Description),
+			AdminID:          toNullStr(user.ID),
+		}
+		if err := r.createPlainKey(ctx, tx, user, keyRecord); err != nil {
+			return err
+		}
+		i++
+	}
+
+	if dryRun {
+		log.Ctx(ctx).Warn().Msg("Dry run")
+		return nil
+	}
+
+	log.Ctx(ctx).Info().Int("count", i).Msg("Inserted")
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+	return nil
+}
+
+func toNullStr(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: s, Valid: true}
 }
 
 func getStatsTableField(enum usage.Enum) (string /*table*/, string /*field*/, error) {
@@ -661,6 +718,40 @@ func (r *CMSRepository) changeKey(ctx context.Context, tx dbTx, user *model.User
 	}
 
 	return keyRec, nil
+}
+
+func (r *CMSRepository) createPlainKey(ctx context.Context, tx dbTx, user *model.User, in *keyRecord) error {
+	log.Ctx(ctx).Trace().Str("id", in.ID).Msg("Create key")
+
+	_, err := tx.ExecContext(ctx, `
+	INSERT INTO keys (id, project, key_hash, 
+		manual, quota_limit, valid_to, 
+		created, updated, disabled, 
+		tags, description, adm_id, 
+		ip_white_list, quota_value, quota_value_failed, 
+		last_used, last_ip)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+	`, in.ID, in.Project, in.KeyHash,
+		in.Manual, in.Limit, in.ValidTo,
+		in.Created, in.Updated, in.Disabled,
+		in.Tags, in.Description, in.AdminID,
+		in.IPWhiteList, in.QuotaValue, in.QuotaValueFailed,
+		in.LastUsed, in.LastIP)
+	if err != nil {
+		return fmt.Errorf("create key: %w", mapErr(err))
+	}
+
+	now := time.Now()
+
+	has, err := newOperation(ctx, tx, &createOperationInput{opID: in.ID, keyID: in.ID, date: now,
+		quotaValue: in.Limit, msg: "Migration Create Key", opData: newOpData(user)})
+	if err != nil {
+		return err
+	}
+	if has {
+		return model.ErrOperationExists
+	}
+	return nil
 }
 
 func newOpData(user *model.User) *operationData {

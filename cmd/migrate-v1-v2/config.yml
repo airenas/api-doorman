@@ -1,0 +1,8 @@
+projects: tts,asr,test
+
+keySize: 30
+
+db:
+    dsn: postgres://postgres:postgres@localhost:5432/doorman?sslmode=disable
+
+hashSalt: ohcheiPhahBahPa2aephei6eiree5P
