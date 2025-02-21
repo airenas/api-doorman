@@ -341,6 +341,8 @@ func (r *CMSRepository) CreatePlain(ctx context.Context, user *model.User, in []
 			IPWhiteList:      toNullStr(d.IPWhiteList),
 			Description:      toNullStr(d.Description),
 			AdminID:          toNullStr(user.ID),
+			LastUsed:         &d.LastUsed,
+			LastIP:           toNullStr(d.LastIP),
 		}
 		if err := r.createPlainKey(ctx, tx, user, keyRecord); err != nil {
 			return err
