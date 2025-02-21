@@ -120,7 +120,7 @@ func mainInt(ctx context.Context) error {
 	return nil
 }
 
-func tryAddInitialAdmin(ctx context.Context, config *viper.Viper, repo *postgres.AdmimRepository, projects []string) error {
+func tryAddInitialAdmin(ctx context.Context, config *viper.Viper, repo *postgres.AdminRepository, projects []string) error {
 	key := config.GetString("mainAdmin.key")
 	if key == "" {
 		return nil

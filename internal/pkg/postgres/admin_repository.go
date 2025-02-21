@@ -19,38 +19,38 @@ import (
 )
 
 // Repository communicates with postgres
-type AdmimRepository struct {
+type AdminRepository struct {
 	db     *sqlx.DB
 	hasher Hasher
 }
 
 // DeleteLogs implements admin.LogProvider.
-func (a *AdmimRepository) DeleteLogs(ctx context.Context, project string, to time.Time) (int, error) {
+func (a *AdminRepository) DeleteLogs(ctx context.Context, project string, to time.Time) (int, error) {
 	panic("unimplemented")
 }
 
 // ListLogs implements admin.LogProvider.
-func (a *AdmimRepository) ListLogs(ctx context.Context, project string, to time.Time) ([]*api.Log, error) {
+func (a *AdminRepository) ListLogs(ctx context.Context, project string, to time.Time) ([]*api.Log, error) {
 	panic("unimplemented")
 }
 
 // List implements admin.KeyRetriever.
-func (a *AdmimRepository) List(ctx context.Context, project string) ([]*api.Key, error) {
+func (a *AdminRepository) List(ctx context.Context, project string) ([]*api.Key, error) {
 	panic("unimplemented")
 }
 
-func NewAdmimRepository(ctx context.Context, db *sqlx.DB, hasher Hasher) (*AdmimRepository, error) {
+func NewAdmimRepository(ctx context.Context, db *sqlx.DB, hasher Hasher) (*AdminRepository, error) {
 	if db == nil {
 		return nil, fmt.Errorf("db is nil")
 	}
 	if hasher == nil {
 		return nil, fmt.Errorf("hasher is nil")
 	}
-	f := AdmimRepository{db: db, hasher: hasher}
+	f := AdminRepository{db: db, hasher: hasher}
 	return &f, nil
 }
 
-func (r *AdmimRepository) Get(ctx context.Context, user *model.User, id string) (*api.Key, error) {
+func (r *AdminRepository) Get(ctx context.Context, user *model.User, id string) (*api.Key, error) {
 	log.Ctx(ctx).Debug().Str("id", id).Msg("Get key")
 	res, err := loadKeyRecord(ctx, r.db, id)
 	if err != nil {
@@ -63,7 +63,7 @@ func (r *AdmimRepository) Get(ctx context.Context, user *model.User, id string) 
 	return mapToAdminKey(res, ""), nil
 }
 
-func (r *AdmimRepository) GetLogs(ctx context.Context, user *model.User, keyID string) ([]*api.Log, error) {
+func (r *AdminRepository) GetLogs(ctx context.Context, user *model.User, keyID string) ([]*api.Log, error) {
 	log.Ctx(ctx).Debug().Str("id", keyID).Msg("Get key")
 
 	var res []*logRecord
@@ -83,7 +83,7 @@ func (r *AdmimRepository) GetLogs(ctx context.Context, user *model.User, keyID s
 	return apiRes, nil
 }
 
-func (r *AdmimRepository) RestoreUsage(ctx context.Context, project string, manual bool, request string, errorMsg string) error {
+func (r *AdminRepository) RestoreUsage(ctx context.Context, project string, manual bool, request string, errorMsg string) error {
 	log.Ctx(ctx).Debug().Str("requestID", request).Msg("Restoring usage")
 
 	now := time.Now()
@@ -138,7 +138,7 @@ func (r *AdmimRepository) RestoreUsage(ctx context.Context, project string, manu
 	return nil
 }
 
-func (r *AdmimRepository) ValidateToken(ctx context.Context, token string, ip string) (*model.User, error) {
+func (r *AdminRepository) ValidateToken(ctx context.Context, token string, ip string) (*model.User, error) {
 	log.Ctx(ctx).Trace().Msg("Validating token")
 	hash := r.hasher.HashKey(token)
 	var res administratorRecord
@@ -201,7 +201,7 @@ func loadAllowedTags(in pq.StringArray) map[string]string {
 	return res
 }
 
-func (r *AdmimRepository) AddAdmin(ctx context.Context, key string, user *model.User) error {
+func (r *AdminRepository) AddAdmin(ctx context.Context, key string, user *model.User) error {
 	log.Ctx(ctx).Trace().Any("data", user).Msg("Add admin")
 	now := time.Now()
 	hash := r.hasher.HashKey(key)
@@ -225,7 +225,7 @@ func mapToStr(perms map[permission.Enum]bool) []string {
 	return res
 }
 
-func (r *AdmimRepository) Reset(ctx context.Context, project string, since time.Time, limit float64) error {
+func (r *AdminRepository) Reset(ctx context.Context, project string, since time.Time, limit float64) error {
 	log.Ctx(ctx).Debug().Str("project", project).Str("since", since.Format(time.RFC3339)).Float64("limit", limit).Msg("reset usage")
 
 	tx, err := r.db.Beginx()
