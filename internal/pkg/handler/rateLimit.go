@@ -29,24 +29,24 @@ func RateLimitValidate(next http.Handler, qv RateLimitValidator, limit int64) ht
 }
 
 func (h *rateLimitValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctxSp, span := utils.StartSpan(r.Context(), "rateLimitValidate.ServeHTTP")
+	ctx, span := utils.StartSpan(r.Context(), "rateLimitValidate.ServeHTTP")
 	defer span.End()
-	r = r.WithContext(ctxSp)
+	r = r.WithContext(ctx)
 
-	rn, ctx := customContext(r)
-	quotaV := ctx.QuotaValue
-	limit := int64(ctx.RateLimitValue)
+	rn, cData := customContext(r)
+	quotaV := cData.QuotaValue
+	limit := int64(cData.RateLimitValue)
 	if limit <= 0 {
 		limit = h.limit
 	}
-	ok, rem, retryAfter, err := h.qv.Validate(makeRateLimitKey(idOrHash(ctx), ctx.Manual), int64(limit), int64(quotaV))
+	ok, rem, retryAfter, err := h.qv.Validate(makeRateLimitKey(idOrHash(cData), cData.Manual), int64(limit), int64(quotaV))
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
-		log.Error().Err(err).Msg("can't validate rate limit")
-		ctx.ResponseCode = http.StatusInternalServerError
+		log.Ctx(ctx).Error().Err(err).Msg("can't validate rate limit")
+		cData.ResponseCode = http.StatusInternalServerError
 		return
 	}
-	log.Debug().Msgf("Quota value: %.2f, rem: %d, time: %d, rate limit: %d", quotaV, rem, retryAfter, limit)
+	log.Ctx(ctx).Debug().Msgf("Quota value: %.2f, rem: %d, time: %d, rate limit: %d", quotaV, rem, retryAfter, limit)
 	if rem >= 0 {
 		w.Header().Set("X-Rate-Limit-Short-Remaining", fmt.Sprintf("%d", rem))
 	}
@@ -55,7 +55,7 @@ func (h *rateLimitValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if !ok {
 		http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
-		ctx.ResponseCode = http.StatusTooManyRequests
+		cData.ResponseCode = http.StatusTooManyRequests
 		return
 	}
 	h.next.ServeHTTP(w, rn)

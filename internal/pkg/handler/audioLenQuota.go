@@ -33,14 +33,14 @@ func AudioLenQuota(next http.Handler, field string, srv AudioLenGetter) http.Han
 }
 
 func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctxSp, span := utils.StartSpan(r.Context(), "audioLen.ServeHTTP")
+	ctx, span := utils.StartSpan(r.Context(), "audioLen.ServeHTTP")
 	defer span.End()
-	r = r.WithContext(ctxSp)
+	r = r.WithContext(ctx)
 
-	rn, ctx := customContext(r)
+	rn, cData := customContext(r)
 	tmpFileName, closeF, err := saveTempData(rn.Body)
 	if err != nil {
-		ctx.ResponseCode = writeBadRequestOrInternalError(w, "")
+		cData.ResponseCode = writeBadRequestOrInternalError(w, "")
 		log.Error().Err(err).Send()
 		return
 	}
@@ -48,16 +48,16 @@ func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	dur, badReqMsg, err := h.getDuration(rn, tmpFileName)
 	if err != nil {
-		ctx.ResponseCode = writeBadRequestOrInternalError(w, badReqMsg)
-		log.Error().Err(err).Send()
+		cData.ResponseCode = writeBadRequestOrInternalError(w, badReqMsg)
+		log.Ctx(ctx).Error().Err(err).Send()
 		return
 	}
-	ctx.QuotaValue = dur
+	cData.QuotaValue = dur
 
 	tmpFile, err := os.Open(tmpFileName)
 	if err != nil {
-		ctx.ResponseCode = writeBadRequestOrInternalError(w, "")
-		log.Error().Err(err).Send()
+		cData.ResponseCode = writeBadRequestOrInternalError(w, "")
+		log.Ctx(ctx).Error().Err(err).Send()
 		return
 	}
 	defer tmpFile.Close()

@@ -93,21 +93,19 @@ func (h *mainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for _, hi := range h.data.Handlers {
 		if hi.Valid(r) {
 			span.SetAttributes(attribute.String("handler.name", hi.Name()))
-			log.Info().Msg("Handling with " + hi.Name())
+			log.Ctx(ctx).Info().Msg("Handling with " + hi.Name())
 			hi.Handler().ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 	}
-	log.Error().Str("path", r.URL.Path).Msg("no handler")
+	log.Ctx(ctx).Error().Str("path", r.URL.Path).Msg("no handler")
 	//serve not found
 	http.NotFound(w, r)
 }
 
 func initSpan(ctx context.Context) (context.Context, trace.Span) {
-	ctx, span := otel.Tracer("api-doorman").Start(ctx, "request", trace.WithSpanKind(trace.SpanKindServer))
-	defer span.End()
-	logger := loggerWithTrace(ctx)
-	ctx = logger.WithContext(ctx)
+	ctx, span := otel.Tracer("api-doorman").Start(ctx, "main handler", trace.WithSpanKind(trace.SpanKindServer))
+	ctx = loggerWithTrace(ctx).WithContext(ctx)
 	return ctx, span
 }
 
