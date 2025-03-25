@@ -12,5 +12,5 @@ const (
 )
 
 func StartSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
-	return otel.Tracer(_tracerName).Start(ctx, name)
+	return otel.Tracer(_tracerName).Start(ctx, name, opts...)
 }
