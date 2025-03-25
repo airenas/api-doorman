@@ -1,6 +1,7 @@
 package audio
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -43,7 +44,7 @@ func TestClient(t *testing.T) {
 	d, _ := NewDurationClient(server.URL)
 	d.httpclient = server.Client()
 
-	r, err := d.Get("1.wav", strings.NewReader("olia"))
+	r, err := d.Get(context.TODO(), "1.wav", strings.NewReader("olia"))
 
 	assert.Nil(t, err)
 	assert.Equal(t, float64(10), r)
@@ -69,7 +70,7 @@ func TestClient_PassFile(t *testing.T) {
 	d, _ := NewDurationClient(server.URL)
 	d.httpclient = server.Client()
 
-	_, err := d.Get("1.wav", strings.NewReader("olia"))
+	_, err := d.Get(context.TODO(), "1.wav", strings.NewReader("olia"))
 
 	assert.Nil(t, err)
 }
@@ -83,7 +84,7 @@ func TestClient_Fail(t *testing.T) {
 	d, _ := NewDurationClient(server.URL)
 	d.httpclient = server.Client()
 
-	_, err := d.Get("1.wav", strings.NewReader("olia"))
+	_, err := d.Get(context.TODO(), "1.wav", strings.NewReader("olia"))
 
 	assert.NotNil(t, err)
 }
@@ -101,7 +102,7 @@ func TestClient_FailTimeout(t *testing.T) {
 	d, _ := NewDurationClient(server.URL)
 	d.httpclient = server.Client()
 	d.httpclient.Timeout = time.Millisecond * 5
-	_, err := d.Get("1.wav", strings.NewReader("olia"))
+	_, err := d.Get(context.TODO(), "1.wav", strings.NewReader("olia"))
 
 	assert.NotNil(t, err)
 }

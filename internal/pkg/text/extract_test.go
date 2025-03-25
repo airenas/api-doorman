@@ -1,6 +1,7 @@
 package text
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -43,7 +44,7 @@ func TestClient(t *testing.T) {
 	d, _ := NewExtractor(server.URL)
 	d.httpclient = server.Client()
 
-	r, err := d.Get("1.wav", strings.NewReader("olia"))
+	r, err := d.Get(context.TODO(), "1.wav", strings.NewReader("olia"))
 
 	assert.Nil(t, err)
 	assert.Equal(t, "olia", r)
@@ -57,7 +58,7 @@ func TestClient_TxtFile(t *testing.T) {
 	d, _ := NewExtractor(server.URL)
 	d.httpclient = server.Client()
 
-	r, err := d.Get("1.txt", strings.NewReader("olia1"))
+	r, err := d.Get(context.TODO(), "1.txt", strings.NewReader("olia1"))
 
 	assert.Nil(t, err)
 	assert.Equal(t, "olia1", r)
@@ -83,7 +84,7 @@ func TestClient_PassFile(t *testing.T) {
 	d, _ := NewExtractor(server.URL)
 	d.httpclient = server.Client()
 
-	_, err := d.Get("1.wav", strings.NewReader("olia"))
+	_, err := d.Get(context.TODO(), "1.wav", strings.NewReader("olia"))
 
 	assert.Nil(t, err)
 }
@@ -97,7 +98,7 @@ func TestClient_Fail(t *testing.T) {
 	d, _ := NewExtractor(server.URL)
 	d.httpclient = server.Client()
 
-	_, err := d.Get("1.wav", strings.NewReader("olia"))
+	_, err := d.Get(context.TODO(), "1.wav", strings.NewReader("olia"))
 
 	assert.NotNil(t, err)
 }
@@ -112,7 +113,7 @@ func TestClient_Timeout(t *testing.T) {
 	d.timeOut = time.Duration(0)
 	d.httpclient = server.Client()
 
-	_, err := d.Get("1.wav", strings.NewReader("olia"))
+	_, err := d.Get(context.TODO(), "1.wav", strings.NewReader("olia"))
 
 	assert.NotNil(t, err)
 }

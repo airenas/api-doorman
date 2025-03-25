@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"mime/multipart"
@@ -29,7 +30,7 @@ func TestAudio(t *testing.T) {
 	resp := httptest.NewRecorder()
 
 	AudioLenQuota(newTestHandler(), "file", audioLenGetterMock).ServeHTTP(resp, req)
-	cf, _ := audioLenGetterMock.VerifyWasCalledOnce().Get(pegomock.Any[string](), pegomock.Any[io.Reader]()).GetCapturedArguments()
+	_, cf, _ := audioLenGetterMock.VerifyWasCalledOnce().Get(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[io.Reader]()).GetCapturedArguments()
 	assert.Equal(t, 555, resp.Code)
 	assert.Equal(t, "test.mp3", cf)
 }
@@ -55,7 +56,7 @@ func TestAudio_FailAudio(t *testing.T) {
 	initAudioTest(t)
 	req := newTestAudioRequest("test.mp3")
 	resp := httptest.NewRecorder()
-	pegomock.When(audioLenGetterMock.Get(pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn(0.0, errors.New("olia"))
+	pegomock.When(audioLenGetterMock.Get(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn(0.0, errors.New("olia"))
 	AudioLenQuota(newTestHandler(), "file", audioLenGetterMock).ServeHTTP(resp, req)
 	assert.Equal(t, 500, resp.Code)
 }
@@ -64,7 +65,7 @@ func TestAudio_SetResult(t *testing.T) {
 	initAudioTest(t)
 	req, ctx := customContext(newTestAudioRequest("test.mp3"))
 	resp := httptest.NewRecorder()
-	pegomock.When(audioLenGetterMock.Get(pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn(10.0, nil)
+	pegomock.When(audioLenGetterMock.Get(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn(10.0, nil)
 	AudioLenQuota(newTestHandler(), "file", audioLenGetterMock).ServeHTTP(resp, req)
 	assert.Equal(t, 555, resp.Code)
 	assert.Equal(t, 10.0, ctx.QuotaValue)

@@ -15,6 +15,9 @@ import (
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Extractor extract txt from file
@@ -42,7 +45,10 @@ func NewExtractor(urlStr string) (*Extractor, error) {
 }
 
 // Get return text by calling the service
-func (dc *Extractor) Get(name string, file io.Reader) (string, error) {
+func (dc *Extractor) Get(ctx context.Context, name string, file io.Reader) (string, error) {
+	ctx, span := utils.StartSpan(ctx, "Extractor.Get", trace.WithSpanKind(trace.SpanKindClient))
+	defer span.End()
+
 	if filepath.Ext(name) == ".txt" {
 		res, err := io.ReadAll(file)
 		if err != nil {
@@ -67,8 +73,9 @@ func (dc *Extractor) Get(name string, file io.Reader) (string, error) {
 		return "", err
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
-	ctx, cancelF := context.WithTimeout(context.Background(), dc.timeOut)
+	ctx, cancelF := context.WithTimeout(ctx, dc.timeOut)
 	defer cancelF()
 	req = req.WithContext(ctx)
 

@@ -4,11 +4,18 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/airenas/api-doorman/internal/pkg/postgres"
 	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/airenas/api-doorman/internal/pkg/service"
 	"github.com/airenas/go-app/pkg/goapp"
@@ -28,6 +35,22 @@ func main() {
 }
 
 func mainInt(ctx context.Context) error {
+	tp, err := initTracer(ctx, goapp.Config.GetString("otel.exporter.otlp.endpoint"))
+	if err != nil {
+		return fmt.Errorf("init tracer: %w", err)
+	}
+	if tp != nil {
+		defer func() {
+			ctx, cf := context.WithTimeout(context.Background(), time.Second*5)
+			defer cf()
+			err := tp.Shutdown(ctx)
+			if err != nil {
+				log.Warn().Err(err).Msg("Failed to shutdown OpenTelemetry")
+			}
+		}()
+
+	}
+
 	db, err := postgres.NewDB(ctx, goapp.Config.GetString("db.dsn"))
 	if err != nil {
 		return fmt.Errorf("init db: %w", err)
@@ -103,4 +126,34 @@ ________________________________________________________
 `
 	cl := color.New()
 	cl.Printf(banner, cl.Red(version), cl.Green("https://github.com/airenas/api-doorman"))
+}
+
+func initTracer(ctx context.Context, tracerURL string) (*trace.TracerProvider, error) {
+	if tracerURL == "" {
+		log.Ctx(ctx).Warn().Msg("No tracer URL set, skipping OpenTelemetry initialization.")
+		return nil, nil
+	}
+
+	propagator := propagation.NewCompositeTextMapPropagator(propagation.Baggage{}, propagation.TraceContext{})
+	otel.SetTextMapPropagator(propagator)
+
+	log.Ctx(ctx).Info().Str("url", tracerURL).Msg("Setting up OpenTelemetry")
+	exporter, err := otlptracehttp.New(ctx,
+		otlptracehttp.WithEndpoint(tracerURL),
+		otlptracehttp.WithInsecure(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OTLP HTTP exporter: %w", err)
+	}
+
+	tp := trace.NewTracerProvider(
+		trace.WithBatcher(exporter),
+		trace.WithResource(resource.NewSchemaless(
+			attribute.String("service.name", "api-doorman"),
+			attribute.String("service.version", version),
+		)),
+	)
+
+	otel.SetTracerProvider(tp)
+	return tp, nil
 }

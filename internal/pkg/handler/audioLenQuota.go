@@ -1,18 +1,20 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/rs/zerolog/log"
 )
 
 // AudioLenGetter get duration
 type AudioLenGetter interface {
-	Get(name string, file io.Reader) (float64, error)
+	Get(ctx context.Context, name string, file io.Reader) (float64, error)
 }
 
 type audioLen struct {
@@ -31,6 +33,10 @@ func AudioLenQuota(next http.Handler, field string, srv AudioLenGetter) http.Han
 }
 
 func (h *audioLen) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctxSp, span := utils.StartSpan(r.Context(), "audioLen.ServeHTTP")
+	defer span.End()
+	r = r.WithContext(ctxSp)
+
 	rn, ctx := customContext(r)
 	tmpFileName, closeF, err := saveTempData(rn.Body)
 	if err != nil {
@@ -93,7 +99,7 @@ func (h *audioLen) getDuration(rn *http.Request, tmpFileName string) (float64, s
 		return 0, "No file", fmt.Errorf("no file: %w", err)
 	}
 	defer file.Close()
-	dur, err := h.durationService.Get(handler.Filename, file)
+	dur, err := h.durationService.Get(rn.Context(), handler.Filename, file)
 	if err != nil {
 		return 0, "", fmt.Errorf("can't get duration: %w", err)
 	}

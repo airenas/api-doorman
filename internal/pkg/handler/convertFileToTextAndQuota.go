@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -10,13 +11,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
 // TextGetter get duration
 type TextGetter interface {
-	Get(name string, file io.Reader) (string, error)
+	Get(ctx context.Context, name string, file io.Reader) (string, error)
 }
 
 type toTextAndQuota struct {
@@ -38,6 +40,10 @@ func ToTextAndQuota(next http.Handler, field string, srv TextGetter) http.Handle
 }
 
 func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctxSp, span := utils.StartSpan(r.Context(), "toTextAndQuota.ServeHTTP")
+	defer span.End()
+	r = r.WithContext(ctxSp)
+
 	rn, ctx := customContext(r)
 	bodyBytes, err := io.ReadAll(rn.Body)
 	if err != nil {
@@ -66,7 +72,7 @@ func (h *toTextAndQuota) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	txt, err := h.getTextService.Get(handler.Filename, file)
+	txt, err := h.getTextService.Get(rn.Context(), handler.Filename, file)
 	if err != nil {
 		http.Error(w, "Can't extract text", http.StatusInternalServerError)
 		ctx.ResponseCode = http.StatusInternalServerError

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/airenas/api-doorman/internal/pkg/utils"
 	"github.com/rs/zerolog/log"
 )
 
@@ -28,6 +29,10 @@ func RateLimitValidate(next http.Handler, qv RateLimitValidator, limit int64) ht
 }
 
 func (h *rateLimitValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctxSp, span := utils.StartSpan(r.Context(), "rateLimitValidate.ServeHTTP")
+	defer span.End()
+	r = r.WithContext(ctxSp)
+
 	rn, ctx := customContext(r)
 	quotaV := ctx.QuotaValue
 	limit := int64(ctx.RateLimitValue)
