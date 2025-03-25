@@ -50,6 +50,9 @@ func (r *Repository) hash(key string, manual bool) string {
 
 // IsValid validates key
 func (r *Repository) IsValid(ctx context.Context, key string, IP string, manual bool) (bool, string, []string, error) {
+	ctx, span := utils.StartSpan(ctx, "postgres.IsValid")
+	defer span.End()
+
 	hash := r.hash(key, manual)
 	log.Ctx(ctx).Trace().Str("project", r.project).Str("key_hash", hash).Bool("manual", manual).Msg("Validating key")
 
@@ -96,6 +99,9 @@ func validateKey(key *keyRecord, IP string) (bool, error) {
 
 // SaveValidate add qv to quota and validates with quota limit
 func (r *Repository) SaveValidate(ctx context.Context, key string, ip string, manual bool, qv float64) (bool, float64, float64, error) {
+	ctx, span := utils.StartSpan(ctx, "postgres.SaveValidate")
+	defer span.End()
+
 	hash := r.hash(key, manual)
 	log.Ctx(ctx).Trace().Str("project", r.project).Str("key_hash", hash).Bool("manual", manual).Msg("Validating key")
 
@@ -159,6 +165,9 @@ func rollback(tx *sqlx.Tx) {
 
 // Restore restores quota value after failed service call
 func (r *Repository) Restore(ctx context.Context, key string, manual bool, qv float64) (float64, float64, error) {
+	ctx, span := utils.StartSpan(ctx, "postgres.Restore")
+	defer span.End()
+
 	log.Ctx(ctx).Debug().Float64("quota", qv).Msg("Restoring quota for key")
 
 	now := time.Now()
@@ -185,6 +194,9 @@ func (r *Repository) Restore(ctx context.Context, key string, manual bool, qv fl
 }
 
 func (r *Repository) CheckCreateIPKey(ctx context.Context, ip string, limit float64) (string, error) {
+	ctx, span := utils.StartSpan(ctx, "postgres.CheckCreateIPKey")
+	defer span.End()
+
 	log.Ctx(ctx).Debug().Str("ip", ip).Msg("Validating IP")
 
 	res, err := r.getKeyIDByIP(ctx, ip)
@@ -230,6 +242,9 @@ func (r *Repository) getKeyIDByIP(ctx context.Context, ip string) (string, error
 }
 
 func (r *Repository) SaveLog(ctx context.Context, data *api.Log) error {
+	ctx, span := utils.StartSpan(ctx, "postgres.SaveLog")
+	defer span.End()
+
 	log.Ctx(ctx).Trace().Any("data", data).Msg("Insert log")
 
 	_, err := r.db.ExecContext(ctx, `

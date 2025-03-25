@@ -4,6 +4,7 @@ services:
     ports:
       - "${DOORMAN_PORT}:8000"
     environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
       DB_DSN: "postgres://postgres:postgres@postgres:5432/doorman?sslmode=disable"  
       HASHSALT: ohcheiPhahBahPa2aephei6eiree5P
       PROXY_HANDLERS: "test,test2,test3,tts,default"
@@ -148,6 +149,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy    
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.67.0
+    container_name: jaeger
+    environment:
+      - COLLECTOR_ZIPKIN_HTTP_PORT=9411
+    ports:
+      - "16686:16686"      
 
 volumes:
   doorman_postgres_data:    

@@ -30,6 +30,10 @@ func QuotaValidate(next http.Handler, qv QuotaValidator) http.Handler {
 }
 
 func (h *quotaSaveValidate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctxSp, span := utils.StartSpan(r.Context(), "quotaSaveValidate.ServeHTTP")
+	defer span.End()
+	r = r.WithContext(ctxSp)
+
 	rn, ctx := customContext(r)
 	quotaV := ctx.QuotaValue
 	log.Ctx(rn.Context()).Debug().Float64("value", quotaV).Msg("Using quota")

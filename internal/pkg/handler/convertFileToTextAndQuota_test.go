@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"mime/multipart"
@@ -28,9 +29,9 @@ func TestToTextAndQuotaTest(t *testing.T) {
 	req, ctx := customContext(req)
 	resp := httptest.NewRecorder()
 
-	pegomock.When(getTextMock.Get(pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn("olia olia", nil)
+	pegomock.When(getTextMock.Get(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn("olia olia", nil)
 	ToTextAndQuota(newTestHandler(), "file", getTextMock).ServeHTTP(resp, req)
-	cf, _ := getTextMock.VerifyWasCalledOnce().Get(pegomock.Any[string](), pegomock.Any[io.Reader]()).GetCapturedArguments()
+	_, cf, _ := getTextMock.VerifyWasCalledOnce().Get(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[io.Reader]()).GetCapturedArguments()
 	assert.Equal(t, 555, resp.Code)
 	assert.Equal(t, "test.epub", cf)
 	assert.InDelta(t, 9, ctx.QuotaValue, 0.00001)
@@ -41,7 +42,7 @@ func TestToTextAndQuotaTest_FailService(t *testing.T) {
 	req := newToTextAndQuotaTestRequest("test.epub", "text olia")
 	resp := httptest.NewRecorder()
 
-	pegomock.When(getTextMock.Get(pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn("", errors.New("olia error"))
+	pegomock.When(getTextMock.Get(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn("", errors.New("olia error"))
 	ToTextAndQuota(newTestHandler(), "file", getTextMock).ServeHTTP(resp, req)
 	assert.Equal(t, 500, resp.Code)
 }
@@ -81,7 +82,7 @@ func TestToTextAndQuotaTest_ContentLength(t *testing.T) {
 	req := newToTextAndQuotaTestRequest("test.epub", "text olia")
 	resp := httptest.NewRecorder()
 
-	pegomock.When(getTextMock.Get(pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn("olia olia -- 123", nil)
+	pegomock.When(getTextMock.Get(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn("olia olia -- 123", nil)
 
 	th := newTestHandler()
 	ToTextAndQuota(th, "file", getTextMock).ServeHTTP(resp, req)
@@ -95,7 +96,7 @@ func TestToTextAndQuotaTest_passTxtFile(t *testing.T) {
 	resp := httptest.NewRecorder()
 
 	ts := `"olia olia"\ntada`
-	pegomock.When(getTextMock.Get(pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn(ts, nil)
+	pegomock.When(getTextMock.Get(pegomock.Any[context.Context](), pegomock.Any[string](), pegomock.Any[io.Reader]())).ThenReturn(ts, nil)
 
 	th := newTestHandler()
 	ToTextAndQuota(th, "file", getTextMock).ServeHTTP(resp, req)

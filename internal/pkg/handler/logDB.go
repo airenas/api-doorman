@@ -32,6 +32,10 @@ func LogDB(next http.Handler, dbs DBSaver, syncLog bool) http.Handler {
 }
 
 func (h *logDB) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctxSp, span := utils.StartSpan(r.Context(), "logDB.ServeHTTP")
+	defer span.End()
+	r = r.WithContext(ctxSp)
+
 	rn, ctx := customContext(r)
 	if h.next != nil {
 		h.next.ServeHTTP(w, rn)

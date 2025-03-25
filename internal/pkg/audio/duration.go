@@ -14,6 +14,9 @@ import (
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Duration comunicates with duration service
@@ -41,7 +44,10 @@ func NewDurationClient(urlStr string) (*Duration, error) {
 }
 
 // Get return duration by calling the service
-func (dc *Duration) Get(name string, file io.Reader) (float64, error) {
+func (dc *Duration) Get(ctx context.Context, name string, file io.Reader) (float64, error) {
+	ctx, span := utils.StartSpan(ctx, "Duration.Get", trace.WithSpanKind(trace.SpanKindClient))
+	defer span.End()
+
 	pr, pw := io.Pipe()
 	writer := multipart.NewWriter(pw)
 	go func() {
@@ -62,7 +68,8 @@ func (dc *Duration) Get(name string, file io.Reader) (float64, error) {
 		return 0, err
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	ctx, cFunc := context.WithTimeout(context.Background(), dc.timeout)
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
+	ctx, cFunc := context.WithTimeout(ctx, dc.timeout)
 	defer cFunc()
 	req = req.WithContext(ctx)
 

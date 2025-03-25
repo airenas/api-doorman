@@ -11,7 +11,12 @@ import (
 
 	"github.com/airenas/go-app/pkg/goapp"
 	"github.com/facebookgo/grace/gracehttp"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/pkg/errors"
 )
@@ -81,16 +86,36 @@ func newMainHandler(data *Data) (http.Handler, error) {
 }
 
 func (h *mainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+	ctx, span := initSpan(ctx)
+	defer span.End()
+
 	for _, hi := range h.data.Handlers {
 		if hi.Valid(r) {
-			log.Info().Msg("Handling with " + hi.Name())
-			hi.Handler().ServeHTTP(w, r)
+			span.SetAttributes(attribute.String("handler.name", hi.Name()))
+			log.Ctx(ctx).Info().Msg("Handling with " + hi.Name())
+			hi.Handler().ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 	}
-	log.Error().Str("path", r.URL.Path).Msg("no handler")
+	log.Ctx(ctx).Error().Str("path", r.URL.Path).Msg("no handler")
 	//serve not found
 	http.NotFound(w, r)
+}
+
+func initSpan(ctx context.Context) (context.Context, trace.Span) {
+	ctx, span := otel.Tracer("api-doorman").Start(ctx, "main handler", trace.WithSpanKind(trace.SpanKindServer))
+	ctx = loggerWithTrace(ctx).WithContext(ctx)
+	return ctx, span
+}
+
+func loggerWithTrace(ctx context.Context) zerolog.Logger {
+	span := trace.SpanFromContext(ctx)
+	traceID := span.SpanContext().TraceID().String()
+	if traceID == "" {
+		return log.Logger
+	}
+	return log.With().Str("traceID", traceID).Logger()
 }
 
 func getInfo(handlers []HandlerWrap) string {
