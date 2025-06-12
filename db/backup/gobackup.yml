@@ -35,3 +35,39 @@ models:
         access_key_id: ${S3_ACCESS_KEY_ID}
         secret_access_key: ${S3_SECRET_ACCESS_KEY}
         storage_class: STANDARD
+  doorman-db-long:
+    schedule:
+      every: ${SCHEDULE_LONG}
+    compress_with:
+      type: tgz
+    encrypt_with:
+      type: openssl
+      password: ${ENCRYPTION_PASSWORD}
+      salt: false
+      openssl: true
+    notifiers:
+      telegram:
+        type: telegram
+        token: ${NOTIFY_TELEGRAM_BOT_TOKEN}
+        chat_id: ${NOTIFY_TELEGRAM_CHAT_ID}
+        on_success: ${NOTIFY_TELEGRAM_ON_SUCCESS}
+    databases:
+      postgresql:
+        type: postgresql
+        database: ${POSTGRES_DB} 
+        username: ${POSTGRES_USER} 
+        password: ${POSTGRES_PASSWORD}
+        host:  ${POSTGRES_HOST}
+        port:  ${POSTGRES_PORT}
+        args: "-Fc" 
+    storages:
+      s3:
+        keep: 1000
+        type: s3
+        endpoint: ${S3_URL}
+        bucket: ${S3_BUCKET_LONG}
+        region: ${S3_REGION}
+        path: ${S3_PATH}
+        access_key_id: ${S3_ACCESS_KEY_ID}
+        secret_access_key: ${S3_SECRET_ACCESS_KEY}
+        storage_class: STANDARD
