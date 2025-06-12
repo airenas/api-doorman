@@ -19,7 +19,7 @@ ENV NOTIFY_TELEGRAM_ON_SUCCESS=false
 
 # every 6 hours
 ENV SCHEDULE=6h
-ENV SCHEDULE_LONG=90d
+ENV SCHEDULE_LONG=2160h
 
 
 COPY ./db/backup/gobackup.yml /etc/gobackup/gobackup.yml
