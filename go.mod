@@ -2,6 +2,8 @@ module github.com/airenas/api-doorman
 
 go 1.25
 
+toolchain go1.25.3
+
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/airenas/go-app v1.1.2
