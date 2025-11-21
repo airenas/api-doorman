@@ -86,9 +86,12 @@ func newMainHandler(data *Data) (http.Handler, error) {
 }
 
 func (h *mainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+	op := otel.GetTextMapPropagator()
+	ctx := op.Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 	ctx, span := initSpan(ctx)
 	defer span.End()
+
+	op.Inject(ctx, propagation.HeaderCarrier(w.Header()))
 
 	for _, hi := range h.data.Handlers {
 		if hi.Valid(r) {
