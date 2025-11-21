@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/integration/cms"
 	"github.com/airenas/api-doorman/internal/pkg/model"
@@ -18,7 +20,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/net/context"
 )
 
 type (

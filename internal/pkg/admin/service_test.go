@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	adminapi "github.com/airenas/api-doorman/internal/pkg/admin/api"
 	"github.com/airenas/api-doorman/internal/pkg/model"
 	"github.com/airenas/api-doorman/internal/pkg/model/permission"
@@ -17,7 +19,6 @@ import (
 	"github.com/petergtz/pegomock/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 )
 
 var (
