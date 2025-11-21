@@ -980,16 +980,32 @@ func TestStats_OKNonSuperUser(t *testing.T) {
 	checkCode(t, resp, http.StatusOK)
 }
 
+func TestHasTraceparent(t *testing.T) {
+	t.Parallel()
+
+	key := newKey(t)
+	addCredits(t, key, 1000)
+
+	resp := newCallService(t, key.Key, 50, http.StatusOK)
+	// Log all headers
+	for k, v := range resp.Header {
+		t.Logf("Header: %s = %v", k, v)
+	}
+
+	assert.NotEmpty(t, resp.Header.Get("Traceparent"))
+}
+
 type testReq struct {
 	Text string `json:"text"`
 }
 
-func newCallService(t *testing.T, key string, size int, code int) {
+func newCallService(t *testing.T, key string, size int, code int) *http.Response {
 	t.Helper()
 
 	inTest := testReq{Text: strings.Repeat("a", size)}
 	resp := invoke(t, addAuth(newDRequest(t, http.MethodPost, "/private", inTest), key))
 	checkCode(t, resp, code)
+	return resp
 }
 
 func getKeyInfo(t *testing.T, s string) *api.Key {

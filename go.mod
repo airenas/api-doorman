@@ -1,6 +1,6 @@
 module github.com/airenas/api-doorman
 
-go 1.23.0
+go 1.25
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
@@ -28,6 +28,7 @@ require (
 	go.opentelemetry.io/otel v1.35.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.35.0
 	go.opentelemetry.io/otel/sdk v1.35.0
+	go.opentelemetry.io/otel/trace v1.35.0
 	golang.org/x/net v0.35.0
 	golang.org/x/tools v0.27.0
 )
@@ -331,7 +332,6 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.35.0 // indirect
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
-	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect

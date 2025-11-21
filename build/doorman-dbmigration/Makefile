@@ -5,7 +5,7 @@ version?=dev
 tag=$(service):$(version)
 
 dbuild: $(dist_dir)/$(executable_name)
-	cd ../../ && docker buildx build -t $(tag) --build-arg BUILD_VERSION=$(version) -f build/doorman-dbmigration/Dockerfile .
+	cd ../../ && docker buildx build -t $(tag) --build-arg BUILD_VERSION=$(version) -f build/doorman-dbmigration/Dockerfile . --load
 
 dpush: dbuild
 	docker push $(tag)
